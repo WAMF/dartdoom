@@ -37,6 +37,14 @@ class DataTableViewer extends StatelessWidget {
       return _SectorsTable(data: lumpData);
     }
 
+    if (upperName == 'PNAMES') {
+      return _PnamesTable(data: lumpData);
+    }
+
+    if (upperName == 'TEXTURE1' || upperName == 'TEXTURE2') {
+      return _TexturesTable(data: lumpData);
+    }
+
     return const SizedBox.shrink();
   }
 }
@@ -219,6 +227,53 @@ class _SectorsTable extends StatelessWidget {
         5 => sectors[row].lightLevel.toString(),
         6 => sectors[row].special.toString(),
         7 => sectors[row].tag.toString(),
+        _ => '',
+      },
+    );
+  }
+}
+
+class _PnamesTable extends StatelessWidget {
+  const _PnamesTable({required this.data});
+
+  final Uint8List data;
+
+  @override
+  Widget build(BuildContext context) {
+    final patchNames = PatchNames.parse(data);
+
+    return _buildTable(
+      context,
+      columns: const ['#', 'Patch Name'],
+      rowCount: patchNames.length,
+      cellBuilder: (row, col) => switch (col) {
+        0 => row.toString(),
+        1 => patchNames[row],
+        _ => '',
+      },
+    );
+  }
+}
+
+class _TexturesTable extends StatelessWidget {
+  const _TexturesTable({required this.data});
+
+  final Uint8List data;
+
+  @override
+  Widget build(BuildContext context) {
+    final textureLump = TextureLump.parse(data);
+
+    return _buildTable(
+      context,
+      columns: const ['#', 'Name', 'Width', 'Height', 'Patches'],
+      rowCount: textureLump.length,
+      cellBuilder: (row, col) => switch (col) {
+        0 => row.toString(),
+        1 => textureLump[row].name,
+        2 => textureLump[row].width.toString(),
+        3 => textureLump[row].height.toString(),
+        4 => textureLump[row].patches.length.toString(),
         _ => '',
       },
     );

@@ -139,6 +139,9 @@ class LumpDetailViewer extends StatelessWidget {
     'SIDEDEFS',
     'VERTEXES',
     'SECTORS',
+    'PNAMES',
+    'TEXTURE1',
+    'TEXTURE2',
   };
 }
 

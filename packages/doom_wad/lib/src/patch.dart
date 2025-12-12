@@ -121,18 +121,3 @@ class Patch {
     return result;
   }
 }
-
-class Flat {
-
-  Flat(this.data) {
-    if (data.length != dataSize) {
-      throw ArgumentError('Flat must have $dataSize bytes');
-    }
-  }
-  static const int size = 64;
-  static const int dataSize = size * size;
-
-  final Uint8List data;
-
-  int getPixel(int x, int y) => data[(y & 63) * size + (x & 63)];
-}
