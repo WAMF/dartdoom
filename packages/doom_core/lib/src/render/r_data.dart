@@ -71,8 +71,8 @@ class LevelLoader {
       (i) {
         final ms = mapSectors[i];
         return Sector(
-          floorHeight: ms.floorHeight.toFixed(),
-          ceilingHeight: ms.ceilingHeight.toFixed(),
+          floorHeight: ms.floorHeight.toFixed().s32,
+          ceilingHeight: ms.ceilingHeight.toFixed().s32,
           floorPic: _getFlatNum(ms.floorPic),
           ceilingPic: _getFlatNum(ms.ceilingPic),
           lightLevel: ms.lightLevel,
@@ -89,8 +89,8 @@ class LevelLoader {
       (i) {
         final ms = mapSidedefs[i];
         return Side(
-          textureOffset: ms.textureOffsetX.toFixed(),
-          rowOffset: ms.textureOffsetY.toFixed(),
+          textureOffset: ms.textureOffsetX.toFixed().s32,
+          rowOffset: ms.textureOffsetY.toFixed().s32,
           topTexture: _getTextureNum(ms.topTexture),
           bottomTexture: _getTextureNum(ms.bottomTexture),
           midTexture: _getTextureNum(ms.midTexture),
@@ -152,7 +152,7 @@ class LevelLoader {
         return Seg(
           v1: _vertices[ms.v1],
           v2: _vertices[ms.v2],
-          offset: ms.offset.toFixed(),
+          offset: ms.offset.toFixed().s32,
           angle: _bamFromDoomAngle(ms.angle),
           sidedef: side,
           linedef: line,
@@ -185,22 +185,22 @@ class LevelLoader {
       (i) {
         final mn = mapNodes[i];
         return Node(
-          x: mn.x.toFixed(),
-          y: mn.y.toFixed(),
-          dx: mn.dx.toFixed(),
-          dy: mn.dy.toFixed(),
+          x: mn.x.toFixed().s32,
+          y: mn.y.toFixed().s32,
+          dx: mn.dx.toFixed().s32,
+          dy: mn.dy.toFixed().s32,
           bbox: [
             Int32List.fromList([
-              mn.bbox0[_BboxIndices.top].toFixed(),
-              mn.bbox0[_BboxIndices.bottom].toFixed(),
-              mn.bbox0[_BboxIndices.left].toFixed(),
-              mn.bbox0[_BboxIndices.right].toFixed(),
+              mn.bbox0[_BboxIndices.top].toFixed().s32,
+              mn.bbox0[_BboxIndices.bottom].toFixed().s32,
+              mn.bbox0[_BboxIndices.left].toFixed().s32,
+              mn.bbox0[_BboxIndices.right].toFixed().s32,
             ]),
             Int32List.fromList([
-              mn.bbox1[_BboxIndices.top].toFixed(),
-              mn.bbox1[_BboxIndices.bottom].toFixed(),
-              mn.bbox1[_BboxIndices.left].toFixed(),
-              mn.bbox1[_BboxIndices.right].toFixed(),
+              mn.bbox1[_BboxIndices.top].toFixed().s32,
+              mn.bbox1[_BboxIndices.bottom].toFixed().s32,
+              mn.bbox1[_BboxIndices.left].toFixed().s32,
+              mn.bbox1[_BboxIndices.right].toFixed().s32,
             ]),
           ],
           children: Int32List.fromList([mn.children0, mn.children1]),

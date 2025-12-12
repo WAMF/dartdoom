@@ -6,6 +6,7 @@ import 'package:wad_explorer/src/models/lump_category.dart';
 import 'package:wad_explorer/src/widgets/data_table_viewer.dart';
 import 'package:wad_explorer/src/widgets/hex_viewer.dart';
 import 'package:wad_explorer/src/widgets/image_viewer.dart';
+import 'package:wad_explorer/src/widgets/map_viewer.dart';
 
 class LumpDetailViewer extends StatelessWidget {
   const LumpDetailViewer({
@@ -13,6 +14,7 @@ class LumpDetailViewer extends StatelessWidget {
     required this.lumpInfo,
     required this.category,
     required this.palette,
+    required this.wadManager,
     super.key,
   });
 
@@ -20,9 +22,17 @@ class LumpDetailViewer extends StatelessWidget {
   final LumpInfo lumpInfo;
   final LumpCategory category;
   final DoomPalette palette;
+  final WadManager wadManager;
 
   @override
   Widget build(BuildContext context) {
+    if (category == LumpCategory.maps) {
+      return MapViewer(
+        wadManager: wadManager,
+        mapName: lumpInfo.name,
+      );
+    }
+
     if (lumpData.isEmpty) {
       return _buildMarkerView(context);
     }

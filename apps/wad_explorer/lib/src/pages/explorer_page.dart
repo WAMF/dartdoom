@@ -211,6 +211,7 @@ class _ExplorerPageState extends State<ExplorerPage> {
                   lumpInfo: _selectedInfo!,
                   category: _selectedCategory!,
                   palette: _palette!,
+                  wadManager: _wadManager!,
                 )
               : _buildNoSelection(),
         ),

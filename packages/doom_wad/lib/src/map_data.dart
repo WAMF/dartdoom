@@ -10,8 +10,8 @@ class MapVertex {
 
   factory MapVertex.parse(WadReader reader) {
     return MapVertex(
-      reader.readInt16().toFixed(),
-      reader.readInt16().toFixed(),
+      reader.readInt16().toFixed().s32,
+      reader.readInt16().toFixed().s32,
     );
   }
   final int x;
