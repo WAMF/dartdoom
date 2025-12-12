@@ -13,6 +13,7 @@ dependencies:
     path: ../../packages/doom_math
   doom_wad:
     path: ../../packages/doom_wad
+  file_picker: ^8.0.0
   flutter:
     sdk: flutter
   kiss_dependencies: ^2.0.0
