@@ -1,0 +1,8 @@
+# melos_managed_dependency_overrides: doom_core,doom_math,doom_wad
+dependency_overrides:
+  doom_core:
+    path: ../../packages/doom_core
+  doom_math:
+    path: ../../packages/doom_math
+  doom_wad:
+    path: ../../packages/doom_wad

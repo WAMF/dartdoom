@@ -1,0 +1,26 @@
+name: doom_flutter
+description: DOOM engine Flutter frontend
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  doom_core:
+    path: ../../packages/doom_core
+  doom_math:
+    path: ../../packages/doom_math
+  doom_wad:
+    path: ../../packages/doom_wad
+  flutter:
+    sdk: flutter
+  kiss_dependencies: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^6.0.0
+
+flutter:
+  uses-material-design: true

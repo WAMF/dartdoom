@@ -1,0 +1,17 @@
+name: doom_core
+description: Core DOOM engine with platform abstractions, rendering, and game logic
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  doom_math:
+    path: ../doom_math
+  doom_wad:
+    path: ../doom_wad
+  kiss_dependencies: ^2.0.0
+
+dev_dependencies:
+  very_good_analysis: ^6.0.0

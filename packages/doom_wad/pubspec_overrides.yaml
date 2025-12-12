@@ -1,0 +1,4 @@
+# melos_managed_dependency_overrides: doom_math
+dependency_overrides:
+  doom_math:
+    path: ../doom_math

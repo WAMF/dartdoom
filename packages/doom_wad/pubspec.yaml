@@ -1,0 +1,14 @@
+name: doom_wad
+description: WAD file parsing, asset loading, and resource management for DOOM engine
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  doom_math:
+    path: ../doom_math
+
+dev_dependencies:
+  very_good_analysis: ^6.0.0

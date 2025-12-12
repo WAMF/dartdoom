@@ -1,0 +1,18 @@
+name: doom_test_harness
+description: Test harness implementation for headless DOOM engine testing
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  doom_core:
+    path: ../doom_core
+  doom_math:
+    path: ../doom_math
+  doom_wad:
+    path: ../doom_wad
+
+dev_dependencies:
+  very_good_analysis: ^6.0.0
