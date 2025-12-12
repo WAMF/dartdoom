@@ -11,6 +11,7 @@ dependencies:
     path: ../doom_math
   doom_wad:
     path: ../doom_wad
+  image: ^4.3.0
   kiss_dependencies: ^2.0.0
 
 dev_dependencies:

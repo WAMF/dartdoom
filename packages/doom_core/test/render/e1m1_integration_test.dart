@@ -7,6 +7,7 @@ import 'package:doom_core/src/render/r_main.dart';
 import 'package:doom_core/src/render/r_plane.dart';
 import 'package:doom_core/src/render/r_segs.dart';
 import 'package:doom_core/src/render/r_state.dart';
+import 'package:doom_core/src/video/frame_capture.dart';
 import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 import 'package:test/test.dart';
@@ -191,6 +192,51 @@ void main() {
 
       expect(floorSpans + ceilingSpans, greaterThan(0));
       expect(bsp, isNotNull);
+    });
+
+    test('renders frame and captures PNG', () {
+      final levelLoader = LevelLoader(textureManager);
+      final state = levelLoader.loadLevel(mapData);
+      RenderData(wadManager).initData(state);
+
+      final renderer = Renderer(state)..init();
+
+      final player1Start = mapData.things.firstWhere(
+        (t) => t.type == _ThingTypes.player1Start,
+      );
+
+      renderer.setupFrame(
+        player1Start.x.toFixed(),
+        player1Start.y.toFixed(),
+        _ViewHeight.standing.toFixed(),
+        (player1Start.angle * Angle.ang90 ~/ 90).u32.s32,
+      );
+
+      final frameBuffer = Uint8List(
+        ScreenDimensions.width * ScreenDimensions.height,
+      );
+      renderer.renderPlayerView(frameBuffer);
+
+      final playpalIndex = wadManager.getNumForName('PLAYPAL');
+      final playpalData = wadManager.readLump(playpalIndex);
+      final palette = PlayPal.parse(playpalData).palettes.first;
+
+      final capture = FrameCapture(palette);
+      final outputPath = 'test/output/e1m1_player_start.png';
+
+      final outputDir = Directory('test/output');
+      if (!outputDir.existsSync()) {
+        outputDir.createSync(recursive: true);
+      }
+
+      capture.savePngSync(frameBuffer, outputPath, scale: 2);
+
+      final outputFile = File(outputPath);
+      expect(outputFile.existsSync(), isTrue);
+      expect(outputFile.lengthSync(), greaterThan(0));
+
+      // ignore: avoid_print
+      print('Frame captured to: ${outputFile.absolute.path}');
     });
   });
 }

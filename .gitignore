@@ -22,3 +22,6 @@ coverage/
 *.g.dart
 *.freezed.dart
 *.mocks.dart
+
+# Test output
+**/test/output/
