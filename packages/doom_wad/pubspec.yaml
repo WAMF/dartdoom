@@ -11,4 +11,5 @@ dependencies:
     path: ../doom_math
 
 dev_dependencies:
+  test: ^1.24.0
   very_good_analysis: ^6.0.0
