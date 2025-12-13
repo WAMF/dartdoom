@@ -14,6 +14,8 @@ abstract final class _WeaponConstants {
   static const int numPsprites = 2;
   static const int psWeapon = 0;
   static const int psFlash = 1;
+  static const int bfgCells = 40;
+  static const int bulletRange = 16 * 64 * Fixed32.fracUnit;
 }
 
 enum PsprState {
@@ -126,21 +128,23 @@ void _weaponReady(Player player, PspriteDef psp, LevelLocals level) {
   final cmd = player.cmd;
   final isAttacking = (cmd.buttons & TicCmdButtons.attack) != 0;
   if (isAttacking) {
-    final isAutoRepeatWeapon =
-        player.readyWeapon == WeaponType.fist ||
-        player.readyWeapon == WeaponType.chainsaw;
-    if (!player.attackDown || isAutoRepeatWeapon) {
+    final isNonAutoRepeatWeapon =
+        player.readyWeapon == WeaponType.missile ||
+        player.readyWeapon == WeaponType.bfg;
+    if (!player.attackDown || !isNonAutoRepeatWeapon) {
       player.attackDown = true;
-      psp.psprState = PsprState.attack;
+      _fireWeapon(player, level);
       return;
     }
   } else {
     player.attackDown = false;
   }
 
-  final fineAngle = (level.levelTime << 6) & Angle.fineMask;
-  psp.sx = Fixed32.fracUnit + Fixed32.mul(Fixed32.fracUnit, fineCosine(fineAngle));
-  psp.sy = _WeaponConstants.weaponTop + Fixed32.mul(Fixed32.fracUnit, fineSine((fineAngle * 2) & Angle.fineMask));
+  final fineAngle = (128 * level.levelTime) & Angle.fineMask;
+  psp
+    ..sx = Fixed32.fracUnit + Fixed32.mul(player.bob, fineCosine(fineAngle))
+    ..sy = _WeaponConstants.weaponTop +
+        Fixed32.mul(player.bob, fineSine(fineAngle & (Angle.fineAngles ~/ 2 - 1)));
 }
 
 void _lowerWeapon(Player player, PspriteDef psp) {
@@ -171,6 +175,64 @@ void _raiseWeapon(Player player, PspriteDef psp) {
   }
 }
 
+bool _checkAmmo(Player player) {
+  final ammoType = weaponInfo[player.readyWeapon.index].ammo;
+
+  int count;
+  if (player.readyWeapon == WeaponType.bfg) {
+    count = _WeaponConstants.bfgCells;
+  } else if (player.readyWeapon == WeaponType.superShotgun) {
+    count = 2;
+  } else {
+    count = 1;
+  }
+
+  if (ammoType == AmmoType.noAmmo || player.ammo[ammoType.index] >= count) {
+    return true;
+  }
+
+  _selectBestWeapon(player);
+  lowerWeapon(player);
+  return false;
+}
+
+void _selectBestWeapon(Player player) {
+  if (player.weaponOwned[WeaponType.plasma.index] &&
+      player.ammo[AmmoType.cell.index] > 0) {
+    player.pendingWeapon = WeaponType.plasma;
+  } else if (player.weaponOwned[WeaponType.superShotgun.index] &&
+      player.ammo[AmmoType.shell.index] > 2) {
+    player.pendingWeapon = WeaponType.superShotgun;
+  } else if (player.weaponOwned[WeaponType.chaingun.index] &&
+      player.ammo[AmmoType.clip.index] > 0) {
+    player.pendingWeapon = WeaponType.chaingun;
+  } else if (player.weaponOwned[WeaponType.shotgun.index] &&
+      player.ammo[AmmoType.shell.index] > 0) {
+    player.pendingWeapon = WeaponType.shotgun;
+  } else if (player.ammo[AmmoType.clip.index] > 0) {
+    player.pendingWeapon = WeaponType.pistol;
+  } else if (player.weaponOwned[WeaponType.chainsaw.index]) {
+    player.pendingWeapon = WeaponType.chainsaw;
+  } else if (player.weaponOwned[WeaponType.missile.index] &&
+      player.ammo[AmmoType.missile.index] > 0) {
+    player.pendingWeapon = WeaponType.missile;
+  } else if (player.weaponOwned[WeaponType.bfg.index] &&
+      player.ammo[AmmoType.cell.index] > _WeaponConstants.bfgCells) {
+    player.pendingWeapon = WeaponType.bfg;
+  } else {
+    player.pendingWeapon = WeaponType.fist;
+  }
+}
+
+void _fireWeapon(Player player, LevelLocals level) {
+  if (!_checkAmmo(player)) return;
+
+  player.refire++;
+
+  final psp = player.psprites[_WeaponConstants.psWeapon];
+  psp.psprState = PsprState.attack;
+}
+
 void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
   final weapon = player.readyWeapon;
   final info = weaponInfo[weapon.index];
@@ -180,22 +242,31 @@ void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
       psp.psprState = PsprState.ready;
       return;
     }
-    player.ammo[info.ammo.index]--;
+    final ammoUse = weapon == WeaponType.superShotgun ? 2 : 1;
+    player.ammo[info.ammo.index] -= ammoUse;
   }
-
-  player.refire++;
 
   switch (weapon) {
     case WeaponType.fist:
-    case WeaponType.chainsaw:
       _punchAttack(player, level);
+    case WeaponType.chainsaw:
+      _sawAttack(player, level);
     case WeaponType.pistol:
+      _calcBulletSlope(player, level);
+      _gunShot(player, level, player.refire == 0);
     case WeaponType.chaingun:
-      _gunAttack(player, level, 1);
+      _calcBulletSlope(player, level);
+      _gunShot(player, level, player.refire == 0);
     case WeaponType.shotgun:
-      _gunAttack(player, level, 7);
+      _calcBulletSlope(player, level);
+      for (var i = 0; i < 7; i++) {
+        _gunShot(player, level, false);
+      }
     case WeaponType.superShotgun:
-      _gunAttack(player, level, 20);
+      _calcBulletSlope(player, level);
+      for (var i = 0; i < 20; i++) {
+        _superShotgunShot(player, level);
+      }
     case WeaponType.missile:
     case WeaponType.plasma:
     case WeaponType.bfg:
@@ -212,9 +283,15 @@ void _punchAttack(Player player, LevelLocals level) {
   final mobj = player.mobj;
   if (mobj == null) return;
 
-  final damage = ((level.levelTime % 10) + 1) * 2;
+  final rand = level.random;
+  var damage = ((rand.pRandom() % 10) + 1) << 1;
 
-  final angle = mobj.angle;
+  if (player.powers[PowerType.strength.index] > 0) {
+    damage *= 10;
+  }
+
+  final spreadAngle = (rand.pRandom() - rand.pRandom()) << 18;
+  final angle = mobj.angle + spreadAngle;
   final slope = _aimLineAttack(mobj, angle, GameConstants.meleeRange, level);
 
   _lineAttack(mobj, angle, GameConstants.meleeRange, slope, damage, level);
@@ -224,21 +301,103 @@ void _punchAttack(Player player, LevelLocals level) {
   }
 }
 
-void _gunAttack(Player player, LevelLocals level, int pellets) {
+void _sawAttack(Player player, LevelLocals level) {
   final mobj = player.mobj;
   if (mobj == null) return;
 
-  final damage = 5 * ((level.levelTime % 3) + 1);
+  final rand = level.random;
+  final damage = 2 * ((rand.pRandom() % 10) + 1);
+  final spreadAngle = (rand.pRandom() - rand.pRandom()) << 18;
+  final angle = mobj.angle + spreadAngle;
 
-  final baseAngle = mobj.angle;
-  final slope = _aimLineAttack(mobj, baseAngle, GameConstants.missileRange, level);
+  final slope = _aimLineAttack(
+    mobj,
+    angle,
+    GameConstants.meleeRange + Fixed32.fracUnit,
+    level,
+  );
+  _lineAttack(
+    mobj,
+    angle,
+    GameConstants.meleeRange + Fixed32.fracUnit,
+    slope,
+    damage,
+    level,
+  );
 
-  for (var i = 0; i < pellets; i++) {
-    final spread = ((level.levelTime + i) % 17 - 8) << 20;
-    final angle = baseAngle + spread;
+  if (_lineTarget == null) return;
 
-    _lineAttack(mobj, angle, GameConstants.missileRange, slope, damage, level);
+  final targetAngle = _pointToAngle(
+    mobj.x,
+    mobj.y,
+    _lineTarget!.x,
+    _lineTarget!.y,
+  );
+  final angleDiff = targetAngle - mobj.angle;
+  const ang90div20 = Angle.ang90 ~/ 20;
+  const ang90div21 = Angle.ang90 ~/ 21;
+
+  if (angleDiff > Angle.ang180) {
+    if (angleDiff < -ang90div20) {
+      mobj.angle = targetAngle + ang90div21;
+    } else {
+      mobj.angle -= ang90div20;
+    }
+  } else {
+    if (angleDiff > ang90div20) {
+      mobj.angle = targetAngle - ang90div21;
+    } else {
+      mobj.angle += ang90div20;
+    }
   }
+
+  mobj.flags |= MobjFlag.justAttacked;
+}
+
+int _currentBulletSlope = 0;
+
+void _calcBulletSlope(Player player, LevelLocals level) {
+  final mobj = player.mobj;
+  if (mobj == null) return;
+
+  var angle = mobj.angle;
+  _currentBulletSlope = _aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
+
+  if (_lineTarget == null) {
+    angle += 1 << 26;
+    _currentBulletSlope = _aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
+    if (_lineTarget == null) {
+      angle -= 2 << 26;
+      _currentBulletSlope = _aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
+    }
+  }
+}
+
+void _gunShot(Player player, LevelLocals level, bool accurate) {
+  final mobj = player.mobj;
+  if (mobj == null) return;
+
+  final rand = level.random;
+  final damage = 5 * ((rand.pRandom() % 3) + 1);
+  var angle = mobj.angle;
+
+  if (!accurate) {
+    angle += (rand.pRandom() - rand.pRandom()) << 18;
+  }
+
+  _lineAttack(mobj, angle, GameConstants.missileRange, _currentBulletSlope, damage, level);
+}
+
+void _superShotgunShot(Player player, LevelLocals level) {
+  final mobj = player.mobj;
+  if (mobj == null) return;
+
+  final rand = level.random;
+  final damage = 5 * ((rand.pRandom() % 3) + 1);
+  final angle = mobj.angle + ((rand.pRandom() - rand.pRandom()) << 19);
+  final slope = _currentBulletSlope + ((rand.pRandom() - rand.pRandom()) << 5);
+
+  _lineAttack(mobj, angle, GameConstants.missileRange, slope, damage, level);
 }
 
 Mobj? _lineTarget;

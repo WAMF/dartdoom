@@ -1,6 +1,7 @@
 import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_enemy.dart' as enemy;
 import 'package:doom_core/src/game/p_map.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -19,6 +20,59 @@ abstract final class _SpawnConstants {
   static const int onFloorZ = -0x7FFFFFFF;
   static const int onCeilingZ = 0x7FFFFFFF;
 }
+
+abstract final class _MonsterSpeed {
+  static const int slow = 8;
+  static const int normal = 10;
+  static const int fast = 15;
+}
+
+const Map<int, MobjInfo> _monsterInfo = {
+  3004: MobjInfo(
+    doomEdNum: 3004, spawnState: 0, spawnHealth: 20, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 200, meleeState: 0, missileState: 1, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 20 << 16, height: 56 << 16,
+    mass: 100, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+  ),
+  9: MobjInfo(
+    doomEdNum: 9, spawnState: 0, spawnHealth: 30, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 170, meleeState: 0, missileState: 1, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 20 << 16, height: 56 << 16,
+    mass: 100, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+  ),
+  3001: MobjInfo(
+    doomEdNum: 3001, spawnState: 0, spawnHealth: 60, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 200, meleeState: 1, missileState: 1, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 20 << 16, height: 56 << 16,
+    mass: 100, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+  ),
+  3002: MobjInfo(
+    doomEdNum: 3002, spawnState: 0, spawnHealth: 150, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 180, meleeState: 1, missileState: 0, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.normal, radius: 30 << 16, height: 56 << 16,
+    mass: 400, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+  ),
+  3005: MobjInfo(
+    doomEdNum: 3005, spawnState: 0, spawnHealth: 400, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 128, meleeState: 1, missileState: 1, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 31 << 16, height: 56 << 16,
+    mass: 400, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.float | MobjFlag.noGravity | MobjFlag.countKill, raiseState: 0,
+  ),
+  3006: MobjInfo(
+    doomEdNum: 3006, spawnState: 0, spawnHealth: 100, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 256, meleeState: 1, missileState: 0, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.fast, radius: 16 << 16, height: 56 << 16,
+    mass: 50, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.float | MobjFlag.noGravity | MobjFlag.countKill, raiseState: 0,
+  ),
+  3003: MobjInfo(
+    doomEdNum: 3003, spawnState: 0, spawnHealth: 1000, seeState: 1, reactionTime: 8,
+    painState: 0, painChance: 50, meleeState: 1, missileState: 1, deathState: 0,
+    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 24 << 16, height: 64 << 16,
+    mass: 1000, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+  ),
+};
+
+MobjInfo? _getMonsterInfo(int thingType) => _monsterInfo[thingType];
 
 class ThingSpawner {
   ThingSpawner(this._state);
@@ -74,6 +128,8 @@ class ThingSpawner {
   }
 
   Mobj? _spawnMobj(int x, int y, int z, ThingDef def, int thingType) {
+    final info = _getMonsterInfo(thingType);
+
     final mobj = Mobj()
       ..x = x
       ..y = y
@@ -82,7 +138,10 @@ class ThingSpawner {
       ..flags = def.flags
       ..sprite = def.sprite
       ..frame = def.frame
-      ..type = thingType;
+      ..type = thingType
+      ..info = info
+      ..health = info?.spawnHealth ?? 1000
+      ..reactionTime = info?.reactionTime ?? 8;
 
     _setThingPosition(mobj);
 
@@ -185,6 +244,40 @@ void mobjThinker(Mobj mobj, LevelLocals level) {
 
   if (mobj.z != mobj.floorZ || mobj.momZ != 0) {
     zMovement(mobj, level);
+  }
+
+  _monsterAI(mobj, level);
+}
+
+abstract final class _StateTics {
+  static const int look = 10;
+  static const int chase = 4;
+}
+
+void _monsterAI(Mobj mobj, LevelLocals level) {
+  if (mobj.player != null) return;
+
+  if ((mobj.flags & MobjFlag.countKill) == 0) return;
+
+  if (mobj.health <= 0) return;
+
+  if (mobj.tics > 0) {
+    mobj.tics--;
+    return;
+  }
+
+  if (mobj.reactionTime > 0) {
+    mobj.reactionTime--;
+    mobj.tics = _StateTics.look;
+    return;
+  }
+
+  if (mobj.target == null) {
+    enemy.aLook(mobj, level);
+    mobj.tics = _StateTics.look;
+  } else {
+    enemy.aChase(mobj, level, level.random);
+    mobj.tics = _StateTics.chase;
   }
 }
 

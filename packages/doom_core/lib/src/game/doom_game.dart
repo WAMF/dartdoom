@@ -8,6 +8,7 @@ import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_mobj.dart';
 import 'package:doom_core/src/game/p_pspr.dart';
+import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -64,6 +65,8 @@ class DoomGame {
     ThingSpawner(_renderState).spawnMapThings(mapData);
 
     _spawnPlayer(mapData);
+
+    spec.spawnSpecials(_level);
   }
 
   void _spawnPlayer(MapData mapData) {

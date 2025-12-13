@@ -15,6 +15,8 @@ class GameTicker {
       }
     }
 
+    _runAllMobjs(level);
+
     level.thinkers.runAll();
     level.levelTime++;
   }
@@ -24,6 +26,21 @@ class GameTicker {
     if (mobj == null) return;
 
     mobjThinker(mobj, level);
+  }
+
+  void _runAllMobjs(LevelLocals level) {
+    for (final sector in level.renderState.sectors) {
+      var mobj = sector.thingList;
+      while (mobj != null) {
+        final next = mobj.sNext;
+
+        if (mobj.player == null) {
+          mobjThinker(mobj, level);
+        }
+
+        mobj = next;
+      }
+    }
   }
 }
 

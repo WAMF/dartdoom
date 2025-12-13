@@ -73,6 +73,7 @@ class Sector {
 
   Mobj? thingList;
   Object? specialData;
+  Mobj? soundTarget;
 
   int soundTraversed = 0;
   int blockBox0 = 0;

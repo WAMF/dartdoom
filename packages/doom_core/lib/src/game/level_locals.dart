@@ -3,6 +3,7 @@ import 'package:doom_core/src/game/p_switch.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_state.dart';
+import 'package:doom_math/doom_math.dart';
 
 abstract final class MaxPlayers {
   static const int count = 4;
@@ -12,6 +13,7 @@ class LevelLocals {
   LevelLocals(this.renderState);
 
   final RenderState renderState;
+  final DoomRandom random = DoomRandom();
   final ThinkerList thinkers = ThinkerList();
   final List<Player> players = [];
   Blockmap? blockmap;
@@ -33,6 +35,9 @@ class LevelLocals {
   int teleportDestY = 0;
   int teleportDestZ = 0;
   int teleportTic = -1;
+
+  bool floatOk = false;
+  int tmFloorZ = 0;
 
   void init() {
     thinkers.init();

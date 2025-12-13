@@ -31,6 +31,8 @@ class CollisionContext {
 final _ctx = CollisionContext();
 
 bool tryMove(Mobj thing, int x, int y, LevelLocals level) {
+  level.floatOk = false;
+
   if (!checkPosition(thing, x, y, level)) {
     return false;
   }
@@ -39,6 +41,9 @@ bool tryMove(Mobj thing, int x, int y, LevelLocals level) {
     if (_ctx.tmCeilingZ - _ctx.tmFloorZ < thing.height) {
       return false;
     }
+
+    level.floatOk = true;
+    level.tmFloorZ = _ctx.tmFloorZ;
 
     if (_ctx.tmCeilingZ - thing.z < thing.height) {
       return false;

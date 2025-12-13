@@ -2,7 +2,10 @@ import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/player.dart';
+import 'package:doom_core/src/game/specials/ceiling_thinker.dart';
 import 'package:doom_core/src/game/specials/door_thinker.dart';
+import 'package:doom_core/src/game/specials/floor_thinker.dart';
+import 'package:doom_core/src/game/specials/light_thinker.dart';
 import 'package:doom_core/src/game/specials/plat_thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
@@ -30,6 +33,12 @@ abstract final class _LineSpecial {
   static const int switchPlatRaise = 20;
   static const int switchPlatRaise24 = 15;
   static const int switchPlatRaise32 = 14;
+
+  static const int switchFloorLower = 23;
+  static const int switchFloorRaise = 18;
+  static const int switchFloorRaiseNearest = 119;
+  static const int switchCeilingCrush = 49;
+  static const int switchCeilingStop = 57;
 
   static const int walkOpenDoor = 2;
   static const int walkCloseDoor = 3;
@@ -146,6 +155,31 @@ void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
 
     case _LineSpecial.switchPlatRaise32:
       if (evDoPlat(line, PlatType.raiseAndChange, 32, level) != null) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchFloorLower:
+      if (evDoFloor(line, FloorType.lowerFloorToLowest, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchFloorRaise:
+      if (evDoFloor(line, FloorType.raiseFloor, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchFloorRaiseNearest:
+      if (evDoFloor(line, FloorType.raiseFloorToNearest, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchCeilingCrush:
+      if (evDoCeiling(line, CeilingType.crushAndRaise, level, _activeCeilings)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchCeilingStop:
+      if (evCeilingCrushStop(line, _activeCeilings)) {
         changeSwitchTexture(line, false, level);
       }
   }
@@ -538,6 +572,17 @@ void damageMobj(Mobj target, Mobj? inflictor, Mobj? source, int damage, LevelLoc
   }
 }
 
+void setMobjStateNum(Mobj mobj, int stateNum, LevelLocals level) {
+  if (stateNum <= 0) {
+    mobj
+      ..stateNum = 0
+      ..tics = -1;
+    return;
+  }
+
+  mobj.stateNum = stateNum;
+}
+
 void killMobj(Mobj? source, Mobj target, LevelLocals level) {
   target.flags &= ~(MobjFlag.shootable | MobjFlag.float | MobjFlag.skullFly);
 
@@ -568,17 +613,57 @@ void killMobj(Mobj? source, Mobj target, LevelLocals level) {
   }
 }
 
+final ActiveCeilings _activeCeilings = ActiveCeilings();
+
 void spawnSpecials(LevelLocals level) {
+  final random = level.random;
+
   for (final sector in level.renderState.sectors) {
     switch (sector.special) {
       case _SectorSpecial.lightRandom:
+        spawnLightFlash(sector, level, random);
+
       case _SectorSpecial.lightBlink05:
+        spawnStrobeFlash(
+          sector,
+          LightConstants.fastDark,
+          level,
+          random,
+          inSync: false,
+        );
+
       case _SectorSpecial.lightBlink10:
+        spawnStrobeFlash(
+          sector,
+          LightConstants.slowDark,
+          level,
+          random,
+          inSync: false,
+        );
+
       case _SectorSpecial.lightOscillate:
+        spawnGlowingLight(sector, level);
+
       case _SectorSpecial.lightBlink05Sync:
+        spawnStrobeFlash(
+          sector,
+          LightConstants.fastDark,
+          level,
+          random,
+          inSync: true,
+        );
+
       case _SectorSpecial.lightBlink10Sync:
+        spawnStrobeFlash(
+          sector,
+          LightConstants.slowDark,
+          level,
+          random,
+          inSync: true,
+        );
+
       case _SectorSpecial.lightFlicker:
-        break;
+        spawnFireFlicker(sector, level, random);
     }
   }
 }

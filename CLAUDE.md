@@ -96,3 +96,23 @@ This helps verify correctness and debug discrepancies.
 3. **Texture Coordinate Wrapping**: Use `% length` not `& (length-1)` for non-power-of-2 sprite posts.
 
 4. **Distance Calculation**: Use proper trig (`pointToDist`), not the fast approximation.
+
+5. **Unit Awareness - Fixed-Point vs Plain Integers**: Always verify what units each value uses before combining them. The original C code mixes plain integers and fixed-point freely:
+
+   | Operation | Left operand | Right operand | Result | Method |
+   |-----------|--------------|---------------|--------|--------|
+   | Position + offset | fixed | fixed | fixed | `a + b` |
+   | Position + (speed × dir) | fixed | int × fixed | fixed | `pos + speed * dir` |
+   | fixed × fixed | fixed | fixed | fixed | `Fixed32.mul(a, b)` |
+   | int × fixed | int | fixed | fixed | `a * b` (plain multiply) |
+
+   Example from monster movement:
+   ```dart
+   // speed=8 (plain int), xspeed=65536 (fixed-point 1.0)
+   tryX = actor.x + speed * _xSpeed[moveDir];  // 8 * 65536 = 8.0 in fixed
+   ```
+
+   Before writing any calculation:
+   1. Check the original C code for `*FRACUNIT` or `<<FRACBITS`
+   2. Trace each variable back to its source to know its unit
+   3. Use `Fixed32.mul`/`Fixed32.div` only when BOTH operands are fixed-point
