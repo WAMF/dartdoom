@@ -1,8 +1,9 @@
 import 'package:doom_core/src/game/game_info.dart';
+import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
-import 'package:doom_core/src/game/p_enemy.dart' as enemy;
 import 'package:doom_core/src/game/p_map.dart';
+import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_state.dart';
@@ -29,46 +30,145 @@ abstract final class _MonsterSpeed {
 
 const Map<int, MobjInfo> _monsterInfo = {
   3004: MobjInfo(
-    doomEdNum: 3004, spawnState: 0, spawnHealth: 20, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 200, meleeState: 0, missileState: 1, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 20 << 16, height: 56 << 16,
-    mass: 100, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 3004,
+    spawnState: StateNum.possStnd,
+    spawnHealth: 20,
+    seeState: StateNum.possRun1,
+    reactionTime: 8,
+    painState: StateNum.possPain,
+    painChance: 200,
+    meleeState: 0,
+    missileState: StateNum.possAtk1,
+    deathState: StateNum.possDie1,
+    xDeathState: StateNum.possXdie1,
+    speed: _MonsterSpeed.slow,
+    radius: 20 << 16,
+    height: 56 << 16,
+    mass: 100,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: StateNum.possRaise1,
   ),
   9: MobjInfo(
-    doomEdNum: 9, spawnState: 0, spawnHealth: 30, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 170, meleeState: 0, missileState: 1, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 20 << 16, height: 56 << 16,
-    mass: 100, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 9,
+    spawnState: StateNum.sposStnd,
+    spawnHealth: 30,
+    seeState: StateNum.sposRun1,
+    reactionTime: 8,
+    painState: StateNum.sposPain,
+    painChance: 170,
+    meleeState: 0,
+    missileState: StateNum.sposAtk1,
+    deathState: StateNum.sposDie1,
+    xDeathState: StateNum.sposXdie1,
+    speed: _MonsterSpeed.slow,
+    radius: 20 << 16,
+    height: 56 << 16,
+    mass: 100,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: StateNum.sposRaise1,
   ),
   3001: MobjInfo(
-    doomEdNum: 3001, spawnState: 0, spawnHealth: 60, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 200, meleeState: 1, missileState: 1, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 20 << 16, height: 56 << 16,
-    mass: 100, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 3001,
+    spawnState: StateNum.troopStnd,
+    spawnHealth: 60,
+    seeState: StateNum.troopRun1,
+    reactionTime: 8,
+    painState: StateNum.troopPain,
+    painChance: 200,
+    meleeState: StateNum.troopAtk1,
+    missileState: StateNum.troopAtk1,
+    deathState: StateNum.troopDie1,
+    xDeathState: StateNum.troopXdie1,
+    speed: _MonsterSpeed.slow,
+    radius: 20 << 16,
+    height: 56 << 16,
+    mass: 100,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: StateNum.troopRaise1,
   ),
   3002: MobjInfo(
-    doomEdNum: 3002, spawnState: 0, spawnHealth: 150, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 180, meleeState: 1, missileState: 0, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.normal, radius: 30 << 16, height: 56 << 16,
-    mass: 400, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 3002,
+    spawnState: StateNum.sargStnd,
+    spawnHealth: 150,
+    seeState: StateNum.sargRun1,
+    reactionTime: 8,
+    painState: StateNum.sargPain,
+    painChance: 180,
+    meleeState: StateNum.sargAtk1,
+    missileState: 0,
+    deathState: StateNum.sargDie1,
+    xDeathState: 0,
+    speed: _MonsterSpeed.normal,
+    radius: 30 << 16,
+    height: 56 << 16,
+    mass: 400,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: StateNum.sargRaise1,
   ),
   3005: MobjInfo(
-    doomEdNum: 3005, spawnState: 0, spawnHealth: 400, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 128, meleeState: 1, missileState: 1, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 31 << 16, height: 56 << 16,
-    mass: 400, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.float | MobjFlag.noGravity | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 3005,
+    spawnState: StateNum.headStnd,
+    spawnHealth: 400,
+    seeState: StateNum.headRun1,
+    reactionTime: 8,
+    painState: StateNum.headPain,
+    painChance: 128,
+    meleeState: 0,
+    missileState: StateNum.headAtk1,
+    deathState: StateNum.headDie1,
+    xDeathState: 0,
+    speed: _MonsterSpeed.slow,
+    radius: 31 << 16,
+    height: 56 << 16,
+    mass: 400,
+    flags: MobjFlag.solid |
+        MobjFlag.shootable |
+        MobjFlag.float |
+        MobjFlag.noGravity |
+        MobjFlag.countKill,
+    raiseState: StateNum.headRaise1,
   ),
   3006: MobjInfo(
-    doomEdNum: 3006, spawnState: 0, spawnHealth: 100, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 256, meleeState: 1, missileState: 0, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.fast, radius: 16 << 16, height: 56 << 16,
-    mass: 50, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.float | MobjFlag.noGravity | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 3006,
+    spawnState: StateNum.skulStnd,
+    spawnHealth: 100,
+    seeState: StateNum.skulRun1,
+    reactionTime: 8,
+    painState: StateNum.skulPain,
+    painChance: 256,
+    meleeState: StateNum.skulAtk1,
+    missileState: 0,
+    deathState: StateNum.skulDie1,
+    xDeathState: 0,
+    speed: _MonsterSpeed.fast,
+    radius: 16 << 16,
+    height: 56 << 16,
+    mass: 50,
+    flags: MobjFlag.solid |
+        MobjFlag.shootable |
+        MobjFlag.float |
+        MobjFlag.noGravity |
+        MobjFlag.countKill,
+    raiseState: 0,
   ),
   3003: MobjInfo(
-    doomEdNum: 3003, spawnState: 0, spawnHealth: 1000, seeState: 1, reactionTime: 8,
-    painState: 0, painChance: 50, meleeState: 1, missileState: 1, deathState: 0,
-    xDeathState: 0, speed: _MonsterSpeed.slow, radius: 24 << 16, height: 64 << 16,
-    mass: 1000, flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill, raiseState: 0,
+    doomEdNum: 3003,
+    spawnState: StateNum.bossStnd,
+    spawnHealth: 1000,
+    seeState: StateNum.bossRun1,
+    reactionTime: 8,
+    painState: StateNum.bossPain,
+    painChance: 50,
+    meleeState: StateNum.bossAtk1,
+    missileState: StateNum.bossAtk1,
+    deathState: StateNum.bossDie1,
+    xDeathState: 0,
+    speed: _MonsterSpeed.slow,
+    radius: 24 << 16,
+    height: 64 << 16,
+    mass: 1000,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: StateNum.bossRaise1,
   ),
 };
 
@@ -142,6 +242,16 @@ class ThingSpawner {
       ..info = info
       ..health = info?.spawnHealth ?? 1000
       ..reactionTime = info?.reactionTime ?? 8;
+
+    final spawnState = info?.spawnState ?? 0;
+    if (spawnState > 0 && spawnState < states.length) {
+      final st = states[spawnState];
+      mobj
+        ..stateNum = spawnState
+        ..tics = st.tics
+        ..sprite = st.sprite
+        ..frame = st.frame;
+    }
 
     _setThingPosition(mobj);
 
@@ -238,7 +348,9 @@ class ThingSpawner {
 }
 
 void mobjThinker(Mobj mobj, LevelLocals level) {
-  if (mobj.momX != 0 || mobj.momY != 0) {
+  if (mobj.momX != 0 ||
+      mobj.momY != 0 ||
+      (mobj.flags & MobjFlag.skullFly) != 0) {
     xyMovement(mobj, level);
   }
 
@@ -246,38 +358,13 @@ void mobjThinker(Mobj mobj, LevelLocals level) {
     zMovement(mobj, level);
   }
 
-  _monsterAI(mobj, level);
-}
-
-abstract final class _StateTics {
-  static const int look = 10;
-  static const int chase = 4;
-}
-
-void _monsterAI(Mobj mobj, LevelLocals level) {
-  if (mobj.player != null) return;
-
-  if ((mobj.flags & MobjFlag.countKill) == 0) return;
-
-  if (mobj.health <= 0) return;
-
-  if (mobj.tics > 0) {
+  if (mobj.tics != -1) {
     mobj.tics--;
-    return;
-  }
 
-  if (mobj.reactionTime > 0) {
-    mobj.reactionTime--;
-    mobj.tics = _StateTics.look;
-    return;
-  }
-
-  if (mobj.target == null) {
-    enemy.aLook(mobj, level);
-    mobj.tics = _StateTics.look;
-  } else {
-    enemy.aChase(mobj, level, level.random);
-    mobj.tics = _StateTics.chase;
+    if (mobj.tics == 0) {
+      final st = states[mobj.stateNum];
+      spec.setMobjState(mobj, st.nextState, level);
+    }
   }
 }
 

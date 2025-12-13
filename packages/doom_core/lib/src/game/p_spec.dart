@@ -1,6 +1,8 @@
 import 'package:doom_core/src/doomdef.dart';
+import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_enemy.dart' as enemy;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/specials/ceiling_thinker.dart';
 import 'package:doom_core/src/game/specials/door_thinker.dart';
@@ -572,15 +574,80 @@ void damageMobj(Mobj target, Mobj? inflictor, Mobj? source, int damage, LevelLoc
   }
 }
 
-void setMobjStateNum(Mobj mobj, int stateNum, LevelLocals level) {
-  if (stateNum <= 0) {
+bool setMobjState(Mobj mobj, int stateNum, LevelLocals level) {
+  while (true) {
+    if (stateNum == StateNum.sNull) {
+      mobj
+        ..stateNum = StateNum.sNull
+        ..tics = -1;
+      return false;
+    }
+
+    if (stateNum < 0 || stateNum >= states.length) {
+      mobj.tics = -1;
+      return false;
+    }
+
+    final st = states[stateNum];
     mobj
-      ..stateNum = 0
-      ..tics = -1;
-    return;
+      ..stateNum = stateNum
+      ..tics = st.tics
+      ..sprite = st.sprite
+      ..frame = st.frame;
+
+    _executeStateAction(mobj, st.action, level);
+
+    stateNum = st.nextState;
+
+    if (mobj.tics != 0) {
+      break;
+    }
   }
 
-  mobj.stateNum = stateNum;
+  return true;
+}
+
+void _executeStateAction(Mobj mobj, StateAction action, LevelLocals level) {
+  switch (action) {
+    case StateAction.none:
+      break;
+    case StateAction.look:
+      enemy.aLook(mobj, level);
+    case StateAction.chase:
+      enemy.aChase(mobj, level, level.random);
+    case StateAction.faceTarget:
+      enemy.aFaceTarget(mobj, level.random);
+    case StateAction.posAttack:
+      enemy.aPosAttack(mobj, level.random, level);
+    case StateAction.sPosAttack:
+      enemy.aSPosAttack(mobj, level.random, level);
+    case StateAction.cPosAttack:
+      enemy.aCPosAttack(mobj, level.random, level);
+    case StateAction.cPosRefire:
+      enemy.aCPosRefire(mobj, level.random, level);
+    case StateAction.troopAttack:
+      enemy.aTroopAttack(mobj, level.random, level);
+    case StateAction.sargAttack:
+      enemy.aSargAttack(mobj, level.random, level);
+    case StateAction.headAttack:
+      enemy.aHeadAttack(mobj, level.random, level);
+    case StateAction.bruisAttack:
+      enemy.aBruisAttack(mobj, level.random, level);
+    case StateAction.skullAttack:
+      enemy.aSkullAttack(mobj);
+    case StateAction.scream:
+      enemy.aScream(mobj);
+    case StateAction.xScream:
+      enemy.aXScream(mobj);
+    case StateAction.pain:
+      enemy.aPain(mobj);
+    case StateAction.fall:
+      enemy.aFall(mobj);
+  }
+}
+
+void setMobjStateNum(Mobj mobj, int stateNum, LevelLocals level) {
+  setMobjState(mobj, stateNum, level);
 }
 
 void killMobj(Mobj? source, Mobj target, LevelLocals level) {
