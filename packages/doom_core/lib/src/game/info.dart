@@ -56,6 +56,10 @@ abstract final class SpriteNum {
   static const int keen = 52;
   static const int bbrn = 53;
   static const int bosf = 54;
+  static const int arm1 = 55;
+  static const int arm2 = 56;
+  static const int bar1 = 57;
+  static const int bexp = 58;
 }
 
 abstract final class StateNum {
@@ -316,6 +320,14 @@ abstract final class StateNum {
   static const int arachPlex3 = 238;
   static const int arachPlex4 = 239;
   static const int arachPlex5 = 240;
+
+  static const int bar1 = 241;
+  static const int bar2 = 242;
+  static const int bexp = 243;
+  static const int bexp2 = 244;
+  static const int bexp3 = 245;
+  static const int bexp4 = 246;
+  static const int bexp5 = 247;
 }
 
 enum StateAction {
@@ -626,4 +638,12 @@ const List<MobjState> states = [
   MobjState(SpriteNum.apbx, 2 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlex4),
   MobjState(SpriteNum.apbx, 3 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlex5),
   MobjState(SpriteNum.apbx, 4 | FrameFlag.fullBright, 5, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.bar1, 0, 6, StateAction.none, StateNum.bar2),
+  MobjState(SpriteNum.bar1, 1, 6, StateAction.none, StateNum.bar1),
+  MobjState(SpriteNum.bexp, 0 | FrameFlag.fullBright, 5, StateAction.none, StateNum.bexp2),
+  MobjState(SpriteNum.bexp, 1 | FrameFlag.fullBright, 5, StateAction.scream, StateNum.bexp3),
+  MobjState(SpriteNum.bexp, 2 | FrameFlag.fullBright, 5, StateAction.none, StateNum.bexp4),
+  MobjState(SpriteNum.bexp, 3 | FrameFlag.fullBright, 10, StateAction.explode, StateNum.bexp5),
+  MobjState(SpriteNum.bexp, 4 | FrameFlag.fullBright, 10, StateAction.none, StateNum.sNull),
 ];

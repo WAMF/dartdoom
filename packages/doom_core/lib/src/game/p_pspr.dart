@@ -19,6 +19,18 @@ abstract final class _WeaponConstants {
   static const int bulletRange = 16 * 64 * Fixed32.fracUnit;
 }
 
+abstract final class _WeaponAttackTics {
+  static const int fist = 12;
+  static const int pistol = 19;
+  static const int shotgun = 35;
+  static const int chaingun = 8;
+  static const int missile = 20;
+  static const int plasma = 4;
+  static const int bfg = 40;
+  static const int chainsaw = 12;
+  static const int superShotgun = 57;
+}
+
 enum PsprState {
   none,
   ready,
@@ -231,10 +243,22 @@ void _fireWeapon(Player player, LevelLocals level) {
   player.refire++;
 
   final psp = player.psprites[_WeaponConstants.psWeapon];
-  psp.psprState = PsprState.attack;
+  psp
+    ..psprState = PsprState.attack
+    ..tics = -1;
 }
 
 void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
+  if (psp.tics > 0) {
+    psp.tics--;
+    return;
+  }
+
+  if (psp.tics == 0) {
+    psp.psprState = PsprState.ready;
+    return;
+  }
+
   final weapon = player.readyWeapon;
   final info = weaponInfo[weapon.index];
 
@@ -250,36 +274,43 @@ void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
   switch (weapon) {
     case WeaponType.fist:
       _punchAttack(player, level);
+      psp.tics = _WeaponAttackTics.fist;
     case WeaponType.chainsaw:
       _sawAttack(player, level);
+      psp.tics = _WeaponAttackTics.chainsaw;
     case WeaponType.pistol:
       _calcBulletSlope(player, level);
       _gunShot(player, level, player.refire == 0);
+      psp.tics = _WeaponAttackTics.pistol;
     case WeaponType.chaingun:
       _calcBulletSlope(player, level);
       _gunShot(player, level, player.refire == 0);
+      psp.tics = _WeaponAttackTics.chaingun;
     case WeaponType.shotgun:
       _calcBulletSlope(player, level);
       for (var i = 0; i < 7; i++) {
         _gunShot(player, level, false);
       }
+      psp.tics = _WeaponAttackTics.shotgun;
     case WeaponType.superShotgun:
       _calcBulletSlope(player, level);
       for (var i = 0; i < 20; i++) {
         _superShotgunShot(player, level);
       }
+      psp.tics = _WeaponAttackTics.superShotgun;
     case WeaponType.missile:
       _fireMissile(player, level);
+      psp.tics = _WeaponAttackTics.missile;
     case WeaponType.plasma:
       _firePlasma(player, level);
+      psp.tics = _WeaponAttackTics.plasma;
     case WeaponType.bfg:
       _fireBfg(player, level);
+      psp.tics = _WeaponAttackTics.bfg;
     case WeaponType.numWeapons:
     case WeaponType.noChange:
       break;
   }
-
-  psp.psprState = PsprState.ready;
 }
 
 void _punchAttack(Player player, LevelLocals level) {

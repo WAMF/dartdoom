@@ -31,7 +31,33 @@ abstract final class _MonsterSpeed {
   static const int fast = 15;
 }
 
+abstract final class _BarrelConstants {
+  static const int thingType = 2035;
+  static const int health = 20;
+  static const int radius = 10 << 16;
+  static const int height = 42 << 16;
+}
+
 const Map<int, MobjInfo> _monsterInfo = {
+  _BarrelConstants.thingType: MobjInfo(
+    doomEdNum: _BarrelConstants.thingType,
+    spawnState: StateNum.bar1,
+    spawnHealth: _BarrelConstants.health,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.bexp,
+    xDeathState: 0,
+    speed: 0,
+    radius: _BarrelConstants.radius,
+    height: _BarrelConstants.height,
+    mass: 100,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.noBlood,
+    raiseState: 0,
+  ),
   3004: MobjInfo(
     doomEdNum: 3004,
     spawnState: StateNum.possStnd,

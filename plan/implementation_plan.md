@@ -150,11 +150,100 @@ void initializeDoom(DoomPlatform platform) {
 **Reference:** `original/linuxdoom-1.10/g_game.c`, `d_main.c`
 
 ### Phase 8: UI Systems
+
+#### 8a: HUD & Status Bar ✅ COMPLETE
+**Files created:**
+- `packages/doom_core/lib/src/video/v_video.dart` - Patch drawing (V_DrawPatch, V_CopyRect)
+- `packages/doom_core/lib/src/hud/st_lib.dart` - Status bar widgets (StNumber, StPercent, StMultIcon, StBinIcon)
+- `packages/doom_core/lib/src/hud/st_stuff.dart` - Status bar logic, face state machine
+- `packages/doom_core/lib/src/hud/hu_lib.dart` - HUD text widgets (HuTextLine, HuScrollText, HuInputText)
+- `packages/doom_core/lib/src/hud/hu_stuff.dart` - HUD message display
+
+**Files modified:**
+- `packages/doom_core/lib/src/video/palette_converter.dart` - Multi-palette support (damage red, pickup gold, radiation green)
+- `packages/doom_core/lib/src/game/doom_game.dart` - HUD integration
+
+#### 8b: Menu System
 **Files to create:**
-- `packages/doom_core/lib/src/ui/m_menu.dart` - Menu system
-- `packages/doom_core/lib/src/ui/st_stuff.dart` - Status bar
-- `packages/doom_core/lib/src/ui/hu_stuff.dart` - HUD
-- `packages/doom_core/lib/src/ui/am_map.dart` - Automap
+- `packages/doom_core/lib/src/menu/m_menu.dart` - Menu state machine and input handling
+
+**Data Structures (from m_menu.c):**
+```dart
+enum MenuItemStatus { inactive, selectable, slider }
+
+class MenuItem {
+  final MenuItemStatus status;
+  final String lumpName;      // WAD graphic (e.g. "M_NGAME")
+  final void Function(int) routine;
+  final String alphaKey;      // Hotkey
+}
+
+class MenuDef {
+  final List<MenuItem> items;
+  final MenuDef? prevMenu;
+  final void Function() drawRoutine;
+  final int x, y;
+  int lastOn;                 // Remember cursor position
+}
+```
+
+**Menu Hierarchy:**
+```
+MainMenu (M_DOOM title)
+├── New Game → EpisodeMenu → SkillMenu → Start game
+├── Options → OptionsMenu
+│   ├── End Game
+│   ├── Messages On/Off
+│   ├── Graphic Detail
+│   ├── Screen Size (slider)
+│   ├── Mouse Sensitivity (slider)
+│   └── Sound Volume → SoundMenu
+│       ├── SFX Volume (slider)
+│       └── Music Volume (slider)
+├── Load Game → LoadMenu (6 slots)
+├── Save Game → SaveMenu (6 slots with text input)
+├── Read This → Help screens
+└── Quit Game → Confirm dialog
+```
+
+**Key Features to Implement:**
+- `M_Responder(event)` - Handle ESC, arrows, Enter, hotkeys
+- `M_Ticker()` - Skull cursor animation (M_SKULL1, M_SKULL2)
+- `M_Drawer()` - Render current menu using HU font
+- `M_StartControlPanel()` - Open menu (ESC key)
+- `M_DrawThermo(x, y, width, dot)` - Slider widget
+- `M_WriteText(x, y, string)` - Text using HU font
+- Message box system with yes/no callbacks
+- Save game string editing
+
+**WAD Graphics Required:**
+| Lump | Description |
+|------|-------------|
+| M_DOOM | Title graphic |
+| M_SKULL1, M_SKULL2 | Animated cursor |
+| M_NGAME, M_OPTION, M_LOADG, M_SAVEG, M_RDTHIS, M_QUITG | Main menu items |
+| M_EPI1-4 | Episode names |
+| M_SKILL, M_JKILL, M_ROUGH, M_HURT, M_ULTRA, M_NMARE | Skill menu |
+| M_NEWG, M_OPTTTL, M_LOADG, M_SAVEG | Menu titles |
+| M_THERML, M_THERMM, M_THERMR, M_THERMO | Slider parts |
+| M_LSLEFT, M_LSCNTR, M_LSRGHT | Save slot border |
+
+**Integration:**
+- Add `menuActive` flag to game state
+- Route input to menu when active
+- Pause game logic when menu open
+- Draw menu over game view
+
+#### 8c: Automap
+**Files to create:**
+- `packages/doom_core/lib/src/automap/am_map.dart` - Automap rendering
+
+**Features:**
+- Line rendering (walls, doors, secrets in different colors)
+- Player arrow, thing markers
+- Pan/zoom controls
+- Grid overlay option
+- Follow mode toggle
 
 **Reference:** `original/linuxdoom-1.10/m_menu.c`, `st_stuff.c`, `hu_stuff.c`, `am_map.c`
 

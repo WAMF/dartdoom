@@ -210,6 +210,14 @@ class TextureManager {
     return lumpNum - _firstFlat;
   }
 
+  int checkFlatNumForName(String name) {
+    final lumpNum = _wadManager.checkNumForName(name);
+    if (lumpNum == -1) {
+      return -1;
+    }
+    return lumpNum - _firstFlat;
+  }
+
   Uint8List getFlat(int flatNum) {
     return _wadManager.cacheLumpNum(_firstFlat + flatNum);
   }

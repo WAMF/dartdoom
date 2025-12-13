@@ -18,6 +18,7 @@ class GameTicker {
     _runAllMobjs(level);
 
     level.thinkers.runAll();
+    spec.updateAnimations(level);
     level.levelTime++;
   }
 

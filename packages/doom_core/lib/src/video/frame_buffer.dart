@@ -45,5 +45,5 @@ class ScreenBuffers {
   Uint8List operator [](int index) => screens[index];
 
   Uint8List get primary => screens[0];
-  Uint8List get background => screens[1];
+  Uint8List get statusBarBackground => screens[4];
 }

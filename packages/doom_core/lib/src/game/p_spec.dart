@@ -827,3 +827,129 @@ void respawnPlayer(Player player, LevelLocals level) {
 
   player.playerState = PlayerState.live;
 }
+
+class _AnimDef {
+  const _AnimDef({
+    required this.isTexture,
+    required this.endName,
+    required this.startName,
+    required this.speed,
+  });
+
+  final bool isTexture;
+  final String endName;
+  final String startName;
+  final int speed;
+}
+
+class _Anim {
+  _Anim({
+    required this.isTexture,
+    required this.picNum,
+    required this.basePic,
+    required this.numPics,
+    required this.speed,
+  });
+
+  final bool isTexture;
+  final int picNum;
+  final int basePic;
+  final int numPics;
+  final int speed;
+}
+
+abstract final class _AnimSpeed {
+  static const int standard = 8;
+}
+
+const List<_AnimDef> _animDefs = [
+  _AnimDef(isTexture: false, endName: 'NUKAGE3', startName: 'NUKAGE1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'FWATER4', startName: 'FWATER1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'SWATER4', startName: 'SWATER1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'LAVA4', startName: 'LAVA1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'BLOOD3', startName: 'BLOOD1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'RROCK08', startName: 'RROCK05', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'SLIME04', startName: 'SLIME01', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'SLIME08', startName: 'SLIME05', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: false, endName: 'SLIME12', startName: 'SLIME09', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'BLODGR4', startName: 'BLODGR1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'SLADRIP3', startName: 'SLADRIP1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'BLODRIP4', startName: 'BLODRIP1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'FIREWALL', startName: 'FIREWALA', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'GSTFONT3', startName: 'GSTFONT1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'FIRELAVA', startName: 'FIRELAV3', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'FIREMAG3', startName: 'FIREMAG1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'FIREBLU2', startName: 'FIREBLU1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'ROCKRED3', startName: 'ROCKRED1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'BFALL4', startName: 'BFALL1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'SFALL4', startName: 'SFALL1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'WFALL4', startName: 'WFALL1', speed: _AnimSpeed.standard),
+  _AnimDef(isTexture: true, endName: 'DBRAIN4', startName: 'DBRAIN1', speed: _AnimSpeed.standard),
+];
+
+List<_Anim> _anims = [];
+
+void initPicAnims(LevelLocals level) {
+  final textureManager = level.renderState.textureManager;
+  if (textureManager == null) return;
+
+  _anims = [];
+
+  for (final def in _animDefs) {
+    if (def.isTexture) {
+      final startNum = textureManager.checkTextureNumForName(def.startName);
+      if (startNum == -1) continue;
+
+      final endNum = textureManager.checkTextureNumForName(def.endName);
+      if (endNum == -1) continue;
+
+      final numPics = endNum - startNum + 1;
+      if (numPics < 2) continue;
+
+      _anims.add(_Anim(
+        isTexture: true,
+        picNum: endNum,
+        basePic: startNum,
+        numPics: numPics,
+        speed: def.speed,
+      ));
+    } else {
+      final startNum = textureManager.checkFlatNumForName(def.startName);
+      if (startNum == -1) continue;
+
+      final endNum = textureManager.checkFlatNumForName(def.endName);
+      if (endNum == -1) continue;
+
+      final numPics = endNum - startNum + 1;
+      if (numPics < 2) continue;
+
+      _anims.add(_Anim(
+        isTexture: false,
+        picNum: endNum,
+        basePic: startNum,
+        numPics: numPics,
+        speed: def.speed,
+      ));
+    }
+  }
+}
+
+void updateAnimations(LevelLocals level) {
+  final state = level.renderState;
+  final levelTime = level.levelTime;
+
+  for (final anim in _anims) {
+    for (var i = anim.basePic; i < anim.basePic + anim.numPics; i++) {
+      final pic = anim.basePic + ((levelTime ~/ anim.speed + i) % anim.numPics);
+      if (anim.isTexture) {
+        if (i < state.textureTranslation.length) {
+          state.textureTranslation[i] = pic;
+        }
+      } else {
+        if (i < state.flatTranslation.length) {
+          state.flatTranslation[i] = pic;
+        }
+      }
+    }
+  }
+}

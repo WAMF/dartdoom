@@ -10,10 +10,14 @@ import 'package:doom_core/src/game/p_mobj.dart';
 import 'package:doom_core/src/game/p_pspr.dart';
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
+import 'package:doom_core/src/hud/hu_stuff.dart';
+import 'package:doom_core/src/hud/st_stuff.dart';
 import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_main.dart';
 import 'package:doom_core/src/render/r_state.dart';
+import 'package:doom_core/src/video/frame_buffer.dart';
+import 'package:doom_core/src/video/palette_converter.dart';
 import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 
@@ -30,12 +34,19 @@ class DoomGame {
   late GameTicker _ticker;
   final InputHandler input = InputHandler();
 
+  final StatusBar _statusBar = StatusBar();
+  final HudMessages _hudMessages = HudMessages();
+  final PaletteConverter _paletteConverter = PaletteConverter();
+  final ScreenBuffers _screenBuffers = ScreenBuffers();
+
   final int _consoleplayer = 0;
+  bool _hudNeedsRefresh = true;
 
   RenderState get renderState => _renderState;
   Renderer get renderer => _renderer;
   LevelLocals get level => _level;
   int get consoleplayer => _consoleplayer;
+  PaletteConverter get paletteConverter => _paletteConverter;
 
   Player get player => _level.players[_consoleplayer];
 
@@ -43,6 +54,13 @@ class DoomGame {
     _wadManager = WadManager()..addWad(wadBytes);
     _textureManager = TextureManager(_wadManager)..init();
     _ticker = GameTicker();
+
+    _statusBar.loadGraphics(_wadManager);
+    _hudMessages.loadFont(_wadManager);
+
+    final playPalData = _wadManager.cacheLumpName('PLAYPAL');
+    final playPal = PlayPal.parse(playPalData);
+    _paletteConverter.loadPalettes(playPal);
   }
 
   void loadLevel(String mapName) {
@@ -68,6 +86,11 @@ class DoomGame {
     _spawnPlayer(mapData);
 
     spec.spawnSpecials(_level);
+    spec.initPicAnims(_level);
+
+    _statusBar.init(player, _screenBuffers.screens);
+    _hudMessages.init(player, _screenBuffers.primary, levelName: mapName);
+    _hudNeedsRefresh = true;
   }
 
   void _spawnPlayer(MapData mapData) {
@@ -89,19 +112,19 @@ class DoomGame {
         final ss = mobj.subsector;
         if (ss is! Subsector) continue;
 
-        mobj.floorZ = ss.sector.floorHeight;
-        mobj.ceilingZ = ss.sector.ceilingHeight;
-        mobj.z = mobj.floorZ;
-
-        final player = _level.players[_consoleplayer];
-        player.mobj = mobj;
-        mobj.player = player;
-        player.playerState = PlayerState.live;
-        player.health = PlayerConstants.maxHealth;
-        player.viewHeight = PlayerConstants.viewHeight;
-        player.viewZ = mobj.z + player.viewHeight;
-
         mobj
+          ..floorZ = ss.sector.floorHeight
+          ..ceilingZ = ss.sector.ceilingHeight
+          ..z = ss.sector.floorHeight;
+
+        final player = _level.players[_consoleplayer]
+          ..mobj = mobj
+          ..playerState = PlayerState.live
+          ..health = PlayerConstants.maxHealth
+          ..viewHeight = PlayerConstants.viewHeight
+          ..viewZ = mobj.z + PlayerConstants.viewHeight;
+        mobj
+          ..player = player
           ..spawnX = x
           ..spawnY = y
           ..spawnAngle = mobj.angle
@@ -149,8 +172,9 @@ class DoomGame {
   void _linkToSector(Mobj mobj, Sector sector) {
     if ((mobj.flags & MobjFlag.noSector) != 0) return;
 
-    mobj.sPrev = null;
-    mobj.sNext = sector.thingList;
+    mobj
+      ..sPrev = null
+      ..sNext = sector.thingList;
 
     if (sector.thingList != null) {
       sector.thingList!.sPrev = mobj;
@@ -169,8 +193,9 @@ class DoomGame {
     final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
     if (blockmap.isValidBlock(blockX, blockY)) {
       final index = blockY * blockmap.columns + blockX;
-      mobj.bPrev = null;
-      mobj.bNext = blockLinks[index];
+      mobj
+        ..bPrev = null
+        ..bNext = blockLinks[index];
       if (blockLinks[index] != null) {
         blockLinks[index]!.bPrev = mobj;
       }
@@ -209,20 +234,56 @@ class DoomGame {
     final cmd = player.cmd;
     input.buildTicCmd(cmd);
     _ticker.tick(_level);
+
+    _statusBar.ticker();
+    _hudMessages.ticker();
   }
 
   void render(Uint8List frameBuffer) {
     final mobj = player.mobj;
     if (mobj == null) return;
 
-    _renderer.setupFrame(
-      mobj.x,
-      mobj.y,
-      player.viewZ,
-      mobj.angle,
-    );
+    _renderer
+      ..setupFrame(
+        mobj.x,
+        mobj.y,
+        player.viewZ,
+        mobj.angle,
+      )
+      ..renderPlayerView(_screenBuffers.primary);
 
-    _renderer.renderPlayerView(frameBuffer);
+    _statusBar.drawer(refresh: _hudNeedsRefresh);
+    _hudMessages.drawer();
+    _hudNeedsRefresh = false;
+
+    _paletteConverter.updatePaletteForPlayer(player);
+
+    for (var i = 0; i < ScreenConstants.pixelCount; i++) {
+      frameBuffer[i] = _screenBuffers.primary[i];
+    }
+  }
+
+  void renderWithPalette(Uint8List rgbaBuffer) {
+    final indexedBuffer = _screenBuffers.primary;
+    final mobj = player.mobj;
+    if (mobj == null) return;
+
+    _renderer
+      ..setupFrame(
+        mobj.x,
+        mobj.y,
+        player.viewZ,
+        mobj.angle,
+      )
+      ..renderPlayerView(indexedBuffer);
+
+    _statusBar.drawer(refresh: _hudNeedsRefresh);
+    _hudMessages.drawer();
+    _hudNeedsRefresh = false;
+
+    _paletteConverter
+      ..updatePaletteForPlayer(player)
+      ..convertFrame(indexedBuffer, rgbaBuffer);
   }
 
   void keyDown(int keyCode) {
