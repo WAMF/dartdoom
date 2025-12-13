@@ -4,6 +4,8 @@ import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_enemy.dart' as enemy;
 import 'package:doom_core/src/game/p_inter.dart' as inter;
+import 'package:doom_core/src/game/p_pspr.dart' as pspr;
+import 'package:doom_core/src/game/p_sight.dart' as sight;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/specials/ceiling_thinker.dart';
 import 'package:doom_core/src/game/specials/door_thinker.dart';
@@ -73,6 +75,14 @@ abstract final class _LineSpecial {
 
 abstract final class _ThingType {
   static const int teleportDest = 14;
+}
+
+abstract final class _ExplodeDamage {
+  static const int radius = 128;
+}
+
+abstract final class _RadiusAttack {
+  static const int maxRadius = 32 * Fixed32.fracUnit;
 }
 
 abstract final class _SectorSpecial {
@@ -599,6 +609,109 @@ void _executeStateAction(Mobj mobj, StateAction action, LevelLocals level) {
       enemy.aPain(mobj);
     case StateAction.fall:
       enemy.aFall(mobj);
+    case StateAction.explode:
+      _explode(mobj, level);
+    case StateAction.bfgSpray:
+      _bfgSpray(mobj, level);
+    case StateAction.tracer:
+      enemy.aTracer(mobj, level);
+    case StateAction.cyberAttack:
+      enemy.aCyberAttack(mobj, level);
+    case StateAction.spidRefire:
+      enemy.aSpidRefire(mobj, level.random, level);
+    case StateAction.bspiAttack:
+      enemy.aBspiAttack(mobj, level);
+    case StateAction.fatAttack1:
+      enemy.aFatAttack1(mobj, level);
+    case StateAction.fatAttack2:
+      enemy.aFatAttack2(mobj, level);
+    case StateAction.fatAttack3:
+      enemy.aFatAttack3(mobj, level);
+    case StateAction.fatRaise:
+      enemy.aFatRaise(mobj, level.random);
+    case StateAction.skelMissile:
+      enemy.aSkelMissile(mobj, level);
+    case StateAction.skelWhoosh:
+      enemy.aSkelWhoosh(mobj, level.random);
+    case StateAction.painAttack:
+      enemy.aPainAttack(mobj, level);
+    case StateAction.painDie:
+      enemy.aPainDie(mobj, level);
+  }
+}
+
+void _explode(Mobj mobj, LevelLocals level) {
+  radiusAttack(mobj, mobj.target, _ExplodeDamage.radius, level);
+}
+
+void _bfgSpray(Mobj mobj, LevelLocals level) {
+  final source = mobj.target;
+  if (source == null) return;
+
+  const bfgRange = 16 * 64 * Fixed32.fracUnit;
+
+  for (var i = 0; i < 40; i++) {
+    final an = (mobj.angle - Angle.ang90 ~/ 2 + (Angle.ang90 ~/ 40) * i).u32.s32;
+    pspr.aimLineAttack(source, an, bfgRange, level);
+
+    final target = pspr.lineTarget;
+    if (target == null) continue;
+
+    var damage = 0;
+    for (var j = 0; j < 15; j++) {
+      damage += (level.random.pRandom() & 7) + 1;
+    }
+
+    inter.damageMobj(target, source, source, damage, level);
+  }
+}
+
+void radiusAttack(Mobj spot, Mobj? source, int damage, LevelLocals level) {
+  final blockmap = level.blockmap;
+  final blockLinks = level.blockLinks;
+
+  if (blockmap == null || blockLinks == null) return;
+
+  final dist = (damage + _RadiusAttack.maxRadius) << Fixed32.fracBits;
+  final (xl, yl) = blockmap.worldToBlock(spot.x - dist, spot.y - dist);
+  final (xh, yh) = blockmap.worldToBlock(spot.x + dist, spot.y + dist);
+
+  for (var by = yl; by <= yh; by++) {
+    for (var bx = xl; bx <= xh; bx++) {
+      if (!blockmap.isValidBlock(bx, by)) continue;
+
+      final index = by * blockmap.columns + bx;
+      var thing = blockLinks[index];
+
+      while (thing != null) {
+        final next = thing.bNext;
+        _pitRadiusAttack(thing, spot, source, damage, level);
+        thing = next;
+      }
+    }
+  }
+}
+
+void _pitRadiusAttack(
+  Mobj thing,
+  Mobj spot,
+  Mobj? source,
+  int damage,
+  LevelLocals level,
+) {
+  if ((thing.flags & MobjFlag.shootable) == 0) return;
+
+  final dx = (thing.x - spot.x).abs();
+  final dy = (thing.y - spot.y).abs();
+
+  var dist = dx > dy ? dx : dy;
+  dist = (dist - thing.radius) >> Fixed32.fracBits;
+
+  if (dist < 0) dist = 0;
+  if (dist >= damage) return;
+
+  if (sight.checkSight(thing, spot, level.renderState)) {
+    inter.damageMobj(thing, spot, source, damage - dist, level);
   }
 }
 

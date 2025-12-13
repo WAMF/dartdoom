@@ -2,6 +2,7 @@ import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/events/tic_cmd.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_mobj.dart' show MobjType, spawnPlayerMissile;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_math/doom_math.dart';
@@ -268,9 +269,11 @@ void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
         _superShotgunShot(player, level);
       }
     case WeaponType.missile:
+      _fireMissile(player, level);
     case WeaponType.plasma:
+      _firePlasma(player, level);
     case WeaponType.bfg:
-      break;
+      _fireBfg(player, level);
     case WeaponType.numWeapons:
     case WeaponType.noChange:
       break;
@@ -292,12 +295,12 @@ void _punchAttack(Player player, LevelLocals level) {
 
   final spreadAngle = (rand.pRandom() - rand.pRandom()) << 18;
   final angle = mobj.angle + spreadAngle;
-  final slope = _aimLineAttack(mobj, angle, GameConstants.meleeRange, level);
+  final slope = aimLineAttack(mobj, angle, GameConstants.meleeRange, level);
 
   _lineAttack(mobj, angle, GameConstants.meleeRange, slope, damage, level);
 
-  if (_lineTarget != null) {
-    mobj.angle = _pointToAngle(mobj.x, mobj.y, _lineTarget!.x, _lineTarget!.y);
+  if (lineTarget != null) {
+    mobj.angle = _pointToAngle(mobj.x, mobj.y, lineTarget!.x, lineTarget!.y);
   }
 }
 
@@ -310,7 +313,7 @@ void _sawAttack(Player player, LevelLocals level) {
   final spreadAngle = (rand.pRandom() - rand.pRandom()) << 18;
   final angle = mobj.angle + spreadAngle;
 
-  final slope = _aimLineAttack(
+  final slope = aimLineAttack(
     mobj,
     angle,
     GameConstants.meleeRange + Fixed32.fracUnit,
@@ -325,13 +328,13 @@ void _sawAttack(Player player, LevelLocals level) {
     level,
   );
 
-  if (_lineTarget == null) return;
+  if (lineTarget == null) return;
 
   final targetAngle = _pointToAngle(
     mobj.x,
     mobj.y,
-    _lineTarget!.x,
-    _lineTarget!.y,
+    lineTarget!.x,
+    lineTarget!.y,
   );
   final angleDiff = targetAngle - mobj.angle;
   const ang90div20 = Angle.ang90 ~/ 20;
@@ -361,14 +364,14 @@ void _calcBulletSlope(Player player, LevelLocals level) {
   if (mobj == null) return;
 
   var angle = mobj.angle;
-  _currentBulletSlope = _aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
+  _currentBulletSlope = aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
 
-  if (_lineTarget == null) {
+  if (lineTarget == null) {
     angle += 1 << 26;
-    _currentBulletSlope = _aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
-    if (_lineTarget == null) {
+    _currentBulletSlope = aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
+    if (lineTarget == null) {
       angle -= 2 << 26;
-      _currentBulletSlope = _aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
+      _currentBulletSlope = aimLineAttack(mobj, angle, _WeaponConstants.bulletRange, level);
     }
   }
 }
@@ -400,11 +403,32 @@ void _superShotgunShot(Player player, LevelLocals level) {
   _lineAttack(mobj, angle, GameConstants.missileRange, slope, damage, level);
 }
 
-Mobj? _lineTarget;
+void _fireMissile(Player player, LevelLocals level) {
+  final mobj = player.mobj;
+  if (mobj == null) return;
+
+  spawnPlayerMissile(mobj, MobjType.rocket, level.renderState, level);
+}
+
+void _firePlasma(Player player, LevelLocals level) {
+  final mobj = player.mobj;
+  if (mobj == null) return;
+
+  spawnPlayerMissile(mobj, MobjType.plasma, level.renderState, level);
+}
+
+void _fireBfg(Player player, LevelLocals level) {
+  final mobj = player.mobj;
+  if (mobj == null) return;
+
+  spawnPlayerMissile(mobj, MobjType.bfg, level.renderState, level);
+}
+
+Mobj? lineTarget;
 int _aimSlope = 0;
 
-int _aimLineAttack(Mobj source, int angle, int distance, LevelLocals level) {
-  _lineTarget = null;
+int aimLineAttack(Mobj source, int angle, int distance, LevelLocals level) {
+  lineTarget = null;
   _aimSlope = 0;
 
   final fineAngle = (angle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
@@ -457,7 +481,7 @@ int _aimLineAttack(Mobj source, int angle, int distance, LevelLocals level) {
   }
 
   if (bestTarget != null) {
-    _lineTarget = bestTarget;
+    lineTarget = bestTarget;
     final dz = (bestTarget.z + (bestTarget.height >> 1)) - (source.z + (source.height >> 1));
     if (bestDist > 0) {
       _aimSlope = Fixed32.div(dz, bestDist);

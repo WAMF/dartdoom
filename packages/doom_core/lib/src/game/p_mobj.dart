@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_map.dart';
+import 'package:doom_core/src/game/p_pspr.dart' show aimLineAttack, lineTarget;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -173,6 +176,208 @@ const Map<int, MobjInfo> _monsterInfo = {
 };
 
 MobjInfo? _getMonsterInfo(int thingType) => _monsterInfo[thingType];
+
+abstract final class MobjType {
+  static const int troopShot = -1;
+  static const int headShot = -2;
+  static const int bruiserShot = -3;
+  static const int rocket = -4;
+  static const int plasma = -5;
+  static const int bfg = -6;
+  static const int arachPlaz = -7;
+  static const int tracer = -8;
+  static const int fatShot = -9;
+}
+
+const _missileFlags = MobjFlag.noBlockmap |
+    MobjFlag.missile |
+    MobjFlag.dropOff |
+    MobjFlag.noGravity;
+
+const Map<int, MobjInfo> _projectileInfo = {
+  MobjType.troopShot: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.tball1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.tballx1,
+    xDeathState: 0,
+    speed: 10 * Fixed32.fracUnit,
+    radius: 6 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 3,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.headShot: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.rball1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.rballx1,
+    xDeathState: 0,
+    speed: 10 * Fixed32.fracUnit,
+    radius: 6 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 5,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.bruiserShot: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.brball1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.brballx1,
+    xDeathState: 0,
+    speed: 15 * Fixed32.fracUnit,
+    radius: 6 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 8,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.rocket: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.rocket,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.explode1,
+    xDeathState: 0,
+    speed: 20 * Fixed32.fracUnit,
+    radius: 11 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 20,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.plasma: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.plasball1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.plasexp1,
+    xDeathState: 0,
+    speed: 25 * Fixed32.fracUnit,
+    radius: 13 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 5,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.bfg: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.bfgshot1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.bfgland1,
+    xDeathState: 0,
+    speed: 25 * Fixed32.fracUnit,
+    radius: 13 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 100,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.arachPlaz: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.arachPlaz1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.arachPlex1,
+    xDeathState: 0,
+    speed: 25 * Fixed32.fracUnit,
+    radius: 13 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 5,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.tracer: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.tracer1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.traceexp1,
+    xDeathState: 0,
+    speed: 10 * Fixed32.fracUnit,
+    radius: 11 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 10,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+  MobjType.fatShot: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.fatshot1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: StateNum.fatshotx1,
+    xDeathState: 0,
+    speed: 20 * Fixed32.fracUnit,
+    radius: 6 * Fixed32.fracUnit,
+    height: 8 * Fixed32.fracUnit,
+    mass: 100,
+    damage: 8,
+    flags: _missileFlags,
+    raiseState: 0,
+  ),
+};
+
+MobjInfo? getProjectileInfo(int mobjType) => _projectileInfo[mobjType];
 
 class ThingSpawner {
   ThingSpawner(this._state, this._level);
@@ -508,4 +713,255 @@ int _approxDist(int dx, int dy) {
     return dx + dy - (dx >> 1);
   }
   return dx + dy - (dy >> 1);
+}
+
+abstract final class _MissileConstants {
+  static const int spawnZOffset = 32 * Fixed32.fracUnit;
+}
+
+Mobj? spawnMobj(
+  int x,
+  int y,
+  int z,
+  int mobjType,
+  RenderState state,
+  LevelLocals level,
+) {
+  final info = getProjectileInfo(mobjType);
+  if (info == null) return null;
+
+  final mobj = Mobj()
+    ..x = x
+    ..y = y
+    ..type = mobjType
+    ..info = info
+    ..radius = info.radius
+    ..height = info.height
+    ..flags = info.flags
+    ..health = info.spawnHealth
+    ..reactionTime = info.reactionTime;
+
+  final spawnState = info.spawnState;
+  if (spawnState > 0 && spawnState < states.length) {
+    final st = states[spawnState];
+    mobj
+      ..stateNum = spawnState
+      ..tics = st.tics
+      ..sprite = st.sprite
+      ..frame = st.frame;
+  }
+
+  _setMobjPosition(mobj, state, level);
+
+  final ss = mobj.subsector;
+  if (ss == null || ss is! Subsector) return null;
+
+  mobj.floorZ = ss.sector.floorHeight;
+  mobj.ceilingZ = ss.sector.ceilingHeight;
+
+  if (z == _SpawnConstants.onFloorZ) {
+    mobj.z = mobj.floorZ;
+  } else if (z == _SpawnConstants.onCeilingZ) {
+    mobj.z = mobj.ceilingZ - mobj.height;
+  } else {
+    mobj.z = z;
+  }
+
+  return mobj;
+}
+
+void _setMobjPosition(Mobj mobj, RenderState state, LevelLocals level) {
+  final ss = _pointInSubsectorGlobal(mobj.x, mobj.y, state);
+  if (ss == null) return;
+
+  mobj.subsector = ss;
+
+  if ((mobj.flags & MobjFlag.noSector) == 0) {
+    final sector = ss.sector;
+    mobj.sPrev = null;
+    mobj.sNext = sector.thingList;
+    if (sector.thingList != null) {
+      sector.thingList!.sPrev = mobj;
+    }
+    sector.thingList = mobj;
+  }
+
+  if ((mobj.flags & MobjFlag.noBlockmap) == 0) {
+    final blockmap = level.blockmap;
+    final blockLinks = level.blockLinks;
+    if (blockmap != null && blockLinks != null) {
+      final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
+      if (blockmap.isValidBlock(blockX, blockY)) {
+        final index = blockY * blockmap.columns + blockX;
+        mobj.bPrev = null;
+        mobj.bNext = blockLinks[index];
+        if (blockLinks[index] != null) {
+          blockLinks[index]!.bPrev = mobj;
+        }
+        blockLinks[index] = mobj;
+      }
+    }
+  }
+}
+
+Subsector? _pointInSubsectorGlobal(int x, int y, RenderState state) {
+  if (state.nodes.isEmpty) {
+    return state.subsectors.isNotEmpty ? state.subsectors[0] : null;
+  }
+
+  var nodeNum = state.nodes.length - 1;
+
+  while (!BspConstants.isSubsector(nodeNum)) {
+    final node = state.nodes[nodeNum];
+    final side = _pointOnSideGlobal(x, y, node);
+    nodeNum = node.children[side];
+  }
+
+  return state.subsectors[BspConstants.getIndex(nodeNum)];
+}
+
+int _pointOnSideGlobal(int x, int y, Node node) {
+  if (node.dx == 0) {
+    if (x <= node.x) {
+      return node.dy > 0 ? 1 : 0;
+    }
+    return node.dy < 0 ? 1 : 0;
+  }
+  if (node.dy == 0) {
+    if (y <= node.y) {
+      return node.dx < 0 ? 1 : 0;
+    }
+    return node.dx > 0 ? 1 : 0;
+  }
+
+  final dx = x - node.x;
+  final dy = y - node.y;
+
+  final left = Fixed32.mul(node.dy >> Fixed32.fracBits, dx);
+  final right = Fixed32.mul(dy, node.dx >> Fixed32.fracBits);
+
+  return right < left ? 0 : 1;
+}
+
+Mobj? spawnMissile(
+  Mobj source,
+  Mobj dest,
+  int mobjType,
+  RenderState state,
+  LevelLocals level,
+) {
+  final z = source.z + _MissileConstants.spawnZOffset;
+  final th = spawnMobj(source.x, source.y, z, mobjType, state, level);
+  if (th == null) return null;
+
+  th.target = source;
+
+  var an = _pointToAngle(source.x, source.y, dest.x, dest.y);
+
+  if ((dest.flags & MobjFlag.shadow) != 0) {
+    an += (level.random.pRandom() - level.random.pRandom()) << 20;
+  }
+
+  th.angle = an;
+  final fineAngle = an.u32 >> Angle.angleToFineShift;
+  final speed = th.info!.speed;
+  th
+    ..momX = Fixed32.mul(speed, fineCosine(fineAngle))
+    ..momY = Fixed32.mul(speed, fineSine(fineAngle));
+
+  final dist = _approxDist(dest.x - source.x, dest.y - source.y);
+  var numDist = dist ~/ speed;
+  if (numDist < 1) numDist = 1;
+
+  th.momZ = (dest.z - source.z) ~/ numDist;
+
+  _checkMissileSpawn(th, level);
+
+  return th;
+}
+
+Mobj? spawnPlayerMissile(
+  Mobj source,
+  int mobjType,
+  RenderState state,
+  LevelLocals level,
+) {
+  var an = source.angle;
+  var slope = aimLineAttack(source, an, _bulletRange, level);
+
+  if (lineTarget == null) {
+    an += 1 << 26;
+    slope = aimLineAttack(source, an, _bulletRange, level);
+
+    if (lineTarget == null) {
+      an -= 2 << 26;
+      slope = aimLineAttack(source, an, _bulletRange, level);
+    }
+
+    if (lineTarget == null) {
+      an = source.angle;
+      slope = 0;
+    }
+  }
+
+  final x = source.x;
+  final y = source.y;
+  final z = source.z + _MissileConstants.spawnZOffset;
+
+  final th = spawnMobj(x, y, z, mobjType, state, level);
+  if (th == null) return null;
+
+  th.target = source;
+  th.angle = an;
+
+  final fineAngle = an.u32 >> Angle.angleToFineShift;
+  final speed = th.info!.speed;
+  th
+    ..momX = Fixed32.mul(speed, fineCosine(fineAngle))
+    ..momY = Fixed32.mul(speed, fineSine(fineAngle))
+    ..momZ = Fixed32.mul(speed, slope);
+
+  _checkMissileSpawn(th, level);
+
+  return th;
+}
+
+const _bulletRange = 16 * 64 * Fixed32.fracUnit;
+
+void _checkMissileSpawn(Mobj th, LevelLocals level) {
+  th.tics -= level.random.pRandom() & 3;
+  if (th.tics < 1) th.tics = 1;
+
+  th
+    ..x += th.momX >> 1
+    ..y += th.momY >> 1
+    ..z += th.momZ >> 1;
+
+  if (!tryMove(th, th.x, th.y, level)) {
+    explodeMissile(th, level);
+  }
+}
+
+void explodeMissile(Mobj mo, LevelLocals level) {
+  mo
+    ..momX = 0
+    ..momY = 0
+    ..momZ = 0;
+
+  final info = mo.info;
+  if (info != null && info.deathState > 0) {
+    spec.setMobjStateNum(mo, info.deathState, level);
+  }
+
+  mo.flags &= ~MobjFlag.missile;
+
+  if (mo.tics < 1) mo.tics = 1;
+}
+
+int _pointToAngle(int x1, int y1, int x2, int y2) {
+  final dx = x2 - x1;
+  final dy = y2 - y1;
+  if (dx == 0 && dy == 0) return 0;
+  return (math.atan2(dy.toDouble(), dx.toDouble()) * (0x80000000 / math.pi))
+      .toInt();
 }

@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_map.dart' as map;
+import 'package:doom_core/src/game/p_mobj.dart'
+    show MobjType, spawnMissile;
 import 'package:doom_core/src/game/p_sight.dart' as sight;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/render/r_defs.dart';
@@ -527,7 +529,10 @@ void aTroopAttack(Mobj actor, DoomRandom random, LevelLocals level) {
   if (checkMeleeRange(actor, target)) {
     final damage = (random.pRandom() % 8 + 1) * 3;
     spec.damageMobj(target, actor, actor, damage, level);
+    return;
   }
+
+  spawnMissile(actor, target, MobjType.troopShot, level.renderState, level);
 }
 
 void aSargAttack(Mobj actor, DoomRandom random, LevelLocals level) {
@@ -551,7 +556,10 @@ void aHeadAttack(Mobj actor, DoomRandom random, LevelLocals level) {
   if (checkMeleeRange(actor, target)) {
     final damage = (random.pRandom() % 6 + 1) * 10;
     spec.damageMobj(target, actor, actor, damage, level);
+    return;
   }
+
+  spawnMissile(actor, target, MobjType.headShot, level.renderState, level);
 }
 
 void aBruisAttack(Mobj actor, DoomRandom random, LevelLocals level) {
@@ -561,7 +569,10 @@ void aBruisAttack(Mobj actor, DoomRandom random, LevelLocals level) {
   if (checkMeleeRange(actor, target)) {
     final damage = (random.pRandom() % 8 + 1) * 10;
     spec.damageMobj(target, actor, actor, damage, level);
+    return;
   }
+
+  spawnMissile(actor, target, MobjType.bruiserShot, level.renderState, level);
 }
 
 void aSkelFist(Mobj actor, DoomRandom random, LevelLocals level) {
@@ -630,4 +641,192 @@ int _pointToAngle(int x1, int y1, int x2, int y2) {
       (math.atan2(dy.toDouble(), dx.toDouble()) * (0x80000000 / math.pi))
           .toInt();
   return angle;
+}
+
+void aCyberAttack(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  spawnMissile(actor, target, MobjType.rocket, level.renderState, level);
+}
+
+void aSpidRefire(Mobj actor, DoomRandom random, LevelLocals level) {
+  aFaceTarget(actor, random);
+
+  if (random.pRandom() < 10) return;
+
+  final target = actor.target;
+  if (target == null || target.health <= 0 || !_checkSight(actor, target, level)) {
+    final info = actor.info;
+    if (info != null && info.seeState > 0) {
+      spec.setMobjStateNum(actor, info.seeState, level);
+    }
+  }
+}
+
+void aBspiAttack(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  spawnMissile(actor, target, MobjType.arachPlaz, level.renderState, level);
+}
+
+void aSkelMissile(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  actor.z += 16 * Fixed32.fracUnit;
+  final mo = spawnMissile(actor, target, MobjType.tracer, level.renderState, level);
+  actor.z -= 16 * Fixed32.fracUnit;
+
+  if (mo != null) {
+    mo
+      ..x += mo.momX
+      ..y += mo.momY
+      ..tracer = target;
+  }
+}
+
+void aSkelWhoosh(Mobj actor, DoomRandom random) {
+  final target = actor.target;
+  if (target == null) return;
+  faceTarget(actor);
+}
+
+void aTracer(Mobj actor, LevelLocals level) {
+  final dest = actor.tracer;
+  if (dest == null || dest.health <= 0) return;
+
+  final exact = _pointToAngle(actor.x, actor.y, dest.x, dest.y);
+
+  if (exact != actor.angle) {
+    const traceAngle = 0xc000000;
+    final diff = (exact - actor.angle).u32.s32;
+    if (diff < 0) {
+      actor.angle = (actor.angle - traceAngle).u32.s32;
+      if (((exact - actor.angle).u32.s32) > 0) {
+        actor.angle = exact;
+      }
+    } else {
+      actor.angle = (actor.angle + traceAngle).u32.s32;
+      if (((exact - actor.angle).u32.s32) < 0) {
+        actor.angle = exact;
+      }
+    }
+  }
+
+  final an = actor.angle >> Angle.angleToFineShift;
+  final info = actor.info;
+  final speed = info?.speed ?? (10 * Fixed32.fracUnit);
+  actor
+    ..momX = Fixed32.mul(speed, fineCosine(an))
+    ..momY = Fixed32.mul(speed, fineSine(an));
+
+  final dist = _approxDistance(dest.x - actor.x, dest.y - actor.y);
+  var distDenom = dist ~/ speed;
+  if (distDenom < 1) distDenom = 1;
+
+  final slope = (dest.z + 40 * Fixed32.fracUnit - actor.z) ~/ distDenom;
+  if (slope < actor.momZ) {
+    actor.momZ -= Fixed32.fracUnit ~/ 8;
+  } else {
+    actor.momZ += Fixed32.fracUnit ~/ 8;
+  }
+}
+
+void aFatRaise(Mobj actor, DoomRandom random) {
+  faceTarget(actor);
+}
+
+void aFatAttack1(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  const fatSpread = Angle.ang90 ~/ 8;
+  actor.angle = (actor.angle + fatSpread).u32.s32;
+  spawnMissile(actor, target, MobjType.fatShot, level.renderState, level);
+
+  final mo = spawnMissile(actor, target, MobjType.fatShot, level.renderState, level);
+  if (mo != null) {
+    mo.angle = (mo.angle + fatSpread).u32.s32;
+    final an = mo.angle >> Angle.angleToFineShift;
+    final info = mo.info;
+    final speed = info?.speed ?? (20 * Fixed32.fracUnit);
+    mo
+      ..momX = Fixed32.mul(speed, fineCosine(an))
+      ..momY = Fixed32.mul(speed, fineSine(an));
+  }
+}
+
+void aFatAttack2(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  const fatSpread = Angle.ang90 ~/ 8;
+  actor.angle = (actor.angle - fatSpread).u32.s32;
+  spawnMissile(actor, target, MobjType.fatShot, level.renderState, level);
+
+  final mo = spawnMissile(actor, target, MobjType.fatShot, level.renderState, level);
+  if (mo != null) {
+    mo.angle = (mo.angle - fatSpread * 2).u32.s32;
+    final an = mo.angle >> Angle.angleToFineShift;
+    final info = mo.info;
+    final speed = info?.speed ?? (20 * Fixed32.fracUnit);
+    mo
+      ..momX = Fixed32.mul(speed, fineCosine(an))
+      ..momY = Fixed32.mul(speed, fineSine(an));
+  }
+}
+
+void aFatAttack3(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  const fatSpread = Angle.ang90 ~/ 8;
+
+  var mo = spawnMissile(actor, target, MobjType.fatShot, level.renderState, level);
+  if (mo != null) {
+    mo.angle = (mo.angle - fatSpread ~/ 2).u32.s32;
+    final an = mo.angle >> Angle.angleToFineShift;
+    final info = mo.info;
+    final speed = info?.speed ?? (20 * Fixed32.fracUnit);
+    mo
+      ..momX = Fixed32.mul(speed, fineCosine(an))
+      ..momY = Fixed32.mul(speed, fineSine(an));
+  }
+
+  mo = spawnMissile(actor, target, MobjType.fatShot, level.renderState, level);
+  if (mo != null) {
+    mo.angle = (mo.angle + fatSpread ~/ 2).u32.s32;
+    final an = mo.angle >> Angle.angleToFineShift;
+    final info = mo.info;
+    final speed = info?.speed ?? (20 * Fixed32.fracUnit);
+    mo
+      ..momX = Fixed32.mul(speed, fineCosine(an))
+      ..momY = Fixed32.mul(speed, fineSine(an));
+  }
+}
+
+void aPainAttack(Mobj actor, LevelLocals level) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, level.random);
+  _painShootSkull(actor, actor.angle, level);
+}
+
+void aPainDie(Mobj actor, LevelLocals level) {
+  aFall(actor);
+  _painShootSkull(actor, (actor.angle + Angle.ang90).u32.s32, level);
+  _painShootSkull(actor, (actor.angle + Angle.ang180).u32.s32, level);
+  _painShootSkull(actor, (actor.angle + Angle.ang270).u32.s32, level);
+}
+
+void _painShootSkull(Mobj actor, int angle, LevelLocals level) {
 }

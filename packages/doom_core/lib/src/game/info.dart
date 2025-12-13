@@ -1,3 +1,5 @@
+import 'package:doom_core/src/game/mobj.dart';
+
 abstract final class SpriteNum {
   static const int troo = 0;
   static const int shtg = 1;
@@ -254,6 +256,66 @@ abstract final class StateNum {
   static const int bossRaise5 = 187;
   static const int bossRaise6 = 188;
   static const int bossRaise7 = 189;
+
+  static const int tball1 = 190;
+  static const int tball2 = 191;
+  static const int tballx1 = 192;
+  static const int tballx2 = 193;
+  static const int tballx3 = 194;
+
+  static const int rball1 = 195;
+  static const int rball2 = 196;
+  static const int rballx1 = 197;
+  static const int rballx2 = 198;
+  static const int rballx3 = 199;
+
+  static const int brball1 = 200;
+  static const int brball2 = 201;
+  static const int brballx1 = 202;
+  static const int brballx2 = 203;
+  static const int brballx3 = 204;
+
+  static const int rocket = 205;
+  static const int explode1 = 206;
+  static const int explode2 = 207;
+  static const int explode3 = 208;
+
+  static const int plasball1 = 209;
+  static const int plasball2 = 210;
+  static const int plasexp1 = 211;
+  static const int plasexp2 = 212;
+  static const int plasexp3 = 213;
+  static const int plasexp4 = 214;
+  static const int plasexp5 = 215;
+
+  static const int bfgshot1 = 216;
+  static const int bfgshot2 = 217;
+  static const int bfgland1 = 218;
+  static const int bfgland2 = 219;
+  static const int bfgland3 = 220;
+  static const int bfgland4 = 221;
+  static const int bfgland5 = 222;
+  static const int bfgland6 = 223;
+
+  static const int tracer1 = 224;
+  static const int tracer2 = 225;
+  static const int traceexp1 = 226;
+  static const int traceexp2 = 227;
+  static const int traceexp3 = 228;
+
+  static const int fatshot1 = 229;
+  static const int fatshot2 = 230;
+  static const int fatshotx1 = 231;
+  static const int fatshotx2 = 232;
+  static const int fatshotx3 = 233;
+
+  static const int arachPlaz1 = 234;
+  static const int arachPlaz2 = 235;
+  static const int arachPlex1 = 236;
+  static const int arachPlex2 = 237;
+  static const int arachPlex3 = 238;
+  static const int arachPlex4 = 239;
+  static const int arachPlex5 = 240;
 }
 
 enum StateAction {
@@ -274,6 +336,20 @@ enum StateAction {
   xScream,
   pain,
   fall,
+  explode,
+  bfgSpray,
+  tracer,
+  cyberAttack,
+  spidRefire,
+  bspiAttack,
+  fatAttack1,
+  fatAttack2,
+  fatAttack3,
+  fatRaise,
+  skelMissile,
+  skelWhoosh,
+  painAttack,
+  painDie,
 }
 
 class MobjState {
@@ -490,4 +566,64 @@ const List<MobjState> states = [
   MobjState(SpriteNum.boss, 10, 8, StateAction.none, StateNum.bossRaise6),
   MobjState(SpriteNum.boss, 9, 8, StateAction.none, StateNum.bossRaise7),
   MobjState(SpriteNum.boss, 8, 8, StateAction.none, StateNum.bossRun1),
+
+  MobjState(SpriteNum.bal1, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tball2),
+  MobjState(SpriteNum.bal1, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tball1),
+  MobjState(SpriteNum.bal1, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.tballx2),
+  MobjState(SpriteNum.bal1, 3 | FrameFlag.fullBright, 6, StateAction.none, StateNum.tballx3),
+  MobjState(SpriteNum.bal1, 4 | FrameFlag.fullBright, 6, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.bal7, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.rball2),
+  MobjState(SpriteNum.bal7, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.rball1),
+  MobjState(SpriteNum.bal7, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.rballx2),
+  MobjState(SpriteNum.bal7, 3 | FrameFlag.fullBright, 6, StateAction.none, StateNum.rballx3),
+  MobjState(SpriteNum.bal7, 4 | FrameFlag.fullBright, 6, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.bal2, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.brball2),
+  MobjState(SpriteNum.bal2, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.brball1),
+  MobjState(SpriteNum.bal2, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.brballx2),
+  MobjState(SpriteNum.bal2, 3 | FrameFlag.fullBright, 6, StateAction.none, StateNum.brballx3),
+  MobjState(SpriteNum.bal2, 4 | FrameFlag.fullBright, 6, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.misl, 0 | FrameFlag.fullBright, 1, StateAction.none, StateNum.rocket),
+  MobjState(SpriteNum.misl, 1 | FrameFlag.fullBright, 8, StateAction.explode, StateNum.explode2),
+  MobjState(SpriteNum.misl, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.explode3),
+  MobjState(SpriteNum.misl, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.plss, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.plasball2),
+  MobjState(SpriteNum.plss, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.plasball1),
+  MobjState(SpriteNum.plse, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.plasexp2),
+  MobjState(SpriteNum.plse, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.plasexp3),
+  MobjState(SpriteNum.plse, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.plasexp4),
+  MobjState(SpriteNum.plse, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.plasexp5),
+  MobjState(SpriteNum.plse, 4 | FrameFlag.fullBright, 4, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.bfs1, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.bfgshot2),
+  MobjState(SpriteNum.bfs1, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.bfgshot1),
+  MobjState(SpriteNum.bfe1, 0 | FrameFlag.fullBright, 8, StateAction.bfgSpray, StateNum.bfgland2),
+  MobjState(SpriteNum.bfe1, 1 | FrameFlag.fullBright, 8, StateAction.none, StateNum.bfgland3),
+  MobjState(SpriteNum.bfe1, 2 | FrameFlag.fullBright, 8, StateAction.none, StateNum.bfgland4),
+  MobjState(SpriteNum.bfe1, 3 | FrameFlag.fullBright, 8, StateAction.none, StateNum.bfgland5),
+  MobjState(SpriteNum.bfe1, 4 | FrameFlag.fullBright, 8, StateAction.none, StateNum.bfgland6),
+  MobjState(SpriteNum.bfe1, 5 | FrameFlag.fullBright, 8, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.fatb, 0 | FrameFlag.fullBright, 2, StateAction.tracer, StateNum.tracer2),
+  MobjState(SpriteNum.fatb, 1 | FrameFlag.fullBright, 2, StateAction.tracer, StateNum.tracer1),
+  MobjState(SpriteNum.fbxp, 0 | FrameFlag.fullBright, 8, StateAction.none, StateNum.traceexp2),
+  MobjState(SpriteNum.fbxp, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.traceexp3),
+  MobjState(SpriteNum.fbxp, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.manf, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.fatshot2),
+  MobjState(SpriteNum.manf, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.fatshot1),
+  MobjState(SpriteNum.misl, 1 | FrameFlag.fullBright, 8, StateAction.none, StateNum.fatshotx2),
+  MobjState(SpriteNum.misl, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.fatshotx3),
+  MobjState(SpriteNum.misl, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.apls, 0 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlaz2),
+  MobjState(SpriteNum.apls, 1 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlaz1),
+  MobjState(SpriteNum.apbx, 0 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlex2),
+  MobjState(SpriteNum.apbx, 1 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlex3),
+  MobjState(SpriteNum.apbx, 2 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlex4),
+  MobjState(SpriteNum.apbx, 3 | FrameFlag.fullBright, 5, StateAction.none, StateNum.arachPlex5),
+  MobjState(SpriteNum.apbx, 4 | FrameFlag.fullBright, 5, StateAction.none, StateNum.sNull),
 ];
