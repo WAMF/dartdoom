@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_bsp.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_draw.dart';
@@ -160,7 +161,7 @@ class Renderer {
     state.fixedColormap = null;
   }
 
-  void renderPlayerView(Uint8List frameBuffer) {
+  void renderPlayerView(Uint8List frameBuffer, {Player? player}) {
     _frameBuffer = frameBuffer;
 
     _planeRenderer.clearPlanes();
@@ -179,6 +180,10 @@ class Renderer {
       ..drawPlanes(frameBuffer);
 
     _spriteRenderer.drawMasked(frameBuffer);
+
+    if (player != null) {
+      _spriteRenderer.drawPlayerSprites(player, frameBuffer);
+    }
   }
 
   void _onEnterSubsector(Sector sector) {

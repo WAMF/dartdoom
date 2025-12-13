@@ -106,7 +106,6 @@ class StatusBar {
   int _lastAttackDown = -1;
   final List<bool> _oldWeaponsOwned = List.filled(9, false);
   final List<int> _keyBoxes = List.filled(3, -1);
-  bool _firstTime = true;
 
   bool statusBarOn = true;
   bool armsOn = true;
@@ -163,7 +162,6 @@ class StatusBar {
   void init(Player player, List<Uint8List> screens) {
     _player = player;
     _screens = screens;
-    _firstTime = true;
     _faceIndex = 0;
     _oldHealth = -1;
     _priority = 0;
@@ -383,14 +381,10 @@ class StatusBar {
   }
 
   void drawer({required bool refresh}) {
-    final doRefresh = _firstTime || refresh;
-
-    if (doRefresh) {
+    if (statusBarOn) {
       _refreshBackground();
-      _firstTime = false;
+      _drawWidgets(true);
     }
-
-    _drawWidgets(doRefresh);
   }
 
   void _refreshBackground() {

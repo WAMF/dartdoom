@@ -1,5 +1,6 @@
 import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/events/tic_cmd.dart';
+import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_mobj.dart' show MobjType, spawnPlayerMissile;
@@ -20,17 +21,35 @@ abstract final class _WeaponConstants {
   static const int bulletRange = 16 * 64 * Fixed32.fracUnit;
 }
 
-abstract final class _WeaponAttackTics {
-  static const int fist = 12;
-  static const int pistol = 19;
-  static const int shotgun = 35;
-  static const int chaingun = 8;
-  static const int missile = 20;
-  static const int plasma = 4;
-  static const int bfg = 40;
-  static const int chainsaw = 12;
-  static const int superShotgun = 57;
+const List<int> _weaponSprites = [
+  SpriteNum.pung,
+  SpriteNum.pisg,
+  SpriteNum.shtg,
+  SpriteNum.chgg,
+  SpriteNum.misg,
+  SpriteNum.plsg,
+  SpriteNum.bfgg,
+  SpriteNum.sawg,
+  SpriteNum.sht2,
+];
+
+class _WeaponFrame {
+  const _WeaponFrame(this.frame, this.tics);
+  final int frame;
+  final int tics;
 }
+
+const List<List<_WeaponFrame>> _weaponAttackFrames = [
+  [_WeaponFrame(1, 4), _WeaponFrame(2, 4), _WeaponFrame(3, 5), _WeaponFrame(2, 4), _WeaponFrame(1, 5)],
+  [_WeaponFrame(0, 4), _WeaponFrame(1, 6), _WeaponFrame(2, 4), _WeaponFrame(1, 5)],
+  [_WeaponFrame(0, 3), _WeaponFrame(0, 7), _WeaponFrame(1, 5), _WeaponFrame(2, 5), _WeaponFrame(3, 4), _WeaponFrame(2, 5), _WeaponFrame(1, 5), _WeaponFrame(0, 3), _WeaponFrame(0, 7)],
+  [_WeaponFrame(0, 4), _WeaponFrame(1, 4)],
+  [_WeaponFrame(0, 8), _WeaponFrame(1, 12)],
+  [_WeaponFrame(0, 3), _WeaponFrame(1, 1)],
+  [_WeaponFrame(0, 20), _WeaponFrame(1, 10), _WeaponFrame(2, 10)],
+  [_WeaponFrame(0, 4), _WeaponFrame(1, 4), _WeaponFrame(2, 4)],
+  [_WeaponFrame(0, 3), _WeaponFrame(0, 7), _WeaponFrame(1, 7), _WeaponFrame(2, 7), _WeaponFrame(3, 7), _WeaponFrame(4, 7), _WeaponFrame(5, 7), _WeaponFrame(6, 6), _WeaponFrame(7, 6), _WeaponFrame(0, 5), _WeaponFrame(0, 7)],
+];
 
 enum PsprState {
   none,
@@ -47,6 +66,10 @@ class PspriteDef {
   int sx = 0;
   int sy = 0;
   PsprState psprState = PsprState.none;
+  int sprite = 0;
+  int frame = 0;
+  int attackFrameIndex = 0;
+  int attackFrameTics = 0;
 }
 
 class WeaponInfo {
@@ -103,8 +126,11 @@ void bringUpWeapon(Player player) {
   player.readyWeapon = newWeapon;
 
   final psp = player.psprites[_WeaponConstants.psWeapon];
-  psp.sy = _WeaponConstants.weaponBottom;
-  psp.psprState = PsprState.raise;
+  psp
+    ..sy = _WeaponConstants.weaponBottom
+    ..psprState = PsprState.raise
+    ..sprite = _weaponSprites[newWeapon.index]
+    ..frame = 0;
 }
 
 void lowerWeapon(Player player) {
@@ -244,73 +270,85 @@ void _fireWeapon(Player player, LevelLocals level) {
   player.refire++;
 
   final psp = player.psprites[_WeaponConstants.psWeapon];
+  final weaponIndex = player.readyWeapon.index;
+  final frames = _weaponAttackFrames[weaponIndex];
+
   psp
     ..psprState = PsprState.attack
-    ..tics = -1;
+    ..tics = -1
+    ..attackFrameIndex = 0
+    ..attackFrameTics = frames.isNotEmpty ? frames[0].tics : 1
+    ..frame = frames.isNotEmpty ? frames[0].frame : 0;
 }
 
 void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
-  if (psp.tics > 0) {
-    psp.tics--;
-    return;
-  }
-
-  if (psp.tics == 0) {
-    psp.psprState = PsprState.ready;
-    return;
-  }
-
   final weapon = player.readyWeapon;
-  final info = weaponInfo[weapon.index];
+  final weaponIndex = weapon.index;
+  final frames = _weaponAttackFrames[weaponIndex];
 
-  if (info.ammo != AmmoType.noAmmo) {
-    if (player.ammo[info.ammo.index] <= 0) {
-      psp.psprState = PsprState.ready;
+  if (psp.tics == -1) {
+    final info = weaponInfo[weaponIndex];
+
+    if (info.ammo != AmmoType.noAmmo) {
+      if (player.ammo[info.ammo.index] <= 0) {
+        psp
+          ..psprState = PsprState.ready
+          ..frame = 0;
+        return;
+      }
+      final ammoUse = weapon == WeaponType.superShotgun ? 2 : 1;
+      player.ammo[info.ammo.index] -= ammoUse;
+    }
+
+    switch (weapon) {
+      case WeaponType.fist:
+        _punchAttack(player, level);
+      case WeaponType.chainsaw:
+        _sawAttack(player, level);
+      case WeaponType.pistol:
+        _calcBulletSlope(player, level);
+        _gunShot(player, level, player.refire == 0);
+      case WeaponType.chaingun:
+        _calcBulletSlope(player, level);
+        _gunShot(player, level, player.refire == 0);
+      case WeaponType.shotgun:
+        _calcBulletSlope(player, level);
+        for (var i = 0; i < 7; i++) {
+          _gunShot(player, level, false);
+        }
+      case WeaponType.superShotgun:
+        _calcBulletSlope(player, level);
+        for (var i = 0; i < 20; i++) {
+          _superShotgunShot(player, level);
+        }
+      case WeaponType.missile:
+        _fireMissile(player, level);
+      case WeaponType.plasma:
+        _firePlasma(player, level);
+      case WeaponType.bfg:
+        _fireBfg(player, level);
+      case WeaponType.numWeapons:
+      case WeaponType.noChange:
+        break;
+    }
+
+    psp.tics = 1;
+  }
+
+  psp.attackFrameTics--;
+  if (psp.attackFrameTics <= 0) {
+    psp.attackFrameIndex++;
+    if (psp.attackFrameIndex >= frames.length) {
+      psp
+        ..psprState = PsprState.ready
+        ..frame = 0
+        ..attackFrameIndex = 0;
       return;
     }
-    final ammoUse = weapon == WeaponType.superShotgun ? 2 : 1;
-    player.ammo[info.ammo.index] -= ammoUse;
-  }
-
-  switch (weapon) {
-    case WeaponType.fist:
-      _punchAttack(player, level);
-      psp.tics = _WeaponAttackTics.fist;
-    case WeaponType.chainsaw:
-      _sawAttack(player, level);
-      psp.tics = _WeaponAttackTics.chainsaw;
-    case WeaponType.pistol:
-      _calcBulletSlope(player, level);
-      _gunShot(player, level, player.refire == 0);
-      psp.tics = _WeaponAttackTics.pistol;
-    case WeaponType.chaingun:
-      _calcBulletSlope(player, level);
-      _gunShot(player, level, player.refire == 0);
-      psp.tics = _WeaponAttackTics.chaingun;
-    case WeaponType.shotgun:
-      _calcBulletSlope(player, level);
-      for (var i = 0; i < 7; i++) {
-        _gunShot(player, level, false);
-      }
-      psp.tics = _WeaponAttackTics.shotgun;
-    case WeaponType.superShotgun:
-      _calcBulletSlope(player, level);
-      for (var i = 0; i < 20; i++) {
-        _superShotgunShot(player, level);
-      }
-      psp.tics = _WeaponAttackTics.superShotgun;
-    case WeaponType.missile:
-      _fireMissile(player, level);
-      psp.tics = _WeaponAttackTics.missile;
-    case WeaponType.plasma:
-      _firePlasma(player, level);
-      psp.tics = _WeaponAttackTics.plasma;
-    case WeaponType.bfg:
-      _fireBfg(player, level);
-      psp.tics = _WeaponAttackTics.bfg;
-    case WeaponType.numWeapons:
-    case WeaponType.noChange:
-      break;
+    final nextFrame = frames[psp.attackFrameIndex];
+    psp
+      ..frame = nextFrame.frame
+      ..attackFrameTics = nextFrame.tics;
   }
 }
 

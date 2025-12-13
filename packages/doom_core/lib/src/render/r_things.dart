@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_pspr.dart';
+import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_draw.dart';
 import 'package:doom_core/src/render/r_segs.dart';
@@ -10,6 +12,9 @@ import 'package:doom_wad/doom_wad.dart';
 
 abstract final class _SpriteConstants {
   static const int minZ = Fixed32.fracUnit * 4;
+  static const int baseYCenter = 100;
+  static const int pspriteScale = Fixed32.fracUnit;
+  static const int pspriteIScale = Fixed32.fracUnit;
 }
 
 class SpriteRenderer {
@@ -554,6 +559,168 @@ class SpriteRenderer {
   final Map<int, Patch> _spriteCache = {};
 
   List<Vissprite> get vissprites => _vissprites;
+
+  void drawPlayerSprites(Player player, Uint8List frameBuffer) {
+    final mobj = player.mobj;
+    if (mobj == null) return;
+
+    final subsector = mobj.subsector;
+    if (subsector is! Subsector) return;
+
+    final lightNum =
+        (subsector.sector.lightLevel >> RenderConstants.lightSegShift) +
+            _state.extraLight;
+    _spriteLights =
+        _state.scaleLight[lightNum.clamp(0, RenderConstants.lightLevels - 1)];
+
+    for (final psp in player.psprites) {
+      if (psp.psprState != PsprState.none) {
+        _drawPSprite(psp, player, frameBuffer);
+      }
+    }
+  }
+
+  void _drawPSprite(PspriteDef psp, Player player, Uint8List frameBuffer) {
+    final spriteNum = psp.sprite;
+    final frameNum = psp.frame & FrameFlag.frameMask;
+
+    if (spriteNum >= _state.sprites.length) return;
+
+    final sprdef = _state.sprites[spriteNum];
+    if (frameNum >= sprdef.numFrames) return;
+
+    final sprframe = sprdef.spriteFrames[frameNum];
+    final lump = sprframe.lump[0];
+    final flip = sprframe.flip[0] != 0;
+
+    if (lump >= _state.spriteWidth.length) return;
+
+    final screenCenterX = 160 * Fixed32.fracUnit;
+    var tx = psp.sx - screenCenterX;
+    tx -= _state.spriteOffset[lump];
+
+    final x1Raw =
+        (_state.centerXFrac + Fixed32.mul(tx, _SpriteConstants.pspriteScale)) >>
+            Fixed32.fracBits;
+    if (x1Raw > _state.viewWidth) return;
+
+    tx += _state.spriteWidth[lump];
+    final x2Raw =
+        ((_state.centerXFrac + Fixed32.mul(tx, _SpriteConstants.pspriteScale)) >>
+                Fixed32.fracBits) -
+            1;
+    if (x2Raw < 0) return;
+
+    final textureMid = (_SpriteConstants.baseYCenter << Fixed32.fracBits) +
+        (Fixed32.fracUnit >> 1) -
+        (psp.sy - _state.spriteTopOffset[lump]);
+
+    final x1 = x1Raw < 0 ? 0 : x1Raw;
+    final x2 = x2Raw >= _state.viewWidth ? _state.viewWidth - 1 : x2Raw;
+
+    final vis = Vissprite()
+      ..x1 = x1
+      ..x2 = x2
+      ..textureMid = textureMid
+      ..scale = _SpriteConstants.pspriteScale
+      ..patch = lump;
+
+    if (flip) {
+      vis
+        ..xiscale = -_SpriteConstants.pspriteIScale
+        ..startFrac = _state.spriteWidth[lump] - 1;
+    } else {
+      vis
+        ..xiscale = _SpriteConstants.pspriteIScale
+        ..startFrac = 0;
+    }
+
+    if (vis.x1 > x1Raw) {
+      vis.startFrac += vis.xiscale * (vis.x1 - x1Raw);
+    }
+
+    if (_state.fixedColormap != null) {
+      vis.colormap = _state.fixedColormap;
+    } else if ((psp.frame & FrameFlag.fullBright) != 0) {
+      vis.colormap = _state.colormaps;
+    } else {
+      vis.colormap = _spriteLights[RenderConstants.maxLightScale - 1];
+    }
+
+    _drawPspriteColumns(vis, frameBuffer);
+  }
+
+  void _drawPspriteColumns(Vissprite vis, Uint8List frameBuffer) {
+    final spriteData = onGetSpriteData?.call(vis.patch);
+    if (spriteData == null) return;
+
+    final patch = _getPatchFromCache(spriteData);
+    if (patch == null) return;
+
+    final column = _drawContext.column..colormap = vis.colormap;
+    final sprtopscreen =
+        _state.centerYFrac - Fixed32.mul(vis.textureMid, vis.scale);
+
+    var frac = vis.startFrac;
+    for (var x = vis.x1; x <= vis.x2; x++) {
+      final textureCol = frac >> Fixed32.fracBits;
+
+      if (textureCol >= 0 && textureCol < patch.width) {
+        _drawPspriteColumn(
+          column,
+          patch,
+          textureCol,
+          x,
+          sprtopscreen,
+          vis.scale,
+          vis.textureMid,
+          frameBuffer,
+        );
+      }
+
+      frac += vis.xiscale;
+    }
+  }
+
+  void _drawPspriteColumn(
+    ColumnDrawer column,
+    Patch patch,
+    int textureCol,
+    int x,
+    int sprtopscreen,
+    int spryscale,
+    int basetexturemid,
+    Uint8List frameBuffer,
+  ) {
+    final posts = patch.columns[textureCol];
+    if (posts.isEmpty) return;
+
+    column.x = x;
+
+    for (final post in posts) {
+      final topscreen =
+          sprtopscreen + Fixed32.mul(post.topDelta.toFixed(), spryscale);
+      final bottomscreen =
+          topscreen + Fixed32.mul(post.pixels.length.toFixed(), spryscale);
+
+      var yl = (topscreen + Fixed32.fracUnit - 1) >> Fixed32.fracBits;
+      var yh = (bottomscreen - 1) >> Fixed32.fracBits;
+
+      if (yl < 0) yl = 0;
+      if (yh >= _state.viewHeight) yh = _state.viewHeight - 1;
+
+      if (yl > yh) continue;
+
+      column
+        ..yl = yl
+        ..yh = yh
+        ..iscale = Fixed32.div(Fixed32.fracUnit, spryscale)
+        ..textureMid = basetexturemid - post.topDelta.toFixed()
+        ..source = Uint8List.fromList(post.pixels);
+
+      _drawContext.drawColumn(frameBuffer);
+    }
+  }
 }
 
 class _TransformResult {

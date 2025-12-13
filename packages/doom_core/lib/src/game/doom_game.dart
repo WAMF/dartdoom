@@ -250,7 +250,7 @@ class DoomGame {
         player.viewZ,
         mobj.angle,
       )
-      ..renderPlayerView(_screenBuffers.primary);
+      ..renderPlayerView(_screenBuffers.primary, player: player);
 
     _statusBar.drawer(refresh: _hudNeedsRefresh);
     _hudMessages.drawer();
@@ -275,7 +275,7 @@ class DoomGame {
         player.viewZ,
         mobj.angle,
       )
-      ..renderPlayerView(indexedBuffer);
+      ..renderPlayerView(indexedBuffer, player: player);
 
     _statusBar.drawer(refresh: _hudNeedsRefresh);
     _hudMessages.drawer();
