@@ -1,5 +1,6 @@
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_inter.dart' as inter;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
@@ -132,6 +133,66 @@ bool checkPosition(Mobj thing, int x, int y, LevelLocals level) {
           return false;
         }
       }
+    }
+  }
+
+  if (!_checkThings(thing, x, y, level)) {
+    return false;
+  }
+
+  return true;
+}
+
+bool _checkThings(Mobj thing, int x, int y, LevelLocals level) {
+  final ss = _pointInSubsector(x, y, level);
+  if (ss == null) return true;
+
+  final thingRadius = thing.radius;
+  final thingHeight = thing.height;
+  final thingZ = thing.z;
+
+  for (final sector in level.renderState.sectors) {
+    var other = sector.thingList;
+    while (other != null) {
+      final next = other.sNext;
+
+      if (other == thing) {
+        other = next;
+        continue;
+      }
+
+      final blockDist = other.radius + thingRadius;
+
+      if ((other.x - x).abs() >= blockDist || (other.y - y).abs() >= blockDist) {
+        other = next;
+        continue;
+      }
+
+      if (other.z > thingZ + thingHeight) {
+        other = next;
+        continue;
+      }
+
+      if (other.z + other.height < thingZ) {
+        other = next;
+        continue;
+      }
+
+      if ((other.flags & MobjFlag.special) != 0) {
+        if ((_ctx.tmFlags & MobjFlag.pickup) != 0) {
+          inter.touchSpecialThing(other, thing, level);
+        }
+        if ((other.flags & MobjFlag.solid) == 0) {
+          other = next;
+          continue;
+        }
+      }
+
+      if ((other.flags & MobjFlag.solid) != 0) {
+        return false;
+      }
+
+      other = next;
     }
   }
 

@@ -3,6 +3,7 @@ import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_enemy.dart' as enemy;
+import 'package:doom_core/src/game/p_inter.dart' as inter;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/specials/ceiling_thinker.dart';
 import 'package:doom_core/src/game/specials/door_thinker.dart';
@@ -519,59 +520,14 @@ void playerInSpecialSector(Mobj thing, LevelLocals level) {
   }
 }
 
-void damageMobj(Mobj target, Mobj? inflictor, Mobj? source, int damage, LevelLocals level) {
-  if ((target.flags & MobjFlag.shootable) == 0) {
-    return;
-  }
-
-  if (target.health <= 0) {
-    return;
-  }
-
-  var actualDamage = damage;
-  final player = target.player;
-  if (player is Player) {
-    if (player.armorPoints > 0) {
-      final saved = player.armorType == 1 ? damage ~/ 3 : damage ~/ 2;
-      if (player.armorPoints <= saved) {
-        actualDamage -= player.armorPoints;
-        player.armorPoints = 0;
-      } else {
-        player.armorPoints -= saved;
-        actualDamage -= saved;
-      }
-    }
-
-    player.health -= actualDamage;
-    if (player.health < 0) {
-      player.health = 0;
-    }
-    target.health = player.health;
-
-    player.damageCount += actualDamage;
-    if (player.damageCount > 100) {
-      player.damageCount = 100;
-    }
-
-    if (source != null && source != target) {
-      player.attacker = source;
-    }
-  } else {
-    target.health -= actualDamage;
-  }
-
-  if (target.health <= 0) {
-    killMobj(source, target, level);
-    return;
-  }
-
-  if ((target.flags & MobjFlag.skullFly) != 0) {
-    target
-      ..momX = 0
-      ..momY = 0
-      ..momZ = 0
-      ..flags &= ~MobjFlag.skullFly;
-  }
+void damageMobj(
+  Mobj target,
+  Mobj? inflictor,
+  Mobj? source,
+  int damage,
+  LevelLocals level,
+) {
+  inter.damageMobj(target, inflictor, source, damage, level);
 }
 
 bool setMobjState(Mobj mobj, int stateNum, LevelLocals level) {
@@ -651,33 +607,7 @@ void setMobjStateNum(Mobj mobj, int stateNum, LevelLocals level) {
 }
 
 void killMobj(Mobj? source, Mobj target, LevelLocals level) {
-  target.flags &= ~(MobjFlag.shootable | MobjFlag.float | MobjFlag.skullFly);
-
-  if (target.type != _ThingType.teleportDest) {
-    target.flags &= ~MobjFlag.noGravity;
-  }
-
-  target.flags |= MobjFlag.corpse | MobjFlag.dropOff;
-  target.height = target.height ~/ 4;
-
-  if ((target.flags & MobjFlag.countKill) != 0) {
-    level.killedMonsters++;
-  }
-
-  final player = target.player;
-  if (player is Player) {
-    target.flags &= ~MobjFlag.solid;
-    player.playerState = PlayerState.dead;
-
-    final sourcePlayer = source?.player;
-    if (sourcePlayer is Player) {
-      if (sourcePlayer != player) {
-        sourcePlayer.frags[player.playerNum]++;
-      } else {
-        player.frags[player.playerNum]--;
-      }
-    }
-  }
+  inter.killMobj(source, target, level);
 }
 
 final ActiveCeilings _activeCeilings = ActiveCeilings();

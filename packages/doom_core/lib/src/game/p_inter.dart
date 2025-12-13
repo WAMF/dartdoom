@@ -1,10 +1,25 @@
+import 'dart:math' as math;
+
 import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/game_info.dart';
+import 'package:doom_core/src/game/info.dart' hide SpriteNum;
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
+import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
+
+abstract final class CheatFlag {
+  static const int godMode = 1;
+  static const int noClip = 2;
+}
+
+abstract final class _DamageConstants {
+  static const int baseThreshold = 100;
+  static const int maxDamageCount = 100;
+}
 
 abstract final class _AmmoValues {
   static const List<int> maxAmmo = [200, 50, 300, 50];
@@ -431,4 +446,288 @@ void _unlinkFromSector(Mobj mobj) {
   mobj
     ..sNext = null
     ..sPrev = null;
+}
+
+void damageMobj(
+  Mobj target,
+  Mobj? inflictor,
+  Mobj? source,
+  int damage,
+  LevelLocals level,
+) {
+  if ((target.flags & MobjFlag.shootable) == 0) {
+    return;
+  }
+
+  if (target.health <= 0) {
+    return;
+  }
+
+  if ((target.flags & MobjFlag.skullFly) != 0) {
+    target
+      ..momX = 0
+      ..momY = 0
+      ..momZ = 0;
+  }
+
+  final player = target.player;
+  var actualDamage = damage;
+
+  final sourcePlayer = source?.player;
+  if (inflictor != null &&
+      (target.flags & MobjFlag.noClip) == 0 &&
+      (sourcePlayer is! Player ||
+          sourcePlayer.readyWeapon != WeaponType.chainsaw)) {
+    var ang = _pointToAngle(inflictor.x, inflictor.y, target.x, target.y);
+    final mass = target.info?.mass ?? 100;
+    var thrust = actualDamage * (Fixed32.fracUnit >> 3) * 100 ~/ mass;
+
+    if (actualDamage < 40 &&
+        actualDamage > target.health &&
+        target.z - inflictor.z > 64 * Fixed32.fracUnit &&
+        (level.random.pRandom() & 1) != 0) {
+      ang = (ang + Angle.ang180).u32;
+      thrust *= 4;
+    }
+
+    final fineAngle = (ang.u32 >> Angle.angleToFineShift) & Angle.fineMask;
+    target
+      ..momX += Fixed32.mul(thrust, fineCosine(fineAngle))
+      ..momY += Fixed32.mul(thrust, fineSine(fineAngle));
+  }
+
+  if (player is Player) {
+    if (actualDamage < 1000 &&
+        ((player.cheats & CheatFlag.godMode) != 0 ||
+            player.powers[PowerType.invulnerability.index] > 0)) {
+      return;
+    }
+
+    if (player.armorType > 0) {
+      int saved;
+      if (player.armorType == 1) {
+        saved = actualDamage ~/ 3;
+      } else {
+        saved = actualDamage ~/ 2;
+      }
+
+      if (player.armorPoints <= saved) {
+        saved = player.armorPoints;
+        player.armorType = 0;
+      }
+
+      player.armorPoints -= saved;
+      actualDamage -= saved;
+    }
+
+    player.health -= actualDamage;
+    if (player.health < 0) {
+      player.health = 0;
+    }
+
+    player
+      ..attacker = source
+      ..damageCount += actualDamage;
+
+    if (player.damageCount > _DamageConstants.maxDamageCount) {
+      player.damageCount = _DamageConstants.maxDamageCount;
+    }
+  }
+
+  target.health -= actualDamage;
+  if (target.health <= 0) {
+    killMobj(source, target, level);
+    return;
+  }
+
+  final info = target.info;
+  if (info != null &&
+      (level.random.pRandom() < info.painChance) &&
+      (target.flags & MobjFlag.skullFly) == 0) {
+    target.flags |= MobjFlag.justHit;
+    spec.setMobjState(target, info.painState, level);
+  }
+
+  target.reactionTime = 0;
+
+  if ((target.threshold == 0 || target.type == _MobjType.vile) &&
+      source != null &&
+      source != target &&
+      source.type != _MobjType.vile) {
+    target
+      ..target = source
+      ..threshold = _DamageConstants.baseThreshold;
+
+    final info = target.info;
+    if (info != null &&
+        target.stateNum == info.spawnState &&
+        info.seeState != StateNum.sNull) {
+      spec.setMobjState(target, info.seeState, level);
+    }
+  }
+}
+
+void killMobj(Mobj? source, Mobj target, LevelLocals level) {
+  target.flags &= ~(MobjFlag.shootable | MobjFlag.float | MobjFlag.skullFly);
+
+  if (target.type != _MobjType.skull) {
+    target.flags &= ~MobjFlag.noGravity;
+  }
+
+  target
+    ..flags |= MobjFlag.corpse | MobjFlag.dropOff
+    ..height >>= 2;
+
+  if (source != null && source.player is Player) {
+    final player = source.player! as Player;
+    if ((target.flags & MobjFlag.countKill) != 0) {
+      player.killCount++;
+    }
+  } else if ((target.flags & MobjFlag.countKill) != 0) {
+    if (level.players.isNotEmpty) {
+      level.players[0].killCount++;
+    }
+  }
+
+  if (target.player is Player) {
+    final player = target.player! as Player;
+    target.flags &= ~MobjFlag.solid;
+    player.playerState = PlayerState.dead;
+  }
+
+  final info = target.info;
+  if (info != null) {
+    if (target.health < -info.spawnHealth && info.xDeathState != 0) {
+      spec.setMobjState(target, info.xDeathState, level);
+    } else {
+      spec.setMobjState(target, info.deathState, level);
+    }
+
+    target.tics -= level.random.pRandom() & 3;
+    if (target.tics < 1) {
+      target.tics = 1;
+    }
+  }
+
+  _dropItem(target, level);
+}
+
+void _dropItem(Mobj target, LevelLocals level) {
+  final int itemSprite;
+  switch (target.type) {
+    case _MobjType.possessed:
+    case _MobjType.wolfSs:
+      itemSprite = SpriteNum.clip;
+    case _MobjType.shotGuy:
+      itemSprite = SpriteNum.shot;
+    case _MobjType.chainGuy:
+      itemSprite = SpriteNum.mgun;
+    default:
+      return;
+  }
+
+  _spawnDroppedItem(target.x, target.y, target.floorZ, itemSprite, level);
+}
+
+void _spawnDroppedItem(
+  int x,
+  int y,
+  int z,
+  int sprite,
+  LevelLocals level,
+) {
+  final mobj = Mobj()
+    ..x = x
+    ..y = y
+    ..z = z
+    ..sprite = sprite
+    ..frame = 0
+    ..flags = MobjFlag.special | MobjFlag.dropped;
+
+  _setThingPosition(mobj, level);
+}
+
+void _setThingPosition(Mobj mobj, LevelLocals level) {
+  final ss = _pointInSubsector(mobj.x, mobj.y, level.renderState);
+  if (ss == null) return;
+
+  mobj
+    ..subsector = ss
+    ..floorZ = ss.sector.floorHeight
+    ..ceilingZ = ss.sector.ceilingHeight;
+
+  if ((mobj.flags & MobjFlag.noSector) == 0) {
+    final sector = ss.sector;
+    mobj
+      ..sPrev = null
+      ..sNext = sector.thingList;
+
+    if (sector.thingList != null) {
+      sector.thingList!.sPrev = mobj;
+    }
+    sector.thingList = mobj;
+  }
+}
+
+Subsector? _pointInSubsector(int x, int y, RenderState state) {
+  if (state.nodes.isEmpty) {
+    return state.subsectors.isNotEmpty ? state.subsectors[0] : null;
+  }
+
+  var nodeNum = state.nodes.length - 1;
+
+  while (!BspConstants.isSubsector(nodeNum)) {
+    final node = state.nodes[nodeNum];
+    final side = _pointOnSide(x, y, node);
+    nodeNum = node.children[side];
+  }
+
+  return state.subsectors[BspConstants.getIndex(nodeNum)];
+}
+
+int _pointOnSide(int x, int y, Node node) {
+  if (node.dx == 0) {
+    if (x <= node.x) {
+      return node.dy > 0 ? 1 : 0;
+    }
+    return node.dy < 0 ? 1 : 0;
+  }
+  if (node.dy == 0) {
+    if (y <= node.y) {
+      return node.dx < 0 ? 1 : 0;
+    }
+    return node.dx > 0 ? 1 : 0;
+  }
+
+  final dx = x - node.x;
+  final dy = y - node.y;
+
+  final left = Fixed32.mul(node.dy >> Fixed32.fracBits, dx);
+  final right = Fixed32.mul(dy, node.dx >> Fixed32.fracBits);
+
+  if (right < left) {
+    return 0;
+  }
+  return 1;
+}
+
+int _pointToAngle(int x1, int y1, int x2, int y2) {
+  final dx = x2 - x1;
+  final dy = y2 - y1;
+
+  if (dx == 0 && dy == 0) return 0;
+
+  final angle =
+      (math.atan2(dy.toDouble(), dx.toDouble()) * (0x80000000 / math.pi))
+          .toInt();
+  return angle;
+}
+
+abstract final class _MobjType {
+  static const int possessed = 3004;
+  static const int shotGuy = 9;
+  static const int chainGuy = 65;
+  static const int skull = 3006;
+  static const int vile = 64;
+  static const int wolfSs = 84;
 }
