@@ -154,28 +154,28 @@ void main() {
       });
 
       test('returns 0 for point at view position', () {
-        final angle = renderer.pointToAngle(0, 0);
+        final angle = renderer.pointToAngleXY(0, 0);
         expect(angle, 0);
       });
 
       test('returns angle for point to the right', () {
-        final angle = renderer.pointToAngle(Fixed32.fracUnit, 0);
+        final angle = renderer.pointToAngleXY(Fixed32.fracUnit, 0);
         expect(angle, 0);
       });
 
       test('returns ANG90 for point directly above', () {
-        final angle = renderer.pointToAngle(0, Fixed32.fracUnit);
+        final angle = renderer.pointToAngleXY(0, Fixed32.fracUnit);
         expect(angle, closeTo(Angle.ang90, Angle.ang90 ~/ 16));
       });
 
       test('returns ANG180 for point to the left', () {
-        final angle = renderer.pointToAngle(-Fixed32.fracUnit, 0);
+        final angle = renderer.pointToAngleXY(-Fixed32.fracUnit, 0);
         final normalized = angle.u32.s32;
         expect(normalized.abs(), closeTo(Angle.ang180.abs(), Angle.ang90 ~/ 8));
       });
 
       test('returns ANG270 for point directly below', () {
-        final angle = renderer.pointToAngle(0, -Fixed32.fracUnit);
+        final angle = renderer.pointToAngleXY(0, -Fixed32.fracUnit);
         final normalized = angle.u32;
         expect(normalized, closeTo(Angle.ang270.u32, Angle.ang90 ~/ 8));
       });

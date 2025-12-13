@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_map.dart' as map;
@@ -77,12 +75,13 @@ bool lookForPlayers(Mobj actor, LevelLocals level, {bool allAround = false}) {
   if (!_checkSight(actor, playerMobj, level)) return false;
 
   if (!allAround) {
-    final an = (_pointToAngle(actor.x, actor.y, playerMobj.x, playerMobj.y) -
-            actor.angle)
-        .u32;
+    final an =
+        (pointToAngle(playerMobj.x - actor.x, playerMobj.y - actor.y) -
+                actor.angle)
+            .u32;
 
     if (an > _EnemyConstants.ang90 && an < _EnemyConstants.ang270) {
-      final dist = _approxDistance(
+      final dist = approxDistance(
         playerMobj.x - actor.x,
         playerMobj.y - actor.y,
       );
@@ -234,7 +233,7 @@ void chase(Mobj actor, LevelLocals level) {
 }
 
 bool checkMeleeRange(Mobj actor, Mobj target) {
-  final dist = _approxDistance(target.x - actor.x, target.y - actor.y);
+  final dist = approxDistance(target.x - actor.x, target.y - actor.y);
   const meleeRange = _EnemyConstants.meleeRange - 20 * Fixed32.fracUnit;
   final radius = actor.info?.radius ?? 0;
   return dist < meleeRange + radius;
@@ -253,7 +252,7 @@ bool checkMissileRange(Mobj actor, DoomRandom random, LevelLocals level) {
 
   if (actor.reactionTime > 0) return false;
 
-  var dist = _approxDistance(
+  var dist = approxDistance(
         actor.x - target.x,
         actor.y - target.y,
       ) -
@@ -426,12 +425,6 @@ void _moveSimple(Mobj actor) {
     ..momY = Fixed32.mul(speed, _ySpeed[actor.moveDir]);
 }
 
-int _approxDistance(int dx, int dy) {
-  final adx = dx.abs();
-  final ady = dy.abs();
-  return adx + ady - (math.min(adx, ady) >> 1);
-}
-
 void attackMelee(Mobj actor, int damage, LevelLocals level) {
   final target = actor.target;
   if (target == null) return;
@@ -452,7 +445,7 @@ void faceTarget(Mobj actor) {
 
   if (dx == 0 && dy == 0) return;
 
-  actor.angle = _pointToAngle(actor.x, actor.y, target.x, target.y);
+  actor.angle = pointToAngle(target.x - actor.x, target.y - actor.y);
 }
 
 void aFaceTarget(Mobj actor, DoomRandom random) {
@@ -461,7 +454,7 @@ void aFaceTarget(Mobj actor, DoomRandom random) {
 
   actor
     ..flags &= ~MobjFlag.ambush
-    ..angle = _pointToAngle(actor.x, actor.y, target.x, target.y);
+    ..angle = pointToAngle(target.x - actor.x, target.y - actor.y);
 
   if ((target.flags & MobjFlag.shadow) != 0) {
     actor.angle += (random.pRandom() - random.pRandom()) << 21;
@@ -599,7 +592,7 @@ void aSkullAttack(Mobj actor) {
     ..momX = Fixed32.mul(_EnemyConstants.skullSpeed, fineCosine(an))
     ..momY = Fixed32.mul(_EnemyConstants.skullSpeed, fineSine(an));
 
-  final dist = _approxDistance(target.x - actor.x, target.y - actor.y);
+  final dist = approxDistance(target.x - actor.x, target.y - actor.y);
   final distDenom = dist ~/ _EnemyConstants.skullSpeed;
   final divisor = distDenom < 1 ? 1 : distDenom;
 
@@ -631,17 +624,6 @@ void _hitscanAttack(Mobj actor, int damage, LevelLocals level) {
   }
 }
 
-int _pointToAngle(int x1, int y1, int x2, int y2) {
-  final dx = x2 - x1;
-  final dy = y2 - y1;
-
-  if (dx == 0 && dy == 0) return 0;
-
-  final angle =
-      (math.atan2(dy.toDouble(), dx.toDouble()) * (0x80000000 / math.pi))
-          .toInt();
-  return angle;
-}
 
 void aCyberAttack(Mobj actor, LevelLocals level) {
   final target = actor.target;
@@ -700,7 +682,7 @@ void aTracer(Mobj actor, LevelLocals level) {
   final dest = actor.tracer;
   if (dest == null || dest.health <= 0) return;
 
-  final exact = _pointToAngle(actor.x, actor.y, dest.x, dest.y);
+  final exact = pointToAngle(dest.x - actor.x, dest.y - actor.y);
 
   if (exact != actor.angle) {
     const traceAngle = 0xc000000;
@@ -725,7 +707,7 @@ void aTracer(Mobj actor, LevelLocals level) {
     ..momX = Fixed32.mul(speed, fineCosine(an))
     ..momY = Fixed32.mul(speed, fineSine(an));
 
-  final dist = _approxDistance(dest.x - actor.x, dest.y - actor.y);
+  final dist = approxDistance(dest.x - actor.x, dest.y - actor.y);
   var distDenom = dist ~/ speed;
   if (distDenom < 1) distDenom = 1;
 

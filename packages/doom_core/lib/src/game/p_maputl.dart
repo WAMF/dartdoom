@@ -3,15 +3,6 @@ import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
 
-int approxDistance(int dx, int dy) {
-  final adx = dx.abs();
-  final ady = dy.abs();
-  if (adx < ady) {
-    return adx + ady - (adx >> 1);
-  }
-  return adx + ady - (ady >> 1);
-}
-
 int pointOnLineSide(int x, int y, Line line) {
   if (line.dx == 0) {
     if (x <= line.v1.x) {

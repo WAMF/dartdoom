@@ -108,7 +108,7 @@ class SpriteRenderer {
     bool flip;
 
     if (sprframe.rotate) {
-      final ang = _pointToAngle(thing.x, thing.y);
+      final ang = _pointToAngleXY(thing.x, thing.y);
       final rot = ((ang - thing.angle + (Angle.ang45 >> 1) * 9).u32 >> 29) & 7;
       lump = sprframe.lump[rot];
       flip = sprframe.flip[rot] != 0;
@@ -179,50 +179,8 @@ class SpriteRenderer {
     _vissprites.add(vis);
   }
 
-  int _pointToAngle(int x, int y) {
-    final dx = x - _state.viewX;
-    final dy = y - _state.viewY;
-
-    if (dx == 0 && dy == 0) {
-      return 0;
-    }
-
-    if (dx >= 0) {
-      if (dy >= 0) {
-        if (dx > dy) {
-          return _tanToAngle(slopeDiv(dy, dx));
-        } else {
-          return (Angle.ang90 - 1 - _tanToAngle(slopeDiv(dx, dy))).u32;
-        }
-      } else {
-        final absDy = -dy;
-        if (dx > absDy) {
-          return (-_tanToAngle(slopeDiv(absDy, dx))).u32;
-        } else {
-          return (Angle.ang270 + _tanToAngle(slopeDiv(dx, absDy))).u32;
-        }
-      }
-    } else {
-      final absDx = -dx;
-      if (dy >= 0) {
-        if (absDx > dy) {
-          return (Angle.ang180 - 1 - _tanToAngle(slopeDiv(dy, absDx))).u32;
-        } else {
-          return (Angle.ang90 + _tanToAngle(slopeDiv(absDx, dy))).u32;
-        }
-      } else {
-        final absDy = -dy;
-        if (absDx > absDy) {
-          return (Angle.ang180 + _tanToAngle(slopeDiv(absDy, absDx))).u32;
-        } else {
-          return (Angle.ang270 - 1 - _tanToAngle(slopeDiv(absDx, absDy))).u32;
-        }
-      }
-    }
-  }
-
-  int _tanToAngle(int slope) {
-    return tanToAngle(slope.clamp(0, Angle.slopeRange));
+  int _pointToAngleXY(int x, int y) {
+    return pointToAngle(x - _state.viewX, y - _state.viewY);
   }
 
   bool _pointOnSegSide(int x, int y, Seg seg) {

@@ -81,8 +81,8 @@ class BspTraversal {
   }
 
   void _addLine(Seg seg) {
-    final angle1 = _renderer.pointToAngle(seg.v1.x, seg.v1.y);
-    final angle2 = _renderer.pointToAngle(seg.v2.x, seg.v2.y);
+    final angle1 = _renderer.pointToAngleXY(seg.v1.x, seg.v1.y);
+    final angle2 = _renderer.pointToAngleXY(seg.v2.x, seg.v2.y);
 
     final span = (angle1 - angle2).u32;
     if (span >= Angle.ang180) {
@@ -258,8 +258,8 @@ class BspTraversal {
     final x2 = bboxArray[_checkCoord[checkIdx + 2]];
     final y2 = bboxArray[_checkCoord[checkIdx + 3]];
 
-    final angle1 = (_renderer.pointToAngle(x1, y1) - _state.viewAngle).u32;
-    final angle2 = (_renderer.pointToAngle(x2, y2) - _state.viewAngle).u32;
+    final angle1 = (_renderer.pointToAngleXY(x1, y1) - _state.viewAngle).u32;
+    final angle2 = (_renderer.pointToAngleXY(x2, y2) - _state.viewAngle).u32;
 
     final span = (angle1 - angle2).u32;
     if (span >= Angle.ang180) {

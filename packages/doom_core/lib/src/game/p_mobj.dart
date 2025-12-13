@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
@@ -683,7 +681,7 @@ void zMovement(Mobj mo, LevelLocals level) {
   mo.z += mo.momZ;
 
   if ((mo.flags & MobjFlag.float) != 0 && mo.target != null) {
-    final dist = _approxDist(mo.x - mo.target!.x, mo.y - mo.target!.y);
+    final dist = approxDistance(mo.x - mo.target!.x, mo.y - mo.target!.y);
     final delta = mo.target!.z + (mo.height >> 1) - mo.z;
 
     if (delta < 0 && dist < -(delta * 3)) {
@@ -730,15 +728,6 @@ void zMovement(Mobj mo, LevelLocals level) {
       mo.momZ = -mo.momZ;
     }
   }
-}
-
-int _approxDist(int dx, int dy) {
-  dx = dx.abs();
-  dy = dy.abs();
-  if (dx < dy) {
-    return dx + dy - (dx >> 1);
-  }
-  return dx + dy - (dy >> 1);
 }
 
 abstract final class _MissileConstants {
@@ -882,7 +871,7 @@ Mobj? spawnMissile(
 
   th.target = source;
 
-  var an = _pointToAngle(source.x, source.y, dest.x, dest.y);
+  var an = pointToAngle(dest.x - source.x, dest.y - source.y);
 
   if ((dest.flags & MobjFlag.shadow) != 0) {
     an += (level.random.pRandom() - level.random.pRandom()) << 20;
@@ -895,7 +884,7 @@ Mobj? spawnMissile(
     ..momX = Fixed32.mul(speed, fineCosine(fineAngle))
     ..momY = Fixed32.mul(speed, fineSine(fineAngle));
 
-  final dist = _approxDist(dest.x - source.x, dest.y - source.y);
+  final dist = approxDistance(dest.x - source.x, dest.y - source.y);
   var numDist = dist ~/ speed;
   if (numDist < 1) numDist = 1;
 
@@ -982,12 +971,4 @@ void explodeMissile(Mobj mo, LevelLocals level) {
   mo.flags &= ~MobjFlag.missile;
 
   if (mo.tics < 1) mo.tics = 1;
-}
-
-int _pointToAngle(int x1, int y1, int x2, int y2) {
-  final dx = x2 - x1;
-  final dy = y2 - y1;
-  if (dx == 0 && dy == 0) return 0;
-  return (math.atan2(dy.toDouble(), dx.toDouble()) * (0x80000000 / math.pi))
-      .toInt();
 }

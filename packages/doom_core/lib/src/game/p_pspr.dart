@@ -14,6 +14,7 @@ abstract final class _WeaponConstants {
   static const int weaponTop = 32 * Fixed32.fracUnit;
   static const int numPsprites = 2;
   static const int psWeapon = 0;
+  // ignore: unused_field
   static const int psFlash = 1;
   static const int bfgCells = 40;
   static const int bulletRange = 16 * 64 * Fixed32.fracUnit;
@@ -331,7 +332,7 @@ void _punchAttack(Player player, LevelLocals level) {
   _lineAttack(mobj, angle, GameConstants.meleeRange, slope, damage, level);
 
   if (lineTarget != null) {
-    mobj.angle = _pointToAngle(mobj.x, mobj.y, lineTarget!.x, lineTarget!.y);
+    mobj.angle = pointToAngle(lineTarget!.x - mobj.x, lineTarget!.y - mobj.y);
   }
 }
 
@@ -361,12 +362,8 @@ void _sawAttack(Player player, LevelLocals level) {
 
   if (lineTarget == null) return;
 
-  final targetAngle = _pointToAngle(
-    mobj.x,
-    mobj.y,
-    lineTarget!.x,
-    lineTarget!.y,
-  );
+  final targetAngle =
+      pointToAngle(lineTarget!.x - mobj.x, lineTarget!.y - mobj.y);
   final angleDiff = targetAngle - mobj.angle;
   const ang90div20 = Angle.ang90 ~/ 20;
   const ang90div21 = Angle.ang90 ~/ 21;
@@ -485,7 +482,7 @@ int aimLineAttack(Mobj source, int angle, int distance, LevelLocals level) {
       final tx = mobj.x - source.x;
       final ty = mobj.y - source.y;
 
-      final dist = _approxDist(tx, ty);
+      final dist = approxDistance(tx, ty);
       if (dist >= bestDist) {
         mobj = mobj.sNext;
         continue;
@@ -546,7 +543,7 @@ void _lineAttack(Mobj source, int angle, int distance, int slope, int damage, Le
       final tx = mobj.x - source.x;
       final ty = mobj.y - source.y;
 
-      final dist = _approxDist(tx, ty);
+      final dist = approxDistance(tx, ty);
       if (dist >= bestDist) {
         mobj = mobj.sNext;
         continue;
@@ -577,61 +574,3 @@ void _lineAttack(Mobj source, int angle, int distance, int slope, int damage, Le
   }
 }
 
-int _approxDist(int dx, int dy) {
-  final adx = dx < 0 ? -dx : dx;
-  final ady = dy < 0 ? -dy : dy;
-  if (adx > ady) {
-    return adx + (ady >> 1);
-  }
-  return ady + (adx >> 1);
-}
-
-int _pointToAngle(int x1, int y1, int x2, int y2) {
-  final dx = x2 - x1;
-  final dy = y2 - y1;
-
-  if (dx == 0 && dy == 0) {
-    return 0;
-  }
-
-  if (dx >= 0) {
-    if (dy >= 0) {
-      if (dx > dy) {
-        return _tanToAngleValue(Fixed32.div(dy, dx));
-      } else {
-        return Angle.ang90 - 1 - _tanToAngleValue(Fixed32.div(dx, dy));
-      }
-    } else {
-      final ady = -dy;
-      if (dx > ady) {
-        return -_tanToAngleValue(Fixed32.div(ady, dx));
-      } else {
-        return Angle.ang270 + _tanToAngleValue(Fixed32.div(dx, ady));
-      }
-    }
-  } else {
-    final adx = -dx;
-    if (dy >= 0) {
-      if (adx > dy) {
-        return Angle.ang180 - 1 - _tanToAngleValue(Fixed32.div(dy, adx));
-      } else {
-        return Angle.ang90 + _tanToAngleValue(Fixed32.div(adx, dy));
-      }
-    } else {
-      final ady = -dy;
-      if (adx > ady) {
-        return Angle.ang180 + _tanToAngleValue(Fixed32.div(ady, adx));
-      } else {
-        return Angle.ang270 - 1 - _tanToAngleValue(Fixed32.div(adx, ady));
-      }
-    }
-  }
-}
-
-int _tanToAngleValue(int tan) {
-  final index = tan >> Angle.dBits;
-  if (index >= 0 && index <= Angle.slopeRange) {
-    return tanToAngle(index);
-  }
-  return 0;
-}

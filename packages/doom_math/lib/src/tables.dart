@@ -126,3 +126,55 @@ int fineTangent(int index) => DoomTables.instance.fineTangent[index];
 int tanToAngle(int index) => DoomTables.instance.tanToAngle[index];
 
 int slopeDiv(int num, int den) => DoomTables.instance.slopeDiv(num, den);
+
+int tanToAngleClamped(int slope) {
+  return tanToAngle(slope.clamp(0, Angle.slopeRange));
+}
+
+int pointToAngle(int dx, int dy) {
+  if (dx == 0 && dy == 0) {
+    return 0;
+  }
+
+  if (dx >= 0) {
+    if (dy >= 0) {
+      if (dx > dy) {
+        return tanToAngleClamped(slopeDiv(dy, dx));
+      } else {
+        return (Angle.ang90 - 1 - tanToAngleClamped(slopeDiv(dx, dy))).u32;
+      }
+    } else {
+      final absDy = -dy;
+      if (dx > absDy) {
+        return (-tanToAngleClamped(slopeDiv(absDy, dx))).u32;
+      } else {
+        return (Angle.ang270 + tanToAngleClamped(slopeDiv(dx, absDy))).u32;
+      }
+    }
+  } else {
+    final absDx = -dx;
+    if (dy >= 0) {
+      if (absDx > dy) {
+        return (Angle.ang180 - 1 - tanToAngleClamped(slopeDiv(dy, absDx))).u32;
+      } else {
+        return (Angle.ang90 + tanToAngleClamped(slopeDiv(absDx, dy))).u32;
+      }
+    } else {
+      final absDy = -dy;
+      if (absDx > absDy) {
+        return (Angle.ang180 + tanToAngleClamped(slopeDiv(absDy, absDx))).u32;
+      } else {
+        return (Angle.ang270 - 1 - tanToAngleClamped(slopeDiv(absDx, absDy))).u32;
+      }
+    }
+  }
+}
+
+int approxDistance(int dx, int dy) {
+  final adx = dx.abs();
+  final ady = dy.abs();
+  if (adx < ady) {
+    return adx + ady - (adx >> 1);
+  }
+  return adx + ady - (ady >> 1);
+}

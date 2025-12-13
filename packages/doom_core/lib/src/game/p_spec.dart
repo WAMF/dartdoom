@@ -94,10 +94,12 @@ abstract final class _SectorSpecial {
   static const int damage5 = 7;
   static const int lightOscillate = 8;
   static const int secret = 9;
+  // ignore: unused_field
   static const int doorClose30 = 10;
   static const int endLevelDamage = 11;
   static const int lightBlink05Sync = 12;
   static const int lightBlink10Sync = 13;
+  // ignore: unused_field
   static const int doorOpen300 = 14;
   static const int damage20 = 16;
   static const int lightFlicker = 17;
@@ -912,7 +914,7 @@ void initPicAnims(LevelLocals level) {
         basePic: startNum,
         numPics: numPics,
         speed: def.speed,
-      ));
+      ),);
     } else {
       final startNum = textureManager.checkFlatNumForName(def.startName);
       if (startNum == -1) continue;
@@ -929,7 +931,7 @@ void initPicAnims(LevelLocals level) {
         basePic: startNum,
         numPics: numPics,
         speed: def.speed,
-      ));
+      ),);
     }
   }
 }

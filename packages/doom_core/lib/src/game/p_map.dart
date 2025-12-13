@@ -591,13 +591,13 @@ void _hitSlideLine(Line ld) {
 
   final side = _pointOnLineSide(_slideMo!.x, _slideMo!.y, ld);
 
-  var lineAngle = _pointToAngle(0, 0, ld.dx, ld.dy);
+  var lineAngle = pointToAngle(ld.dx, ld.dy);
 
   if (side == 1) {
     lineAngle = (lineAngle + Angle.ang180).u32;
   }
 
-  final moveAngle = _pointToAngle(0, 0, _tmXMove, _tmYMove);
+  final moveAngle = pointToAngle(_tmXMove, _tmYMove);
   var deltaAngle = (moveAngle - lineAngle).u32;
 
   if (deltaAngle > Angle.ang180) {
@@ -607,67 +607,11 @@ void _hitSlideLine(Line ld) {
   final lineFineAngle = (lineAngle >> Angle.angleToFineShift) & Angle.fineMask;
   final deltaFineAngle = (deltaAngle >> Angle.angleToFineShift) & Angle.fineMask;
 
-  final moveDist = _approxDistance(_tmXMove, _tmYMove);
+  final moveDist = approxDistance(_tmXMove, _tmYMove);
   final newDist = Fixed32.mul(moveDist, fineCosine(deltaFineAngle));
 
   _tmXMove = Fixed32.mul(newDist, fineCosine(lineFineAngle));
   _tmYMove = Fixed32.mul(newDist, fineSine(lineFineAngle));
-}
-
-int _approxDistance(int dx, int dy) {
-  dx = dx.abs();
-  dy = dy.abs();
-  if (dx < dy) {
-    return dx + dy - (dx >> 1);
-  }
-  return dx + dy - (dy >> 1);
-}
-
-int _pointToAngle(int x1, int y1, int x2, int y2) {
-  final dx = x2 - x1;
-  final dy = y2 - y1;
-
-  if (dx == 0 && dy == 0) {
-    return 0;
-  }
-
-  if (dx >= 0) {
-    if (dy >= 0) {
-      if (dx > dy) {
-        return _tanToAngle(_slopeDiv(dy, dx));
-      }
-      return (Angle.ang90 - 1 - _tanToAngle(_slopeDiv(dx, dy))).u32;
-    } else {
-      final absDy = -dy;
-      if (dx > absDy) {
-        return (-_tanToAngle(_slopeDiv(absDy, dx))).u32;
-      }
-      return (Angle.ang270 + _tanToAngle(_slopeDiv(dx, absDy))).u32;
-    }
-  } else {
-    final absDx = -dx;
-    if (dy >= 0) {
-      if (absDx > dy) {
-        return (Angle.ang180 - 1 - _tanToAngle(_slopeDiv(dy, absDx))).u32;
-      }
-      return (Angle.ang90 + _tanToAngle(_slopeDiv(absDx, dy))).u32;
-    } else {
-      final absDy = -dy;
-      if (absDx > absDy) {
-        return (Angle.ang180 + _tanToAngle(_slopeDiv(absDy, absDx))).u32;
-      }
-      return (Angle.ang270 - 1 - _tanToAngle(_slopeDiv(absDx, absDy))).u32;
-    }
-  }
-}
-
-int _tanToAngle(int slope) {
-  return tanToAngle(slope.clamp(0, Angle.slopeRange));
-}
-
-int _slopeDiv(int num, int den) {
-  if (den < 512) return Angle.slopeRange;
-  return ((num << 3) ~/ (den >> 8)).clamp(0, Angle.slopeRange);
 }
 
 Subsector? _pointInSubsector(int x, int y, LevelLocals level) {

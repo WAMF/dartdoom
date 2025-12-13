@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/info.dart' hide SpriteNum;
@@ -478,7 +476,7 @@ void damageMobj(
       (target.flags & MobjFlag.noClip) == 0 &&
       (sourcePlayer is! Player ||
           sourcePlayer.readyWeapon != WeaponType.chainsaw)) {
-    var ang = _pointToAngle(inflictor.x, inflictor.y, target.x, target.y);
+    var ang = pointToAngle(target.x - inflictor.x, target.y - inflictor.y);
     final mass = target.info?.mass ?? 100;
     var thrust = actualDamage * (Fixed32.fracUnit >> 3) * 100 ~/ mass;
 
@@ -709,18 +707,6 @@ int _pointOnSide(int x, int y, Node node) {
     return 0;
   }
   return 1;
-}
-
-int _pointToAngle(int x1, int y1, int x2, int y2) {
-  final dx = x2 - x1;
-  final dy = y2 - y1;
-
-  if (dx == 0 && dy == 0) return 0;
-
-  final angle =
-      (math.atan2(dy.toDouble(), dx.toDouble()) * (0x80000000 / math.pi))
-          .toInt();
-  return angle;
 }
 
 abstract final class _MobjType {

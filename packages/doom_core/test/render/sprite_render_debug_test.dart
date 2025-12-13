@@ -433,7 +433,7 @@ void main() {
       final lastSpriteLump = wadManager.getNumForName('S_END') - 1;
       for (var lumpNum = firstSpriteLump; lumpNum <= lastSpriteLump; lumpNum++) {
         final lumpInfo = wadManager.getLumpInfo(lumpNum);
-        if (lumpInfo.name.startsWith('BAR1') ?? false) {
+        if (lumpInfo.name.startsWith('BAR1')) {
           final patchData = wadManager.cacheLumpNum(lumpNum);
           final byteData = ByteData.sublistView(patchData);
           final width = byteData.getInt16(0, Endian.little);
@@ -450,7 +450,7 @@ void main() {
       stderr.writeln('Looking for POSS (zombie) sprites:');
       for (var lumpNum = firstSpriteLump; lumpNum <= lastSpriteLump; lumpNum++) {
         final lumpInfo = wadManager.getLumpInfo(lumpNum);
-        if (lumpInfo.name.startsWith('POSS') ?? false) {
+        if (lumpInfo.name.startsWith('POSS')) {
           final patchData = wadManager.cacheLumpNum(lumpNum);
           final byteData = ByteData.sublistView(patchData);
           final width = byteData.getInt16(0, Endian.little);
