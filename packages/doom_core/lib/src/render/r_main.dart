@@ -307,6 +307,28 @@ class Renderer {
     return 64 * Fixed32.fracUnit;
   }
 
+  int pointToDist(int x, int y) {
+    var dx = (x - state.viewX).abs();
+    var dy = (y - state.viewY).abs();
+
+    if (dy > dx) {
+      final temp = dx;
+      dx = dy;
+      dy = temp;
+    }
+
+    if (dx == 0) return 0;
+
+    final slope = Fixed32.div(dy, dx) >> Angle.dBits;
+    final clampedSlope = slope.clamp(0, Angle.slopeRange);
+    final angle =
+        ((tanToAngle(clampedSlope) + Angle.ang90).u32 >> Angle.angleToFineShift) &
+            Angle.fineMask;
+
+    final dist = Fixed32.div(dx, fineSine(angle));
+    return dist;
+  }
+
   Subsector pointInSubsector(int x, int y) {
     if (state.nodes.isEmpty) {
       return state.subsectors[0];

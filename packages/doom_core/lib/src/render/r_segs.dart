@@ -125,10 +125,9 @@ class SegRenderer {
 
     _rwNormalAngle();
 
-    final hyp = _hypotenuse(_state.viewX - v1.x, _state.viewY - v1.y);
+    final hyp = _renderer.pointToDist(v1.x, v1.y);
 
     var offsetAngle = (_rwNormalAngleVal - _rwAngle1).u32;
-    final origOffsetAngle = offsetAngle;
     if (offsetAngle > Angle.ang180.u32) {
       offsetAngle = (-offsetAngle.s32).u32;
     }
@@ -139,22 +138,20 @@ class SegRenderer {
         (offsetAngle >> Angle.angleToFineShift) & Angle.fineMask;
     _rwOffset = Fixed32.mul(hyp, fineSine(offsetFineAngle));
 
-    if (origOffsetAngle < Angle.ang180.u32) {
+    if ((_rwNormalAngleVal - _rwAngle1).u32 < Angle.ang180.u32) {
       _rwOffset = -_rwOffset;
     }
 
     _rwOffset += seg.offset + _curSide!.textureOffset;
 
-    var offsetAngleForDist = (_rwNormalAngleVal - _rwAngle1).u32;
-
-    if (offsetAngleForDist.u32 < Angle.ang180.u32) {
-      offsetAngleForDist = (Angle.ang90 - offsetAngleForDist.s32).u32;
-    } else {
-      offsetAngleForDist = (Angle.ang90 + offsetAngleForDist.s32).u32;
+    var distOffsetAngle = (_rwNormalAngleVal - _rwAngle1).s32.abs().u32;
+    if (distOffsetAngle > Angle.ang90.u32) {
+      distOffsetAngle = Angle.ang90.u32;
     }
+    final distAngle = (Angle.ang90 - distOffsetAngle.s32).u32;
 
-    final distAngle = (offsetAngleForDist >> Angle.angleToFineShift) & Angle.fineMask;
-    _rwDistance = Fixed32.mul(hyp, fineSine(distAngle).abs());
+    final distFineAngle = (distAngle >> Angle.angleToFineShift) & Angle.fineMask;
+    _rwDistance = Fixed32.mul(hyp, fineSine(distFineAngle));
 
     _state.rwDistance = _rwDistance;
     _state.rwNormalAngle = _rwNormalAngleVal;
@@ -190,15 +187,6 @@ class SegRenderer {
   void _rwNormalAngle() {
     _rwNormalAngleVal = (_curLine!.angle + Angle.ang90).u32.s32;
     _rwCenterAngle = (Angle.ang90 + _state.viewAngle - _rwNormalAngleVal).u32.s32;
-  }
-
-  int _hypotenuse(int dx, int dy) {
-    final adx = dx.abs();
-    final ady = dy.abs();
-    if (adx > ady) {
-      return adx + (ady >> 1);
-    }
-    return ady + (adx >> 1);
   }
 
   void _setupTextures() {
