@@ -144,55 +144,66 @@ bool checkPosition(Mobj thing, int x, int y, LevelLocals level) {
 }
 
 bool _checkThings(Mobj thing, int x, int y, LevelLocals level) {
-  final ss = _pointInSubsector(x, y, level);
-  if (ss == null) return true;
+  final blockmap = level.blockmap;
+  final blockLinks = level.blockLinks;
+  if (blockmap == null || blockLinks == null) return true;
 
   final thingRadius = thing.radius;
   final thingHeight = thing.height;
   final thingZ = thing.z;
 
-  for (final sector in level.renderState.sectors) {
-    var other = sector.thingList;
-    while (other != null) {
-      final next = other.sNext;
+  final (bxMin, byMin) = blockmap.worldToBlock(_ctx.tmBBox2, _ctx.tmBBox1);
+  final (bxMax, byMax) = blockmap.worldToBlock(_ctx.tmBBox3, _ctx.tmBBox0);
 
-      if (other == thing) {
-        other = next;
-        continue;
-      }
+  for (var by = byMin; by <= byMax; by++) {
+    for (var bx = bxMin; bx <= bxMax; bx++) {
+      if (!blockmap.isValidBlock(bx, by)) continue;
 
-      final blockDist = other.radius + thingRadius;
+      final index = by * blockmap.columns + bx;
+      var other = blockLinks[index];
 
-      if ((other.x - x).abs() >= blockDist || (other.y - y).abs() >= blockDist) {
-        other = next;
-        continue;
-      }
+      while (other != null) {
+        final next = other.bNext;
 
-      if (other.z > thingZ + thingHeight) {
-        other = next;
-        continue;
-      }
-
-      if (other.z + other.height < thingZ) {
-        other = next;
-        continue;
-      }
-
-      if ((other.flags & MobjFlag.special) != 0) {
-        if ((_ctx.tmFlags & MobjFlag.pickup) != 0) {
-          inter.touchSpecialThing(other, thing, level);
-        }
-        if ((other.flags & MobjFlag.solid) == 0) {
+        if (other == thing) {
           other = next;
           continue;
         }
-      }
 
-      if ((other.flags & MobjFlag.solid) != 0) {
-        return false;
-      }
+        final blockDist = other.radius + thingRadius;
 
-      other = next;
+        if ((other.x - x).abs() >= blockDist ||
+            (other.y - y).abs() >= blockDist) {
+          other = next;
+          continue;
+        }
+
+        if (other.z > thingZ + thingHeight) {
+          other = next;
+          continue;
+        }
+
+        if (other.z + other.height < thingZ) {
+          other = next;
+          continue;
+        }
+
+        if ((other.flags & MobjFlag.special) != 0) {
+          if ((_ctx.tmFlags & MobjFlag.pickup) != 0) {
+            inter.touchSpecialThing(other, thing, level);
+          }
+          if ((other.flags & MobjFlag.solid) == 0) {
+            other = next;
+            continue;
+          }
+        }
+
+        if ((other.flags & MobjFlag.solid) != 0) {
+          return false;
+        }
+
+        other = next;
+      }
     }
   }
 
@@ -716,6 +727,26 @@ void _unsetThingPosition(Mobj thing, LevelLocals level) {
       }
     }
   }
+
+  if ((thing.flags & MobjFlag.noBlockmap) == 0) {
+    if (thing.bNext != null) {
+      thing.bNext!.bPrev = thing.bPrev;
+    }
+
+    if (thing.bPrev != null) {
+      thing.bPrev!.bNext = thing.bNext;
+    } else {
+      final blockmap = level.blockmap;
+      final blockLinks = level.blockLinks;
+      if (blockmap != null && blockLinks != null) {
+        final (blockX, blockY) = blockmap.worldToBlock(thing.x, thing.y);
+        if (blockmap.isValidBlock(blockX, blockY)) {
+          final index = blockY * blockmap.columns + blockX;
+          blockLinks[index] = thing.bNext;
+        }
+      }
+    }
+  }
 }
 
 void _setThingPosition(Mobj thing, LevelLocals level) {
@@ -735,6 +766,27 @@ void _setThingPosition(Mobj thing, LevelLocals level) {
     }
 
     sector.thingList = thing;
+  }
+
+  if ((thing.flags & MobjFlag.noBlockmap) == 0) {
+    final blockmap = level.blockmap;
+    final blockLinks = level.blockLinks;
+    if (blockmap != null && blockLinks != null) {
+      final (blockX, blockY) = blockmap.worldToBlock(thing.x, thing.y);
+      if (blockmap.isValidBlock(blockX, blockY)) {
+        final index = blockY * blockmap.columns + blockX;
+        thing.bPrev = null;
+        thing.bNext = blockLinks[index];
+        if (blockLinks[index] != null) {
+          blockLinks[index]!.bPrev = thing;
+        }
+        blockLinks[index] = thing;
+      } else {
+        thing
+          ..bNext = null
+          ..bPrev = null;
+      }
+    }
   }
 }
 

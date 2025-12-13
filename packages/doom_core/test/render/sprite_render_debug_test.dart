@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/blockmap.dart';
+import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_mobj.dart';
 import 'package:doom_core/src/render/r_data.dart';
@@ -123,7 +125,13 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      final thingSpawner = ThingSpawner(state)..spawnMapThings(mapData);
+      final level = LevelLocals(state)..init();
+      if (mapData.blockmap != null) {
+        level.blockmap = Blockmap.parse(mapData.blockmap!);
+        level.initBlockLinks();
+      }
+
+      final thingSpawner = ThingSpawner(state, level)..spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 
@@ -198,7 +206,13 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      final thingSpawner = ThingSpawner(state)..spawnMapThings(mapData);
+      final level = LevelLocals(state)..init();
+      if (mapData.blockmap != null) {
+        level.blockmap = Blockmap.parse(mapData.blockmap!);
+        level.initBlockLinks();
+      }
+
+      final thingSpawner = ThingSpawner(state, level)..spawnMapThings(mapData);
 
       final player1Start = mapData.things.firstWhere((t) => t.type == 1);
       final px = player1Start.x;
@@ -229,7 +243,13 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      final thingSpawner = ThingSpawner(state)..spawnMapThings(mapData);
+      final level = LevelLocals(state)..init();
+      if (mapData.blockmap != null) {
+        level.blockmap = Blockmap.parse(mapData.blockmap!);
+        level.initBlockLinks();
+      }
+
+      final thingSpawner = ThingSpawner(state, level)..spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 
@@ -298,7 +318,13 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      ThingSpawner(state).spawnMapThings(mapData);
+      final level = LevelLocals(state)..init();
+      if (mapData.blockmap != null) {
+        level.blockmap = Blockmap.parse(mapData.blockmap!);
+        level.initBlockLinks();
+      }
+
+      ThingSpawner(state, level).spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 
@@ -340,7 +366,13 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      ThingSpawner(state).spawnMapThings(mapData);
+      final level = LevelLocals(state)..init();
+      if (mapData.blockmap != null) {
+        level.blockmap = Blockmap.parse(mapData.blockmap!);
+        level.initBlockLinks();
+      }
+
+      ThingSpawner(state, level).spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 

@@ -60,9 +60,10 @@ class DoomGame {
 
     if (mapData.blockmap != null) {
       _level.blockmap = Blockmap.parse(mapData.blockmap!);
+      _level.initBlockLinks();
     }
 
-    ThingSpawner(_renderState).spawnMapThings(mapData);
+    ThingSpawner(_renderState, _level).spawnMapThings(mapData);
 
     _spawnPlayer(mapData);
 
@@ -142,6 +143,7 @@ class DoomGame {
     final ss = subsectors[BspConstants.getIndex(nodeNum)];
     mobj.subsector = ss;
     _linkToSector(mobj, ss.sector);
+    _linkToBlockmap(mobj);
   }
 
   void _linkToSector(Mobj mobj, Sector sector) {
@@ -155,6 +157,29 @@ class DoomGame {
     }
 
     sector.thingList = mobj;
+  }
+
+  void _linkToBlockmap(Mobj mobj) {
+    if ((mobj.flags & MobjFlag.noBlockmap) != 0) return;
+
+    final blockmap = _level.blockmap;
+    final blockLinks = _level.blockLinks;
+    if (blockmap == null || blockLinks == null) return;
+
+    final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
+    if (blockmap.isValidBlock(blockX, blockY)) {
+      final index = blockY * blockmap.columns + blockX;
+      mobj.bPrev = null;
+      mobj.bNext = blockLinks[index];
+      if (blockLinks[index] != null) {
+        blockLinks[index]!.bPrev = mobj;
+      }
+      blockLinks[index] = mobj;
+    } else {
+      mobj
+        ..bNext = null
+        ..bPrev = null;
+    }
   }
 
   int _pointOnSide(int x, int y, Node node) {

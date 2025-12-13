@@ -175,9 +175,10 @@ const Map<int, MobjInfo> _monsterInfo = {
 MobjInfo? _getMonsterInfo(int thingType) => _monsterInfo[thingType];
 
 class ThingSpawner {
-  ThingSpawner(this._state);
+  ThingSpawner(this._state, this._level);
 
   final RenderState _state;
+  final LevelLocals _level;
   final List<Mobj> _mobjs = [];
 
   List<Mobj> get mobjs => _mobjs;
@@ -291,6 +292,27 @@ class ThingSpawner {
 
       sector.thingList = mobj;
     }
+
+    if ((mobj.flags & MobjFlag.noBlockmap) == 0) {
+      final blockmap = _level.blockmap;
+      final blockLinks = _level.blockLinks;
+      if (blockmap != null && blockLinks != null) {
+        final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
+        if (blockmap.isValidBlock(blockX, blockY)) {
+          final index = blockY * blockmap.columns + blockX;
+          mobj.bPrev = null;
+          mobj.bNext = blockLinks[index];
+          if (blockLinks[index] != null) {
+            blockLinks[index]!.bPrev = mobj;
+          }
+          blockLinks[index] = mobj;
+        } else {
+          mobj
+            ..bNext = null
+            ..bPrev = null;
+        }
+      }
+    }
   }
 
   Subsector? _pointInSubsector(int x, int y) {
@@ -343,6 +365,7 @@ class ThingSpawner {
     for (final sector in _state.sectors) {
       sector.thingList = null;
     }
+    _level.clearBlockLinks();
     _mobjs.clear();
   }
 }

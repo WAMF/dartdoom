@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/blockmap.dart';
+import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/p_mobj.dart';
 import 'package:doom_core/src/render/r_bsp.dart';
 import 'package:doom_core/src/render/r_data.dart';
@@ -200,7 +202,13 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      final thingSpawner = ThingSpawner(state)..spawnMapThings(mapData);
+      final level = LevelLocals(state)..init();
+      if (mapData.blockmap != null) {
+        level.blockmap = Blockmap.parse(mapData.blockmap!);
+        level.initBlockLinks();
+      }
+
+      final thingSpawner = ThingSpawner(state, level)..spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 

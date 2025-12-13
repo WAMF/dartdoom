@@ -1,4 +1,5 @@
 import 'package:doom_core/src/game/blockmap.dart';
+import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_switch.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/thinker.dart';
@@ -18,6 +19,7 @@ class LevelLocals {
   final List<Player> players = [];
   Blockmap? blockmap;
   SwitchManager? switchManager;
+  List<Mobj?>? blockLinks;
 
   int levelTime = 0;
   int totalKills = 0;
@@ -51,6 +53,23 @@ class LevelLocals {
     final textureManager = renderState.textureManager;
     if (textureManager != null) {
       switchManager = SwitchManager(textureManager)..init();
+    }
+  }
+
+  void initBlockLinks() {
+    final bm = blockmap;
+    if (bm == null) return;
+
+    final count = bm.columns * bm.rows;
+    blockLinks = List<Mobj?>.filled(count, null);
+  }
+
+  void clearBlockLinks() {
+    final links = blockLinks;
+    if (links == null) return;
+
+    for (var i = 0; i < links.length; i++) {
+      links[i] = null;
     }
   }
 }
