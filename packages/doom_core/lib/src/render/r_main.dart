@@ -9,6 +9,7 @@ import 'package:doom_core/src/render/r_sky.dart';
 import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_core/src/render/r_things.dart';
 import 'package:doom_math/doom_math.dart';
+import 'package:doom_wad/doom_wad.dart';
 
 abstract final class _ViewConstants {
   static const int fineFieldOfView = Angle.fineAngles ~/ 4;
@@ -46,7 +47,8 @@ class Renderer {
       ..onCheckCeilingPlane = _planeRenderer.checkCeilingPlane;
     _spriteRenderer = SpriteRenderer(state, drawContext, _segRenderer)
       ..initClipArrays(state.viewWidth)
-      ..onGetSpriteData = _getSpriteData;
+      ..onGetSpriteData = _getSpriteData
+      ..onDrawMaskedColumn = _renderMaskedSegRange;
     _bsp = BspTraversal(state, this)
       ..onAddLine = _segRenderer.storeWallRange
       ..onEnterSubsector = _onEnterSubsector;
@@ -205,6 +207,114 @@ class Renderer {
     final texManager = state.textureManager;
     if (texManager == null) return null;
     return texManager.getTextureColumn(texture, col);
+  }
+
+  void _renderMaskedSegRange(DrawSeg ds, int x1, int x2, Uint8List frameBuffer) {
+    final seg = ds.curLine;
+    final frontSector = seg.frontSector;
+    final backSector = seg.backSector;
+    if (backSector == null) return;
+
+    final texManager = state.textureManager;
+    if (texManager == null) return;
+
+    final texNum = state.textureTranslation[seg.sidedef.midTexture];
+    if (texNum <= 0) return;
+
+    var lightNum = (frontSector.lightLevel >> RenderConstants.lightSegShift) + state.extraLight;
+    if (seg.v1.y == seg.v2.y) {
+      lightNum--;
+    } else if (seg.v1.x == seg.v2.x) {
+      lightNum++;
+    }
+    lightNum = lightNum.clamp(0, RenderConstants.lightLevels - 1);
+    final wallLights = state.scaleLight[lightNum];
+
+    int textureMid;
+    if ((seg.linedef.flags & LineFlags.dontPegBottom) != 0) {
+      final openBottom = frontSector.floorHeight > backSector.floorHeight
+          ? frontSector.floorHeight
+          : backSector.floorHeight;
+      textureMid = openBottom + _getTextureHeight(texNum) - state.viewZ;
+    } else {
+      final openTop = frontSector.ceilingHeight < backSector.ceilingHeight
+          ? frontSector.ceilingHeight
+          : backSector.ceilingHeight;
+      textureMid = openTop - state.viewZ;
+    }
+    textureMid += seg.sidedef.rowOffset;
+
+    final maskedTextureCol = ds.maskedTextureCol;
+    if (maskedTextureCol == null) return;
+
+    final scalestep = ds.scaleStep;
+    var spryscale = ds.scale1 + (x1 - ds.x1) * scalestep;
+
+    final mfloorclip = ds.sprBottomClip;
+    final mceilingclip = ds.sprTopClip;
+
+    final column = drawContext.column;
+    for (var x = x1; x <= x2; x++) {
+      final colIndex = x - ds.x1;
+      if (colIndex < 0 || colIndex >= maskedTextureCol.length) {
+        spryscale += scalestep;
+        continue;
+      }
+
+      final textureCol = maskedTextureCol[colIndex];
+      if (textureCol == 0x7FFF) {
+        spryscale += scalestep;
+        continue;
+      }
+
+      final lightIndex = (spryscale >> RenderConstants.lightScaleShift)
+          .clamp(0, RenderConstants.maxLightScale - 1);
+      column.colormap = wallLights[lightIndex] ?? state.colormaps?.sublist(0, 256);
+
+      final sprtopscreen = state.centerYFrac - Fixed32.mul(textureMid, spryscale);
+
+      var clipTop = -1;
+      var clipBot = state.viewHeight;
+      if (mceilingclip != null && colIndex < mceilingclip.length) {
+        clipTop = mceilingclip[colIndex];
+      }
+      if (mfloorclip != null && colIndex < mfloorclip.length) {
+        clipBot = mfloorclip[colIndex];
+      }
+
+      final posts = texManager.getTextureColumnPosts(texNum, textureCol);
+      for (final post in posts) {
+        final topscreen = sprtopscreen + Fixed32.mul(post.topDelta.toFixed(), spryscale);
+        final bottomscreen = topscreen + Fixed32.mul(post.pixels.length.toFixed(), spryscale);
+
+        var yl = (topscreen + Fixed32.fracUnit - 1) >> Fixed32.fracBits;
+        var yh = (bottomscreen - 1) >> Fixed32.fracBits;
+
+        if (yl <= clipTop) yl = clipTop + 1;
+        if (yh >= clipBot) yh = clipBot - 1;
+
+        if (yl > yh) continue;
+
+        column
+          ..x = x
+          ..yl = yl
+          ..yh = yh
+          ..iscale = Fixed32.div(Fixed32.fracUnit, spryscale)
+          ..textureMid = textureMid - post.topDelta.toFixed()
+          ..source = post.pixels;
+
+        drawContext.drawColumn(frameBuffer);
+      }
+
+      maskedTextureCol[colIndex] = 0x7FFF;
+      spryscale += scalestep;
+    }
+  }
+
+  int _getTextureHeight(int textureNum) {
+    final texManager = state.textureManager;
+    if (texManager == null || textureNum <= 0) return 0;
+    return texManager.getTextureHeight(textureNum) << Fixed32.fracBits;
   }
 
   int pointOnSide(int x, int y, Node node) {

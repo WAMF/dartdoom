@@ -3,6 +3,7 @@ import 'package:doom_core/src/events/tic_cmd.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_map.dart';
+import 'package:doom_core/src/game/p_pspr.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_math/doom_math.dart';
 
@@ -48,6 +49,8 @@ void playerThink(Player player, LevelLocals level) {
   } else {
     player.attackDown = false;
   }
+
+  movePsprites(player, level);
 }
 
 void _movePlayer(Player player) {

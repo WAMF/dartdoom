@@ -145,31 +145,31 @@ DoorThinker? evDoDoor(Line line, DoorType type, LevelLocals level) {
   switch (type) {
     case DoorType.blazeClose:
     case DoorType.close:
-      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight = findLowestCeilingSurrounding(sector);
       door.topHeight -= 4 << Fixed32.fracBits;
       door.direction = DoorDirection.closing;
 
     case DoorType.close30ThenOpen:
-      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight = findLowestCeilingSurrounding(sector);
       door.topHeight -= 4 << Fixed32.fracBits;
       door.direction = DoorDirection.closing;
 
     case DoorType.blazeRaise:
     case DoorType.blazeOpen:
       door.direction = DoorDirection.opening;
-      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight = findLowestCeilingSurrounding(sector);
       door.topHeight -= 4 << Fixed32.fracBits;
       door.speed = DoorConstants.vdoorSpeed * 4;
 
     case DoorType.normal:
     case DoorType.open:
       door.direction = DoorDirection.opening;
-      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight = findLowestCeilingSurrounding(sector);
       door.topHeight -= 4 << Fixed32.fracBits;
 
     case DoorType.raiseIn5Mins:
       door.direction = DoorDirection.initialWait;
-      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight = findLowestCeilingSurrounding(sector);
       door.topHeight -= 4 << Fixed32.fracBits;
       door.topCountdown = 35 * 60 * 5;
   }
@@ -177,11 +177,15 @@ DoorThinker? evDoDoor(Line line, DoorType type, LevelLocals level) {
   return door;
 }
 
-int _findLowestCeilingSurrounding(Sector sector) {
+abstract final class _LineFlags {
+  static const int twoSided = 0x04;
+}
+
+int findLowestCeilingSurrounding(Sector sector) {
   var height = 0x7FFFFFFF;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null) {
       final ceilHeight = other.ceilingHeight;
       if (ceilHeight < height) {
@@ -193,8 +197,8 @@ int _findLowestCeilingSurrounding(Sector sector) {
   return height;
 }
 
-Sector? _getNextSector(Line line, Sector sector) {
-  if ((line.flags & 0x04) == 0) return null;
+Sector? getNextSector(Line line, Sector sector) {
+  if ((line.flags & _LineFlags.twoSided) == 0) return null;
 
   if (line.frontSector == sector) {
     return line.backSector;

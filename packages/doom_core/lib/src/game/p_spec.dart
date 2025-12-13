@@ -1,12 +1,23 @@
+import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/specials/door_thinker.dart';
 import 'package:doom_core/src/game/specials/plat_thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
+import 'package:doom_math/doom_math.dart';
 
 abstract final class _LineSpecial {
   static const int manualDoor = 1;
+  static const int blueDoorManual = 26;
+  static const int yellowDoorManual = 27;
+  static const int redDoorManual = 28;
   static const int openDoor = 31;
+  static const int blueDoorOpen = 32;
+  static const int redDoorOpen = 33;
+  static const int yellowDoorOpen = 34;
+  static const int blazeDoorRaise = 117;
+  static const int blazeDoorOpen = 118;
 
   static const int switchDoor = 29;
   static const int switchDoorOpen = 103;
@@ -19,6 +30,55 @@ abstract final class _LineSpecial {
   static const int switchPlatRaise = 20;
   static const int switchPlatRaise24 = 15;
   static const int switchPlatRaise32 = 14;
+
+  static const int walkOpenDoor = 2;
+  static const int walkCloseDoor = 3;
+  static const int walkRaiseDoor = 4;
+  static const int walkCloseDoor30 = 16;
+
+  static const int walkPlatDownWaitUp = 10;
+  static const int walkPlatRaiseNearest = 22;
+  static const int walkPlatPerpetual = 53;
+
+  static const int walkTeleport = 39;
+  static const int walkTeleportRetrigger = 97;
+  static const int walkTeleportMonster = 125;
+  static const int walkTeleportMonsterRetrigger = 126;
+
+  static const int walkExit = 52;
+  static const int walkSecretExit = 124;
+
+  static const int retriggerRaiseDoor = 86;
+  static const int retriggerOpenDoor = 87;
+  static const int retriggerPlatDownWaitUp = 88;
+  static const int retriggerCloseDoor = 75;
+  static const int retriggerCloseDoor30 = 76;
+  static const int retriggerBlazeRaise = 105;
+  static const int retriggerBlazeOpen = 106;
+  static const int retriggerBlazeClose = 107;
+  static const int retriggerBlazePlatDown = 120;
+}
+
+abstract final class _ThingType {
+  static const int teleportDest = 14;
+}
+
+abstract final class _SectorSpecial {
+  static const int lightRandom = 1;
+  static const int lightBlink05 = 2;
+  static const int lightBlink10 = 3;
+  static const int damage20AndLightBlink = 4;
+  static const int damage10 = 5;
+  static const int damage5 = 7;
+  static const int lightOscillate = 8;
+  static const int secret = 9;
+  static const int doorClose30 = 10;
+  static const int endLevelDamage = 11;
+  static const int lightBlink05Sync = 12;
+  static const int lightBlink10Sync = 13;
+  static const int doorOpen300 = 14;
+  static const int damage20 = 16;
+  static const int lightFlicker = 17;
 }
 
 void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
@@ -28,57 +88,65 @@ void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
 
   switch (line.special) {
     case _LineSpecial.manualDoor:
+    case _LineSpecial.blueDoorManual:
+    case _LineSpecial.yellowDoorManual:
+    case _LineSpecial.redDoorManual:
     case _LineSpecial.openDoor:
+    case _LineSpecial.blueDoorOpen:
+    case _LineSpecial.redDoorOpen:
+    case _LineSpecial.yellowDoorOpen:
+    case _LineSpecial.blazeDoorRaise:
+    case _LineSpecial.blazeDoorOpen:
       evVerticalDoor(line, thing, level);
 
     case _LineSpecial.switchDoor:
       if (evDoDoor(line, DoorType.normal, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchDoorOpen:
       if (evDoDoor(line, DoorType.open, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchDoorClose:
       if (evDoDoor(line, DoorType.close, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchDoorBlazeRaise:
       if (evDoDoor(line, DoorType.blazeRaise, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchDoorBlazeOpen:
       if (evDoDoor(line, DoorType.blazeOpen, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchDoorBlazeClose:
       if (evDoDoor(line, DoorType.blazeClose, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchPlatDown:
       if (evDoPlat(line, PlatType.downWaitUpStay, 0, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchPlatRaise:
       if (evDoPlat(line, PlatType.raiseToNearestAndChange, 0, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchPlatRaise24:
       if (evDoPlat(line, PlatType.raiseAndChange, 24, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
 
     case _LineSpecial.switchPlatRaise32:
       if (evDoPlat(line, PlatType.raiseAndChange, 32, level) != null) {
-        changeSwitchTexture(line, false);
+        changeSwitchTexture(line, false, level);
       }
   }
 }
@@ -92,10 +160,14 @@ void evVerticalDoor(Line line, Mobj thing, LevelLocals level) {
     if (door is DoorThinker) {
       switch (line.special) {
         case _LineSpecial.manualDoor:
-        case _LineSpecial.openDoor:
+        case _LineSpecial.blueDoorManual:
+        case _LineSpecial.yellowDoorManual:
+        case _LineSpecial.redDoorManual:
+        case _LineSpecial.blazeDoorRaise:
           if (door.direction == DoorDirection.closing) {
             door.direction = DoorDirection.opening;
-          } else if (door.direction == DoorDirection.opening) {
+          } else {
+            if (thing.player == null) return;
             door.direction = DoorDirection.closing;
           }
       }
@@ -103,46 +175,460 @@ void evVerticalDoor(Line line, Mobj thing, LevelLocals level) {
     return;
   }
 
-  final door = evDoDoor(line, DoorType.normal, level);
-  if (door != null) {
-    door.direction = DoorDirection.opening;
+  final door = DoorThinker(sector)
+    ..topWait = DoorConstants.vdoorWait
+    ..speed = DoorConstants.vdoorSpeed
+    ..direction = DoorDirection.opening;
+
+  level.thinkers.add(door);
+  sector.specialData = door;
+  door.function = (_) => doorThink(door);
+
+  switch (line.special) {
+    case _LineSpecial.manualDoor:
+    case _LineSpecial.blueDoorManual:
+    case _LineSpecial.yellowDoorManual:
+    case _LineSpecial.redDoorManual:
+      door.type = DoorType.normal;
+
+    case _LineSpecial.openDoor:
+    case _LineSpecial.blueDoorOpen:
+    case _LineSpecial.redDoorOpen:
+    case _LineSpecial.yellowDoorOpen:
+      door.type = DoorType.open;
+      line.special = 0;
+
+    case _LineSpecial.blazeDoorRaise:
+      door.type = DoorType.blazeRaise;
+      door.speed = DoorConstants.vdoorSpeed * 4;
+
+    case _LineSpecial.blazeDoorOpen:
+      door.type = DoorType.blazeOpen;
+      line.special = 0;
+      door.speed = DoorConstants.vdoorSpeed * 4;
+  }
+
+  door
+    ..topHeight = findLowestCeilingSurrounding(sector)
+    ..topHeight -= 4 << Fixed32.fracBits;
+}
+
+void crossSpecialLine(Line line, int side, Mobj thing, LevelLocals level) {
+  final isPlayer = thing.player != null;
+
+  if (!isPlayer) {
+    if ((thing.flags & MobjFlag.missile) != 0) {
+      return;
+    }
+
+    final canActivate = switch (line.special) {
+      _LineSpecial.walkTeleport ||
+      _LineSpecial.walkTeleportRetrigger ||
+      _LineSpecial.walkTeleportMonster ||
+      _LineSpecial.walkTeleportMonsterRetrigger ||
+      _LineSpecial.walkRaiseDoor ||
+      _LineSpecial.walkPlatDownWaitUp ||
+      _LineSpecial.retriggerPlatDownWaitUp =>
+        true,
+      _ => false,
+    };
+
+    if (!canActivate) return;
+  }
+
+  switch (line.special) {
+    case _LineSpecial.walkOpenDoor:
+      evDoDoor(line, DoorType.open, level);
+      line.special = 0;
+
+    case _LineSpecial.walkCloseDoor:
+      evDoDoor(line, DoorType.close, level);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseDoor:
+      evDoDoor(line, DoorType.normal, level);
+      line.special = 0;
+
+    case _LineSpecial.walkCloseDoor30:
+      evDoDoor(line, DoorType.close30ThenOpen, level);
+      line.special = 0;
+
+    case _LineSpecial.walkPlatDownWaitUp:
+      evDoPlat(line, PlatType.downWaitUpStay, 0, level);
+      line.special = 0;
+
+    case _LineSpecial.walkPlatRaiseNearest:
+      evDoPlat(line, PlatType.raiseToNearestAndChange, 0, level);
+      line.special = 0;
+
+    case _LineSpecial.walkPlatPerpetual:
+      evDoPlat(line, PlatType.perpetualRaise, 0, level);
+      line.special = 0;
+
+    case _LineSpecial.walkTeleport:
+      if (evTeleport(line, side, thing, level)) {
+        line.special = 0;
+      }
+
+    case _LineSpecial.walkTeleportRetrigger:
+      evTeleport(line, side, thing, level);
+
+    case _LineSpecial.walkTeleportMonster:
+      if (!isPlayer) {
+        if (evTeleport(line, side, thing, level)) {
+          line.special = 0;
+        }
+      }
+
+    case _LineSpecial.walkTeleportMonsterRetrigger:
+      if (!isPlayer) {
+        evTeleport(line, side, thing, level);
+      }
+
+    case _LineSpecial.walkExit:
+      level.exitLevel = true;
+
+    case _LineSpecial.walkSecretExit:
+      level.secretExit = true;
+
+    case _LineSpecial.retriggerRaiseDoor:
+      evDoDoor(line, DoorType.normal, level);
+
+    case _LineSpecial.retriggerOpenDoor:
+      evDoDoor(line, DoorType.open, level);
+
+    case _LineSpecial.retriggerCloseDoor:
+      evDoDoor(line, DoorType.close, level);
+
+    case _LineSpecial.retriggerCloseDoor30:
+      evDoDoor(line, DoorType.close30ThenOpen, level);
+
+    case _LineSpecial.retriggerPlatDownWaitUp:
+      evDoPlat(line, PlatType.downWaitUpStay, 0, level);
+
+    case _LineSpecial.retriggerBlazeRaise:
+      evDoDoor(line, DoorType.blazeRaise, level);
+
+    case _LineSpecial.retriggerBlazeOpen:
+      evDoDoor(line, DoorType.blazeOpen, level);
+
+    case _LineSpecial.retriggerBlazeClose:
+      evDoDoor(line, DoorType.blazeClose, level);
+
+    case _LineSpecial.retriggerBlazePlatDown:
+      evDoPlat(line, PlatType.blazeDWUS, 0, level);
   }
 }
 
-void crossSpecialLine(Line line, Mobj thing, LevelLocals level) {
-  // TODO: implement walk-over triggers
+bool evTeleport(Line line, int side, Mobj thing, LevelLocals level) {
+  if ((thing.flags & MobjFlag.missile) != 0) {
+    return false;
+  }
+
+  if (side == 1) {
+    return false;
+  }
+
+  final tag = line.tag;
+
+  for (var i = 0; i < level.renderState.sectors.length; i++) {
+    final sector = level.renderState.sectors[i];
+    if (sector.tag != tag) continue;
+
+    for (final mobj in _iterateSectorThings(sector)) {
+      if (mobj.type != _ThingType.teleportDest) continue;
+
+      final subsector = mobj.subsector;
+      if (subsector is! Subsector) continue;
+
+      final sectorIndex = level.renderState.sectors.indexOf(subsector.sector);
+      if (sectorIndex != i) continue;
+
+      final oldX = thing.x;
+      final oldY = thing.y;
+      final oldZ = thing.z;
+
+      thing.x = mobj.x;
+      thing.y = mobj.y;
+      thing.z = subsector.sector.floorHeight;
+
+      thing.momX = 0;
+      thing.momY = 0;
+      thing.momZ = 0;
+
+      thing.angle = mobj.angle;
+
+      final thingPlayer = thing.player;
+      if (thingPlayer is Player) {
+        thingPlayer.viewZ = thing.z + thingPlayer.viewHeight;
+        thingPlayer.deltaViewHeight = 0;
+      }
+
+      _setThingPosition(thing, level);
+
+      thing.floorZ = subsector.sector.floorHeight;
+      thing.ceilingZ = subsector.sector.ceilingHeight;
+
+      level.teleportFlashX = oldX;
+      level.teleportFlashY = oldY;
+      level.teleportFlashZ = oldZ;
+      level.teleportDestX = thing.x;
+      level.teleportDestY = thing.y;
+      level.teleportDestZ = thing.z;
+      level.teleportTic = level.levelTime;
+
+      return true;
+    }
+  }
+
+  return false;
 }
 
-void changeSwitchTexture(Line line, bool useAgain) {
-  // TODO: implement switch texture change
+Iterable<Mobj> _iterateSectorThings(Sector sector) sync* {
+  var mobj = sector.thingList;
+  while (mobj != null) {
+    yield mobj;
+    mobj = mobj.sNext;
+  }
+}
+
+void _setThingPosition(Mobj thing, LevelLocals level) {
+  final state = level.renderState;
+
+  if (state.nodes.isEmpty) {
+    thing.subsector = state.subsectors.isNotEmpty ? state.subsectors[0] : null;
+    return;
+  }
+
+  var nodeNum = state.nodes.length - 1;
+
+  while (!BspConstants.isSubsector(nodeNum)) {
+    final node = state.nodes[nodeNum];
+    final side = _nodePointOnSide(thing.x, thing.y, node);
+    nodeNum = node.children[side];
+  }
+
+  thing.subsector = state.subsectors[BspConstants.getIndex(nodeNum)];
+}
+
+int _nodePointOnSide(int x, int y, Node node) {
+  if (node.dx == 0) {
+    if (x <= node.x) {
+      return node.dy > 0 ? 1 : 0;
+    }
+    return node.dy < 0 ? 1 : 0;
+  }
+
+  if (node.dy == 0) {
+    if (y <= node.y) {
+      return node.dx < 0 ? 1 : 0;
+    }
+    return node.dx > 0 ? 1 : 0;
+  }
+
+  final dx = x - node.x;
+  final dy = y - node.y;
+
+  final left = Fixed32.mul(node.dy >> Fixed32.fracBits, dx);
+  final right = Fixed32.mul(dy, node.dx >> Fixed32.fracBits);
+
+  return right < left ? 0 : 1;
+}
+
+void changeSwitchTexture(Line line, bool useAgain, LevelLocals level) {
+  level.switchManager?.changeSwitchTexture(line, useAgain: useAgain, level: level);
+}
+
+void playerInSpecialSector(Mobj thing, LevelLocals level) {
+  final subsector = thing.subsector;
+  if (subsector is! Subsector) return;
+
+  final sector = subsector.sector;
+
+  if (thing.z != sector.floorHeight) {
+    return;
+  }
+
+  final player = thing.player;
+  if (player is! Player) return;
+
+  switch (sector.special) {
+    case _SectorSpecial.damage5:
+      if ((level.levelTime & 0x1f) == 0) {
+        damageMobj(thing, null, null, 5, level);
+      }
+
+    case _SectorSpecial.damage10:
+      if ((level.levelTime & 0x1f) == 0) {
+        damageMobj(thing, null, null, 10, level);
+      }
+
+    case _SectorSpecial.damage20:
+    case _SectorSpecial.damage20AndLightBlink:
+      if ((level.levelTime & 0x1f) == 0) {
+        damageMobj(thing, null, null, 20, level);
+      }
+
+    case _SectorSpecial.secret:
+      player.secretCount++;
+      sector.special = 0;
+
+    case _SectorSpecial.endLevelDamage:
+      if ((level.levelTime & 0x1f) == 0) {
+        damageMobj(thing, null, null, 20, level);
+      }
+      if (player.health <= 10) {
+        level.exitLevel = true;
+      }
+  }
+}
+
+void damageMobj(Mobj target, Mobj? inflictor, Mobj? source, int damage, LevelLocals level) {
+  if ((target.flags & MobjFlag.shootable) == 0) {
+    return;
+  }
+
+  if (target.health <= 0) {
+    return;
+  }
+
+  var actualDamage = damage;
+  final player = target.player;
+  if (player is Player) {
+    if (player.armorPoints > 0) {
+      final saved = player.armorType == 1 ? damage ~/ 3 : damage ~/ 2;
+      if (player.armorPoints <= saved) {
+        actualDamage -= player.armorPoints;
+        player.armorPoints = 0;
+      } else {
+        player.armorPoints -= saved;
+        actualDamage -= saved;
+      }
+    }
+
+    player.health -= actualDamage;
+    if (player.health < 0) {
+      player.health = 0;
+    }
+    target.health = player.health;
+
+    player.damageCount += actualDamage;
+    if (player.damageCount > 100) {
+      player.damageCount = 100;
+    }
+
+    if (source != null && source != target) {
+      player.attacker = source;
+    }
+  } else {
+    target.health -= actualDamage;
+  }
+
+  if (target.health <= 0) {
+    killMobj(source, target, level);
+    return;
+  }
+
+  if ((target.flags & MobjFlag.skullFly) != 0) {
+    target
+      ..momX = 0
+      ..momY = 0
+      ..momZ = 0
+      ..flags &= ~MobjFlag.skullFly;
+  }
+}
+
+void killMobj(Mobj? source, Mobj target, LevelLocals level) {
+  target.flags &= ~(MobjFlag.shootable | MobjFlag.float | MobjFlag.skullFly);
+
+  if (target.type != _ThingType.teleportDest) {
+    target.flags &= ~MobjFlag.noGravity;
+  }
+
+  target.flags |= MobjFlag.corpse | MobjFlag.dropOff;
+  target.height = target.height ~/ 4;
+
+  if ((target.flags & MobjFlag.countKill) != 0) {
+    level.killedMonsters++;
+  }
+
+  final player = target.player;
+  if (player is Player) {
+    target.flags &= ~MobjFlag.solid;
+    player.playerState = PlayerState.dead;
+
+    final sourcePlayer = source?.player;
+    if (sourcePlayer is Player) {
+      if (sourcePlayer != player) {
+        sourcePlayer.frags[player.playerNum]++;
+      } else {
+        player.frags[player.playerNum]--;
+      }
+    }
+  }
 }
 
 void spawnSpecials(LevelLocals level) {
   for (final sector in level.renderState.sectors) {
     switch (sector.special) {
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-      case 7:
-      case 8:
-      case 9:
-      case 10:
-      case 11:
-      case 12:
-      case 13:
-      case 14:
-      case 16:
-      case 17:
+      case _SectorSpecial.lightRandom:
+      case _SectorSpecial.lightBlink05:
+      case _SectorSpecial.lightBlink10:
+      case _SectorSpecial.lightOscillate:
+      case _SectorSpecial.lightBlink05Sync:
+      case _SectorSpecial.lightBlink10Sync:
+      case _SectorSpecial.lightFlicker:
         break;
     }
+  }
+}
+
+void respawnPlayer(Player player, LevelLocals level) {
+  player.playerState = PlayerState.reborn;
+
+  player
+    ..health = PlayerConstants.maxHealth
+    ..armorPoints = 0
+    ..armorType = 0
+    ..damageCount = 0
+    ..bonusCount = 0
+    ..extraLight = 0
+    ..fixedColormap = 0
+    ..readyWeapon = WeaponType.pistol
+    ..pendingWeapon = WeaponType.noChange
+    ..attackDown = false
+    ..useDown = false;
+
+  for (var i = 0; i < player.powers.length; i++) {
+    player.powers[i] = 0;
   }
 
-  for (final line in level.renderState.lines) {
-    switch (line.special) {
-      case 48:
-        break;
-    }
+  for (var i = 0; i < player.cards.length; i++) {
+    player.cards[i] = false;
   }
+
+  for (var i = 0; i < player.weaponOwned.length; i++) {
+    player.weaponOwned[i] = false;
+  }
+  player.weaponOwned[WeaponType.fist.index] = true;
+  player.weaponOwned[WeaponType.pistol.index] = true;
+
+  for (var i = 0; i < player.ammo.length; i++) {
+    player.ammo[i] = 0;
+  }
+  player.ammo[AmmoType.clip.index] = 50;
+
+  final mobj = player.mobj;
+  if (mobj != null) {
+    mobj
+      ..x = mobj.spawnX
+      ..y = mobj.spawnY
+      ..angle = mobj.spawnAngle
+      ..health = PlayerConstants.maxHealth
+      ..flags = MobjFlag.solid | MobjFlag.shootable | MobjFlag.dropOff | MobjFlag.pickup;
+
+    _setThingPosition(mobj, level);
+  }
+
+  player.playerState = PlayerState.live;
 }

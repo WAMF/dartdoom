@@ -199,40 +199,50 @@ class SegRenderer {
 
     if (_backSector == null) {
       _midTexture = _state.textureTranslation[side.midTexture];
-      _rwMidTextureMid = side.rowOffset;
 
       if ((_curLinedef!.flags & LineFlags.dontPegBottom) != 0) {
-        _rwMidTextureMid += _frontSector!.floorHeight - _state.viewZ;
+        final vtop = _frontSector!.floorHeight + _getTextureHeight(_midTexture);
+        _rwMidTextureMid = vtop - _state.viewZ;
       } else {
-        _rwMidTextureMid += _frontSector!.ceilingHeight - _state.viewZ;
+        _rwMidTextureMid = _frontSector!.ceilingHeight - _state.viewZ;
       }
+      _rwMidTextureMid += side.rowOffset;
     } else {
       if (_frontSector!.ceilingHeight > _backSector!.ceilingHeight) {
         _topTexture = _state.textureTranslation[side.topTexture];
-        _rwTopTextureMid = side.rowOffset;
 
         if ((_curLinedef!.flags & LineFlags.dontPegTop) != 0) {
-          _rwTopTextureMid += _frontSector!.ceilingHeight - _state.viewZ;
+          _rwTopTextureMid = _frontSector!.ceilingHeight - _state.viewZ;
         } else {
-          _rwTopTextureMid += _backSector!.ceilingHeight - _state.viewZ;
+          final vtop = _backSector!.ceilingHeight + _getTextureHeight(_topTexture);
+          _rwTopTextureMid = vtop - _state.viewZ;
         }
+        _rwTopTextureMid += side.rowOffset;
       }
 
       if (_frontSector!.floorHeight < _backSector!.floorHeight) {
         _bottomTexture = _state.textureTranslation[side.bottomTexture];
-        _rwBottomTextureMid = side.rowOffset;
 
         if ((_curLinedef!.flags & LineFlags.dontPegBottom) != 0) {
-          _rwBottomTextureMid += _frontSector!.ceilingHeight - _state.viewZ;
+          _rwBottomTextureMid = _frontSector!.ceilingHeight - _state.viewZ;
         } else {
-          _rwBottomTextureMid += _backSector!.floorHeight - _state.viewZ;
+          _rwBottomTextureMid = _backSector!.floorHeight - _state.viewZ;
         }
+        _rwBottomTextureMid += side.rowOffset;
       }
 
       if (side.midTexture != 0) {
         _maskedTexture = true;
       }
     }
+  }
+
+  int _getTextureHeight(int textureNum) {
+    final texManager = _state.textureManager;
+    if (texManager == null || textureNum <= 0 || textureNum >= texManager.numTextures) {
+      return 0;
+    }
+    return texManager.getTextureDef(textureNum).height << Fixed32.fracBits;
   }
 
   void _setupMarking() {
@@ -383,6 +393,15 @@ class SegRenderer {
         ds.sprBottomClip![i] = _floorClip[_rwX + i];
       }
     }
+
+    if (_maskedTexture && (ds.silhouette & Silhouette.top) == 0) {
+      ds.silhouette |= Silhouette.top;
+      ds.tsilHeight = _SilhouetteConstants.minHeight;
+    }
+    if (_maskedTexture && (ds.silhouette & Silhouette.bottom) == 0) {
+      ds.silhouette |= Silhouette.bottom;
+      ds.bsilHeight = _SilhouetteConstants.maxHeight;
+    }
   }
 
   void _createDrawSegWithHeights(int silhouette, int bsilHeight, int tsilHeight) {
@@ -420,8 +439,12 @@ class SegRenderer {
         topFracCurrent += _topStep;
         bottomFracCurrent += _bottomStep;
         rwScaleCurrent += _rwScaleStep;
-        pixHighCurrent += _pixHighStep;
-        pixLowCurrent += _pixLowStep;
+        if (_topTexture != 0) {
+          pixHighCurrent += _pixHighStep;
+        }
+        if (_bottomTexture != 0) {
+          pixLowCurrent += _pixLowStep;
+        }
         continue;
       }
 
@@ -497,6 +520,18 @@ class SegRenderer {
         } else {
           if (_markFloor) {
             _floorClip[x] = (yh + 1).clamp(0, _state.viewHeight - 1);
+          }
+        }
+
+        if (_maskedTexture) {
+          final ds = drawSegs.last;
+          if (ds.maskedTextureCol != null) {
+            final angle = (_rwCenterAngle + _state.xToViewAngle[x]).u32.s32;
+            final fineAngle = (angle.u32 >> Angle.angleToFineShift) & (Angle.fineAngles ~/ 2 - 1);
+            final textureCol = Fixed32.toInt(
+              _rwOffset - Fixed32.mul(fineTangent(fineAngle), _rwDistance),
+            );
+            ds.maskedTextureCol![x - _rwX] = textureCol;
           }
         }
       }

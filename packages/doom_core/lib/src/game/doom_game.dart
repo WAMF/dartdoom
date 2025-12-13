@@ -7,6 +7,7 @@ import 'package:doom_core/src/game/g_input.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_mobj.dart';
+import 'package:doom_core/src/game/p_pspr.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -95,6 +96,20 @@ class DoomGame {
         player.health = PlayerConstants.maxHealth;
         player.viewHeight = PlayerConstants.viewHeight;
         player.viewZ = mobj.z + player.viewHeight;
+
+        mobj
+          ..spawnX = x
+          ..spawnY = y
+          ..spawnAngle = mobj.angle
+          ..health = PlayerConstants.maxHealth;
+
+        player
+          ..weaponOwned[WeaponType.fist.index] = true
+          ..weaponOwned[WeaponType.pistol.index] = true
+          ..readyWeapon = WeaponType.pistol
+          ..ammo[AmmoType.clip.index] = 50;
+
+        setupPsprites(player);
 
         return;
       }

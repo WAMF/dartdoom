@@ -318,5 +318,48 @@ class TextureManager {
     _compositeCache.clear();
   }
 
+  List<PatchColumn> getTextureColumnPosts(int textureNum, int col) {
+    if (textureNum < 0 || textureNum >= _textures.length) {
+      return const [];
+    }
+
+    final texDef = _textures[textureNum];
+    final wrappedCol = col % texDef.width;
+    if (wrappedCol < 0) return const [];
+
+    if (texDef.patches.length == 1) {
+      final patchDef = texDef.patches[0];
+      final patchName = _patchNames![patchDef.patchIndex];
+      final patchLump = _wadManager.checkNumForName(patchName);
+      if (patchLump == -1) return const [];
+
+      final patchData = _wadManager.cacheLumpNum(patchLump);
+      final patch = Patch.parse(patchData);
+
+      final patchCol = wrappedCol - patchDef.originX;
+      if (patchCol < 0 || patchCol >= patch.width) return const [];
+
+      final posts = patch.columns[patchCol];
+      if (patchDef.originY == 0) {
+        return posts;
+      }
+
+      return posts.map((post) {
+        return PatchColumn(
+          topDelta: post.topDelta + patchDef.originY,
+          pixels: post.pixels,
+        );
+      }).toList();
+    }
+
+    final column = getTextureColumn(textureNum, col);
+    return [
+      PatchColumn(
+        topDelta: 0,
+        pixels: column,
+      ),
+    ];
+  }
+
   static final Uint8List _emptyColumn = Uint8List(128);
 }

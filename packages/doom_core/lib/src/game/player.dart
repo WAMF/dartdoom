@@ -1,6 +1,7 @@
 import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/events/tic_cmd.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_pspr.dart';
 import 'package:doom_math/doom_math.dart';
 
 abstract final class PlayerConstants {
@@ -72,4 +73,6 @@ class Player {
   TicCmd cmd = TicCmd();
 
   bool didsecret = false;
+
+  final List<PspriteDef> psprites = [];
 }

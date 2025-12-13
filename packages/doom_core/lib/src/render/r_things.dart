@@ -376,19 +376,23 @@ class SpriteRenderer {
   }
 
   void drawMasked(Uint8List frameBuffer) {
-    _drawMaskedTextures(frameBuffer);
     _drawSprites(frameBuffer);
+    _drawMaskedTextures(frameBuffer);
+  }
+
+  void _renderMaskedSegRange(DrawSeg ds, int x1, int x2, Uint8List frameBuffer) {
+    final seg = ds.curLine;
+    final midTexture = seg.sidedef.midTexture;
+    if (midTexture == 0) return;
+
+    onDrawMaskedColumn?.call(ds, x1, x2, frameBuffer);
   }
 
   void _drawMaskedTextures(Uint8List frameBuffer) {
     for (final ds in _segRenderer.drawSegs.reversed) {
       if (ds.maskedTextureCol == null) continue;
 
-      final seg = ds.curLine;
-      final midTexture = seg.sidedef.midTexture;
-      if (midTexture == 0) continue;
-
-      onDrawMaskedColumn?.call(ds, frameBuffer);
+      _renderMaskedSegRange(ds, ds.x1, ds.x2, frameBuffer);
     }
   }
 
@@ -446,6 +450,9 @@ class SpriteRenderer {
 
       if (highScale < vis.scale ||
           (lowScale < vis.scale && !_pointOnSegSide(vis.gx, vis.gy, ds.curLine))) {
+        if (ds.maskedTextureCol != null) {
+          _renderMaskedSegRange(ds, r1, r2, frameBuffer);
+        }
         continue;
       }
 
@@ -598,4 +605,4 @@ class _TransformResult {
 }
 
 typedef SpriteDataCallback = Uint8List? Function(int patchNum);
-typedef MaskedColumnCallback = void Function(DrawSeg ds, Uint8List frameBuffer);
+typedef MaskedColumnCallback = void Function(DrawSeg ds, int x1, int x2, Uint8List frameBuffer);

@@ -2,86 +2,107 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:doom_core/doom_core.dart';
-import 'package:doom_flutter/src/flutter_platform.dart';
-import 'package:doom_flutter/src/key_mapping.dart';
 import 'package:doom_wad/doom_wad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+abstract final class _GameConstants {
+  static const int ticRateMs = 1000 ~/ 35;
+}
 
 class DoomWidget extends StatefulWidget {
   const DoomWidget({
     super.key,
     this.scale = 3,
     this.wadBytes,
+    this.mapName = 'E1M1',
   });
 
   final int scale;
   final Uint8List? wadBytes;
+  final String mapName;
 
   @override
   State<DoomWidget> createState() => _DoomWidgetState();
 }
 
 class _DoomWidgetState extends State<DoomWidget> {
-  FlutterPlatform? _platform;
-  TestRunner? _testRunner;
+  DoomGame? _game;
+  DoomPalette? _palette;
   final _frameNotifier = ValueNotifier<ui.Image?>(null);
   final _focusNode = FocusNode();
+  final _paletteConverter = PaletteConverter();
   Timer? _gameLoopTimer;
+  Uint8List? _frameBuffer;
+  Uint8List? _rgbaBuffer;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeWithWad();
+    _initializeGame();
   }
 
-  void _initializeWithWad() {
-    DoomPalette? palette;
+  void _initializeGame() {
     final wadBytes = widget.wadBytes;
+    if (wadBytes == null) return;
 
-    if (wadBytes != null) {
-      final wadManager = WadManager()..addWad(wadBytes);
-      final playpalIndex = wadManager.checkNumForName('PLAYPAL');
-      if (playpalIndex != -1) {
-        final playpalData = wadManager.readLump(playpalIndex);
-        final playpal = PlayPal.parse(playpalData);
-        palette = playpal[0];
-      }
+    final wadManager = WadManager()..addWad(wadBytes);
+    final playpalIndex = wadManager.checkNumForName('PLAYPAL');
+    if (playpalIndex != -1) {
+      final playpalData = wadManager.readLump(playpalIndex);
+      final playpal = PlayPal.parse(playpalData);
+      _palette = playpal[0];
+      _paletteConverter.setPalette(_palette!);
     }
 
-    _platform = FlutterPlatform(onFrameReady: _handleFrame);
-    _testRunner = TestRunner(_platform!)
-      ..init(palette: palette, wadBytes: wadBytes)
-      ..start();
+    _game = DoomGame()
+      ..init(wadBytes)
+      ..loadLevel(widget.mapName);
+
+    _frameBuffer = Uint8List(ScreenDimensions.width * ScreenDimensions.height);
+    _rgbaBuffer = Uint8List(ScreenDimensions.width * ScreenDimensions.height * 4);
+
+    _initialized = true;
     _startGameLoop();
   }
 
   @override
   void didUpdateWidget(DoomWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.wadBytes != widget.wadBytes) {
+    if (oldWidget.wadBytes != widget.wadBytes ||
+        oldWidget.mapName != widget.mapName) {
       _cleanup();
-      _initializeWithWad();
+      _initializeGame();
     }
   }
 
   void _cleanup() {
     _stopGameLoop();
-    _testRunner?.shutdown();
-    _testRunner = null;
-    _platform = null;
+    _game = null;
+    _initialized = false;
   }
 
   void _startGameLoop() {
     _gameLoopTimer = Timer.periodic(
-      const Duration(milliseconds: 16),
-      (_) => _testRunner?.runTic(),
+      const Duration(milliseconds: _GameConstants.ticRateMs),
+      (_) => _runTic(),
     );
   }
 
   void _stopGameLoop() {
     _gameLoopTimer?.cancel();
     _gameLoopTimer = null;
+  }
+
+  void _runTic() {
+    if (!_initialized || _game == null) return;
+
+    _game!.runTic();
+    _game!.render(_frameBuffer!);
+
+    _paletteConverter.convertFrame(_frameBuffer!, _rgbaBuffer!);
+    _convertToImage(_rgbaBuffer!);
   }
 
   @override
@@ -92,40 +113,57 @@ class _DoomWidgetState extends State<DoomWidget> {
     super.dispose();
   }
 
-  void _handleFrame(FrameBuffer frame) {
-    _convertToImage(frame.rgbaPixels).then((image) {
-      final oldImage = _frameNotifier.value;
-      _frameNotifier.value = image;
-      oldImage?.dispose();
-    });
-  }
-
-  Future<ui.Image> _convertToImage(Uint8List rgba) async {
-    final completer = Completer<ui.Image>();
+  void _convertToImage(Uint8List rgba) {
     ui.decodeImageFromPixels(
       rgba,
-      FrameBuffer.width,
-      FrameBuffer.height,
+      ScreenDimensions.width,
+      ScreenDimensions.height,
       ui.PixelFormat.rgba8888,
-      completer.complete,
+      (image) {
+        final oldImage = _frameNotifier.value;
+        _frameNotifier.value = image;
+        oldImage?.dispose();
+      },
     );
-    return completer.future;
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    final platform = _platform;
-    if (platform == null) return KeyEventResult.ignored;
+    final game = _game;
+    if (game == null) return KeyEventResult.ignored;
 
-    final doomKey = KeyMapping.toDoomKey(event.logicalKey);
-    if (doomKey != null) {
+    final keyCode = _logicalKeyToCode(event.logicalKey);
+    if (keyCode != null) {
       if (event is KeyDownEvent) {
-        platform.input.postKeyDown(doomKey);
+        game.keyDown(keyCode);
       } else if (event is KeyUpEvent) {
-        platform.input.postKeyUp(doomKey);
+        game.keyUp(keyCode);
       }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  int? _logicalKeyToCode(LogicalKeyboardKey key) {
+    return switch (key) {
+      LogicalKeyboardKey.arrowUp => DoomKey.upArrow,
+      LogicalKeyboardKey.arrowDown => DoomKey.downArrow,
+      LogicalKeyboardKey.arrowLeft => DoomKey.leftArrow,
+      LogicalKeyboardKey.arrowRight => DoomKey.rightArrow,
+      LogicalKeyboardKey.keyW => 119,
+      LogicalKeyboardKey.keyS => 115,
+      LogicalKeyboardKey.keyA => 97,
+      LogicalKeyboardKey.keyD => 100,
+      LogicalKeyboardKey.space => 32,
+      LogicalKeyboardKey.shiftLeft => DoomKey.rshift,
+      LogicalKeyboardKey.shiftRight => DoomKey.rshift,
+      LogicalKeyboardKey.controlLeft => DoomKey.rctrl,
+      LogicalKeyboardKey.controlRight => DoomKey.rctrl,
+      LogicalKeyboardKey.altLeft => DoomKey.lalt,
+      LogicalKeyboardKey.altRight => DoomKey.ralt,
+      LogicalKeyboardKey.escape => DoomKey.escape,
+      LogicalKeyboardKey.enter => DoomKey.enter,
+      _ => null,
+    };
   }
 
   @override
@@ -141,8 +179,8 @@ class _DoomWidgetState extends State<DoomWidget> {
           builder: (context, image, child) {
             if (image == null) {
               return Container(
-                width: FrameBuffer.width * widget.scale.toDouble(),
-                height: FrameBuffer.height * widget.scale.toDouble(),
+                width: ScreenDimensions.width * widget.scale.toDouble(),
+                height: ScreenDimensions.height * widget.scale.toDouble(),
                 color: Colors.black,
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.red),
@@ -152,8 +190,8 @@ class _DoomWidgetState extends State<DoomWidget> {
             return CustomPaint(
               painter: DoomPainter(image),
               size: Size(
-                FrameBuffer.width * widget.scale.toDouble(),
-                FrameBuffer.height * widget.scale.toDouble(),
+                ScreenDimensions.width * widget.scale.toDouble(),
+                ScreenDimensions.height * widget.scale.toDouble(),
               ),
             );
           },
@@ -161,9 +199,6 @@ class _DoomWidgetState extends State<DoomWidget> {
       ),
     );
   }
-
-  FlutterPlatform? get platform => _platform;
-  TestRunner? get testRunner => _testRunner;
 }
 
 class DoomPainter extends CustomPainter {
@@ -178,8 +213,8 @@ class DoomPainter extends CustomPainter {
       Rect.fromLTWH(
         0,
         0,
-        FrameBuffer.width.toDouble(),
-        FrameBuffer.height.toDouble(),
+        ScreenDimensions.width.toDouble(),
+        ScreenDimensions.height.toDouble(),
       ),
       Rect.fromLTWH(0, 0, size.width, size.height),
       Paint()..filterQuality = FilterQuality.none,

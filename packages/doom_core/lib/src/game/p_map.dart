@@ -156,11 +156,9 @@ bool _checkLine(Line line, Mobj thing) {
   }
 
   if ((thing.flags & MobjFlag.missile) == 0) {
-    if ((line.flags & LineFlags.blockMonsters) != 0) {
-      if ((thing.flags & MobjFlag.float) == 0) {
-        _ctx.blockingLine = line;
-        return false;
-      }
+    if (thing.player == null && (line.flags & LineFlags.blockMonsters) != 0) {
+      _ctx.blockingLine = line;
+      return false;
     }
   }
 
@@ -675,7 +673,8 @@ void _setThingPosition(Mobj thing, LevelLocals level) {
 }
 
 void crossSpecialLine(Line line, Mobj thing, LevelLocals level) {
-  spec.crossSpecialLine(line, thing, level);
+  final side = _pointOnLineSide(thing.x, thing.y, line);
+  spec.crossSpecialLine(line, side, thing, level);
 }
 
 void useLinesFrom(Mobj mobj, LevelLocals level) {
@@ -718,6 +717,12 @@ int _lineOpening(Line line) {
   return openTop - openBottom;
 }
 
+class _Intercept {
+  _Intercept(this.line, this.frac);
+  final Line line;
+  final int frac;
+}
+
 void _pathTraverse(
   int x1,
   int y1,
@@ -727,10 +732,16 @@ void _pathTraverse(
   bool Function(Line) callback,
 ) {
   final blockmap = level.blockmap;
-  if (blockmap == null) return;
+  if (blockmap == null) {
+    _pathTraverseFallback(x1, y1, x2, y2, level, callback);
+    return;
+  }
 
   level.renderState.validCount++;
   final validCount = level.renderState.validCount;
+
+  final dx = x2 - x1;
+  final dy = y2 - y1;
 
   final (bx1, by1) = blockmap.worldToBlock(x1, y1);
   final (bx2, by2) = blockmap.worldToBlock(x2, y2);
@@ -744,6 +755,8 @@ void _pathTraverse(
   final maxSteps = (bx2 - bx1).abs() + (by2 - by1).abs() + 1;
   var steps = 0;
 
+  final intercepts = <_Intercept>[];
+
   while (steps < maxSteps) {
     steps++;
 
@@ -754,7 +767,10 @@ void _pathTraverse(
         if (line.validCount == validCount) continue;
         line.validCount = validCount;
 
-        if (!callback(line)) return;
+        final frac = _getLineFrac(line, x1, y1, dx, dy);
+        if (frac < 0 || frac > Fixed32.fracUnit) continue;
+
+        intercepts.add(_Intercept(line, frac));
       }
     }
 
@@ -768,6 +784,86 @@ void _pathTraverse(
       break;
     }
   }
+
+  intercepts.sort((a, b) => a.frac.compareTo(b.frac));
+
+  for (final intercept in intercepts) {
+    if (!callback(intercept.line)) return;
+  }
+}
+
+int _getLineFrac(Line line, int traceX, int traceY, int traceDx, int traceDy) {
+  final s1 = _pointOnTraceSide(line.v1.x, line.v1.y, traceX, traceY, traceDx, traceDy);
+  final s2 = _pointOnTraceSide(line.v2.x, line.v2.y, traceX, traceY, traceDx, traceDy);
+
+  if (s1 == s2) return -1;
+
+  return _traceInterceptFrac(traceX, traceY, traceDx, traceDy, line);
+}
+
+void _pathTraverseFallback(
+  int x1,
+  int y1,
+  int x2,
+  int y2,
+  LevelLocals level,
+  bool Function(Line) callback,
+) {
+  final dx = x2 - x1;
+  final dy = y2 - y1;
+
+  final intercepts = <_Intercept>[];
+
+  for (final line in level.renderState.lines) {
+    final frac = _getLineFrac(line, x1, y1, dx, dy);
+    if (frac < 0 || frac > Fixed32.fracUnit) continue;
+    intercepts.add(_Intercept(line, frac));
+  }
+
+  intercepts.sort((a, b) => a.frac.compareTo(b.frac));
+
+  for (final intercept in intercepts) {
+    if (!callback(intercept.line)) return;
+  }
+}
+
+int _pointOnTraceSide(int x, int y, int traceX, int traceY, int traceDx, int traceDy) {
+  if (traceDx == 0) {
+    if (x <= traceX) {
+      return traceDy > 0 ? 1 : 0;
+    }
+    return traceDy < 0 ? 1 : 0;
+  }
+
+  if (traceDy == 0) {
+    if (y <= traceY) {
+      return traceDx < 0 ? 1 : 0;
+    }
+    return traceDx > 0 ? 1 : 0;
+  }
+
+  final dx = x - traceX;
+  final dy = y - traceY;
+
+  final left = Fixed32.mul(traceDy >> Fixed32.fracBits, dx);
+  final right = Fixed32.mul(dy, traceDx >> Fixed32.fracBits);
+
+  return right < left ? 0 : 1;
+}
+
+int _traceInterceptFrac(int traceX, int traceY, int traceDx, int traceDy, Line line) {
+  final lineX = line.v1.x;
+  final lineY = line.v1.y;
+  final lineDx = line.dx;
+  final lineDy = line.dy;
+
+  final den = Fixed32.mul(lineDy >> 8, traceDx) - Fixed32.mul(lineDx >> 8, traceDy);
+  if (den == 0) return -1;
+
+  final num = Fixed32.mul((lineX - traceX) >> 8, lineDy) +
+      Fixed32.mul((traceY - lineY) >> 8, lineDx);
+
+  return Fixed32.div(num, den);
 }
 
 void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {

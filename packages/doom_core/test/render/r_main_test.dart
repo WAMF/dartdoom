@@ -278,7 +278,7 @@ void main() {
 
         renderer.renderPlayerView(Uint8List(
           ScreenDimensions.width * ScreenDimensions.height,
-        ));
+        ),);
 
         expect(state.floorPlane, isNotNull);
         expect(state.ceilingPlane, isNotNull);

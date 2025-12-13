@@ -42,9 +42,9 @@ void main() {
       stderr.writeln('=== Sprite Debug ===');
       stderr.writeln('Total map things: ${mapData.things.length}');
       stderr.writeln('Spawned mobjs: ${thingSpawner.mobjs.length}');
-      stderr.writeln('');
+      stderr.writeln();
       stderr.writeln('Sprite definitions loaded: ${state.sprites.length}');
-      stderr.writeln('');
+      stderr.writeln();
 
       var sectorsWithThings = 0;
       for (final sector in state.sectors) {
@@ -53,7 +53,7 @@ void main() {
         }
       }
       stderr.writeln('Sectors with things: $sectorsWithThings');
-      stderr.writeln('');
+      stderr.writeln();
 
       stderr.writeln('First 10 spawned mobjs:');
       for (var i = 0; i < 10 && i < thingSpawner.mobjs.length; i++) {

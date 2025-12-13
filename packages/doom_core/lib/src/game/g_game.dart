@@ -1,5 +1,6 @@
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/p_mobj.dart';
+import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/p_user.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/thinker.dart';
@@ -10,6 +11,7 @@ class GameTicker {
       if (player.mobj != null) {
         playerThink(player, level);
         _runPlayerMobj(player, level);
+        spec.playerInSpecialSector(player.mobj!, level);
       }
     }
 
