@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/mobj.dart';
+
 abstract final class RenderConstants {
   static const int maxVisplanes = 128;
   static const int maxDrawSegs = 256;
@@ -68,6 +70,8 @@ class Sector {
   int validCount = 0;
   int lineCount = 0;
   List<Line> lines = [];
+
+  Mobj? thingList;
 
   int soundTraversed = 0;
   int blockBox0 = 0;

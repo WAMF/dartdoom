@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/video/frame_buffer.dart';
+import 'package:doom_wad/doom_wad.dart';
 
 abstract final class ScreenDimensions {
   static const int width = FrameBuffer.width;
@@ -92,6 +93,8 @@ class RenderState {
   int skyFlatNum = 0;
   int skyTexture = 0;
   int skyColumnOffset = 0;
+
+  TextureManager? textureManager;
 
   void initBuffer() {
     for (var i = 0; i < viewHeight; i++) {

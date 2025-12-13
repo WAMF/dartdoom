@@ -1,13 +1,17 @@
 import 'dart:typed_data';
 
+import 'package:doom_core/src/render/r_bsp.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_draw.dart';
+import 'package:doom_core/src/render/r_plane.dart';
+import 'package:doom_core/src/render/r_segs.dart';
+import 'package:doom_core/src/render/r_sky.dart';
 import 'package:doom_core/src/render/r_state.dart';
+import 'package:doom_core/src/render/r_things.dart';
 import 'package:doom_math/doom_math.dart';
 
 abstract final class _ViewConstants {
   static const int fineFieldOfView = Angle.fineAngles ~/ 4;
-  static const int clipAngle = Angle.ang45;
 }
 
 class Renderer {
@@ -18,27 +22,55 @@ class Renderer {
 
   Uint8List? _frameBuffer;
 
+  late final BspTraversal _bsp;
+  late final SegRenderer _segRenderer;
+  late final PlaneRenderer _planeRenderer;
+  late final SkyRenderer _skyRenderer;
+  late final SpriteRenderer _spriteRenderer;
+
   void init() {
     _initBuffer();
     _initTables();
     drawContext.setLookups(state.yLookup, state.columnOfs);
+
+    _skyRenderer = SkyRenderer(state, drawContext)
+      ..init()
+      ..onGetSkyTexture = _getSkyColumn;
+    _planeRenderer = PlaneRenderer(state, drawContext)
+      ..onDrawSky = _drawSky;
+    _segRenderer = SegRenderer(state, this, drawContext)
+      ..initClipArrays(state.viewWidth)
+      ..onFloorPlane = _planeRenderer.setFloorPlane
+      ..onCeilingPlane = _planeRenderer.setCeilingPlane
+      ..onCheckFloorPlane = _planeRenderer.checkFloorPlane
+      ..onCheckCeilingPlane = _planeRenderer.checkCeilingPlane;
+    _spriteRenderer = SpriteRenderer(state, drawContext, _segRenderer)
+      ..initClipArrays(state.viewWidth)
+      ..onGetSpriteData = _getSpriteData;
+    _bsp = BspTraversal(state, this)
+      ..onAddLine = _segRenderer.storeWallRange
+      ..onEnterSubsector = _onEnterSubsector;
   }
 
   void _initTables() {
-    _initClipAngle();
+    _initProjection();
     _initViewAngleToX();
     _initXToViewAngle();
+    _initClipAngle();
     _initLightTables();
   }
 
-  void _initClipAngle() {
+  void _initProjection() {
     const tanIndex = Angle.fineAngles ~/ 4 + _ViewConstants.fineFieldOfView ~/ 2;
     final focalLength = Fixed32.div(
       state.centerXFrac,
       fineTangent(tanIndex.clamp(0, Angle.fineAngles ~/ 2 - 1)),
     );
     state.projection = focalLength;
-    state.clipAngle = _ViewConstants.clipAngle;
+  }
+
+  void _initClipAngle() {
+    state.clipAngle = state.xToViewAngle[0];
   }
 
   void _initViewAngleToX() {
@@ -66,6 +98,14 @@ class Renderer {
       }
 
       state.viewAngleToX[i] = t;
+    }
+
+    for (var i = 0; i < Angle.fineAngles ~/ 2; i++) {
+      if (state.viewAngleToX[i] == -1) {
+        state.viewAngleToX[i] = 0;
+      } else if (state.viewAngleToX[i] == state.viewWidth + 1) {
+        state.viewAngleToX[i] = state.viewWidth;
+      }
     }
 
     for (var i = Angle.fineAngles ~/ 2;
@@ -120,8 +160,51 @@ class Renderer {
 
   void renderPlayerView(Uint8List frameBuffer) {
     _frameBuffer = frameBuffer;
-    state.floorPlane = null;
-    state.ceilingPlane = null;
+
+    _planeRenderer.clearPlanes();
+    _segRenderer
+      ..clearDrawSegs()
+      ..clearClips(state.viewHeight);
+    _spriteRenderer.clearSprites();
+    _bsp.clearClipSegs();
+
+    if (state.nodes.isNotEmpty) {
+      _bsp.renderBspNode(state.nodes.length - 1);
+    }
+
+    _planeRenderer
+      ..onGetFlat = _getFlat
+      ..drawPlanes(frameBuffer);
+
+    _spriteRenderer.drawMasked(frameBuffer);
+  }
+
+  void _onEnterSubsector(Sector sector) {
+    _planeRenderer.enterSubsector(sector);
+    _spriteRenderer.addSprites(sector);
+  }
+
+  Uint8List? _getFlat(int flatNum) {
+    final texManager = state.textureManager;
+    if (texManager == null) return null;
+    return texManager.getFlat(flatNum);
+  }
+
+  Uint8List? _getSpriteData(int patchNum) {
+    final texManager = state.textureManager;
+    if (texManager == null) return null;
+    return texManager.getSpritePatch(patchNum);
+  }
+
+  void _drawSky(Visplane plane) {
+    if (_frameBuffer == null) return;
+    _skyRenderer.drawSky(plane, _frameBuffer!);
+  }
+
+  Uint8List? _getSkyColumn(int texture, int col) {
+    final texManager = state.textureManager;
+    if (texManager == null) return null;
+    return texManager.getTextureColumn(texture, col);
   }
 
   int pointOnSide(int x, int y, Node node) {
@@ -206,8 +289,8 @@ class Renderer {
     final anglea = (Angle.ang90 + visAngle - viewAngle).u32.s32;
     final angleb = (Angle.ang90 + visAngle - rwNormalAngle).u32.s32;
 
-    final sinea = fineSine((anglea >> Angle.angleToFineShift) & Angle.fineMask);
-    final sineb = fineSine((angleb >> Angle.angleToFineShift) & Angle.fineMask);
+    final sinea = fineSine((anglea >> Angle.angleToFineShift) & Angle.fineMask).abs();
+    final sineb = fineSine((angleb >> Angle.angleToFineShift) & Angle.fineMask).abs();
 
     final num = Fixed32.mul(projection, sineb) << state.detailShift;
     final den = Fixed32.mul(rwDistance, sinea);
@@ -241,8 +324,7 @@ class Renderer {
   }
 
   int angleToX(int angle) {
-    final rawFineAngle =
-        (angle + Angle.ang90).u32 >> Angle.angleToFineShift;
+    final rawFineAngle = angle.u32 >> Angle.angleToFineShift;
     final fineAngle = rawFineAngle.clamp(0, Angle.fineAngles ~/ 2 - 1);
     final x = state.viewAngleToX[fineAngle];
 
@@ -259,4 +341,5 @@ class Renderer {
   }
 
   Uint8List? get frameBuffer => _frameBuffer;
+  SpriteRenderer get spriteRenderer => _spriteRenderer;
 }

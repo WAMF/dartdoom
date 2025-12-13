@@ -80,52 +80,50 @@ class PlaneRenderer {
   }
 
   Visplane checkPlane(Visplane plane, int start, int stop) {
+    int intrl;
+    int intrh;
+    int unionl;
+    int unionh;
+
     if (start < plane.minX) {
-      for (var x = start; x < plane.minX; x++) {
-        plane.top[x] = 0xff;
-      }
-      plane.minX = start;
-    } else if (start > plane.maxX) {
-      for (var x = plane.maxX + 1; x <= start; x++) {
-        plane.top[x] = 0xff;
-      }
+      intrl = plane.minX;
+      unionl = start;
+    } else {
+      unionl = plane.minX;
+      intrl = start;
     }
 
     if (stop > plane.maxX) {
-      for (var x = plane.maxX + 1; x <= stop; x++) {
-        plane.top[x] = 0xff;
-      }
-      plane.maxX = stop;
-    } else if (stop < plane.minX) {
-      for (var x = stop; x < plane.minX; x++) {
-        plane.top[x] = 0xff;
-      }
-    }
-
-    var intrl = plane.minX;
-    var intrh = plane.maxX;
-
-    if (intrl > start) {
-      intrl = start;
-    }
-    if (intrh < stop) {
+      intrh = plane.maxX;
+      unionh = stop;
+    } else {
+      unionh = plane.maxX;
       intrh = stop;
     }
 
-    for (var x = intrl; x <= intrh; x++) {
+    var x = intrl;
+    for (; x <= intrh; x++) {
       if (plane.top[x] != 0xff) {
         break;
       }
     }
 
-    if (plane.minX > start) {
-      plane.minX = start;
-    }
-    if (plane.maxX < stop) {
-      plane.maxX = stop;
+    if (x > intrh) {
+      plane.minX = unionl;
+      plane.maxX = unionh;
+      return plane;
     }
 
-    return plane;
+    final newPlane = Visplane(
+      height: plane.height,
+      picNum: plane.picNum,
+      lightLevel: plane.lightLevel,
+    )
+      ..minX = start
+      ..maxX = stop;
+
+    _visplanes.add(newPlane);
+    return newPlane;
   }
 
   void makeSpans(int x, int t1Param, int b1Param, int t2Param, int b2Param) {
@@ -164,7 +162,7 @@ class PlaneRenderer {
 
     final length = Fixed32.mul(distance, _distScale(x1));
 
-    final angle = (_state.viewAngle - Angle.ang90).u32.s32;
+    final angle = (_state.viewAngle + _state.xToViewAngle[x1]).u32.s32;
     final fineAngle = (angle >> Angle.angleToFineShift) & Angle.fineMask;
 
     _drawContext.span
@@ -188,12 +186,13 @@ class PlaneRenderer {
 
   int _ySlope(int y) {
     final dy = ((y - _state.centerY) << Fixed32.fracBits) + Fixed32.fracUnit ~/ 2;
-    return Fixed32.div(Fixed32.fracUnit, dy.abs());
+    final numerator = (_state.viewWidth >> _state.detailShift) ~/ 2 * Fixed32.fracUnit;
+    return Fixed32.div(numerator, dy.abs());
   }
 
   int _distScale(int x) {
     final angle = _state.xToViewAngle[x];
-    final fineAngle = ((angle + Angle.ang90).u32 >> Angle.angleToFineShift) & Angle.fineMask;
+    final fineAngle = (angle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
     return Fixed32.div(Fixed32.fracUnit, fineCosine(fineAngle).abs().clamp(1, Fixed32.fracUnit));
   }
 
@@ -221,22 +220,20 @@ class PlaneRenderer {
       _setupBaseScale();
 
       final stop = plane.maxX + 1;
-      var t1 = plane.top[plane.minX];
-      var b1 = plane.bottom[plane.minX];
 
       for (var x = plane.minX; x <= stop; x++) {
-        var t2 = x < stop ? plane.top[x] : 0xff;
-        var b2 = x < stop ? plane.bottom[x] : 0;
+        var t1 = (x == plane.minX) ? 0xff : plane.top[x - 1];
+        var b1 = (x == plane.minX) ? 0 : plane.bottom[x - 1];
+        var t2 = x <= plane.maxX ? plane.top[x] : 0xff;
+        var b2 = x <= plane.maxX ? plane.bottom[x] : 0;
 
-        if (t1 != 0xff) {
-          while (t1 < t2 && t1 <= b1) {
-            _mapPlane(t1, _spanStart[t1], x - 1);
-            t1++;
-          }
-          while (b1 > b2 && b1 >= t1) {
-            _mapPlane(b1, _spanStart[b1], x - 1);
-            b1--;
-          }
+        while (t1 < t2 && t1 <= b1) {
+          _mapPlane(t1, _spanStart[t1], x - 1);
+          t1++;
+        }
+        while (b1 > b2 && b1 >= t1) {
+          _mapPlane(b1, _spanStart[b1], x - 1);
+          b1--;
         }
 
         while (t2 < t1 && t2 <= b2) {
@@ -247,9 +244,6 @@ class PlaneRenderer {
           _spanStart[b2] = x;
           b2--;
         }
-
-        t1 = t2;
-        b1 = b2;
       }
     }
   }
@@ -258,42 +252,81 @@ class PlaneRenderer {
     final angle = (_state.viewAngle - Angle.ang90).u32.s32;
     final fineAngle = (angle >> Angle.angleToFineShift) & Angle.fineMask;
 
-    _basexScale = Fixed32.div(fineCosine(fineAngle), _state.projection);
-    _baseyScale = -Fixed32.div(fineSine(fineAngle), _state.projection);
+    _basexScale = Fixed32.div(fineCosine(fineAngle), _state.centerXFrac);
+    _baseyScale = -Fixed32.div(fineSine(fineAngle), _state.centerXFrac);
   }
 
-  void spanFloor(int x, int top, int bottom) {
+  void checkFloorPlane(int start, int stop) {
+    if (_floorPlane != null) {
+      _floorPlane = checkPlane(_floorPlane!, start, stop);
+      _state.floorPlane = _floorPlane;
+    }
+  }
+
+  void checkCeilingPlane(int start, int stop) {
+    if (_ceilingPlane != null) {
+      _ceilingPlane = checkPlane(_ceilingPlane!, start, stop);
+      _state.ceilingPlane = _ceilingPlane;
+    }
+  }
+
+  void setFloorPlane(int x, int top, int bottom) {
     if (_floorPlane == null) return;
     if (bottom < top) return;
+    if (x < 0 || x >= ScreenDimensions.width) return;
 
-    if (x < _floorPlane!.minX || x > _floorPlane!.maxX) {
-      _floorPlane = checkPlane(_floorPlane!, x, x);
+    if (x < _floorPlane!.minX) {
+      _floorPlane!.minX = x;
+    }
+    if (x > _floorPlane!.maxX) {
+      _floorPlane!.maxX = x;
     }
 
     _floorPlane!.top[x] = top;
     _floorPlane!.bottom[x] = bottom;
   }
 
-  void spanCeiling(int x, int top, int bottom) {
+  void setCeilingPlane(int x, int top, int bottom) {
     if (_ceilingPlane == null) return;
     if (bottom < top) return;
+    if (x < 0 || x >= ScreenDimensions.width) return;
 
-    if (x < _ceilingPlane!.minX || x > _ceilingPlane!.maxX) {
-      _ceilingPlane = checkPlane(_ceilingPlane!, x, x);
+    if (x < _ceilingPlane!.minX) {
+      _ceilingPlane!.minX = x;
+    }
+    if (x > _ceilingPlane!.maxX) {
+      _ceilingPlane!.maxX = x;
     }
 
     _ceilingPlane!.top[x] = top;
     _ceilingPlane!.bottom[x] = bottom;
   }
 
-  void setFloorPlane(int height, int picNum, int lightLevel) {
-    _floorPlane = findPlane(height, picNum, lightLevel);
-    _state.floorPlane = _floorPlane;
-  }
+  void enterSubsector(Sector sector) {
+    if (sector.floorHeight < _state.viewZ) {
+      _floorPlane = findPlane(
+        sector.floorHeight,
+        sector.floorPic,
+        sector.lightLevel,
+      );
+      _state.floorPlane = _floorPlane;
+    } else {
+      _floorPlane = null;
+      _state.floorPlane = null;
+    }
 
-  void setCeilingPlane(int height, int picNum, int lightLevel) {
-    _ceilingPlane = findPlane(height, picNum, lightLevel);
-    _state.ceilingPlane = _ceilingPlane;
+    if (sector.ceilingHeight > _state.viewZ ||
+        sector.ceilingPic == _state.skyFlatNum) {
+      _ceilingPlane = findPlane(
+        sector.ceilingHeight,
+        sector.ceilingPic,
+        sector.lightLevel,
+      );
+      _state.ceilingPlane = _ceilingPlane;
+    } else {
+      _ceilingPlane = null;
+      _state.ceilingPlane = null;
+    }
   }
 
   Visplane? get floorPlane => _floorPlane;

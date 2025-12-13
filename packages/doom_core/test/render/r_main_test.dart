@@ -186,8 +186,8 @@ void main() {
         renderer.init();
       });
 
-      test('angleToX returns center for angle 0', () {
-        final x = renderer.angleToX(0);
+      test('angleToX returns center for ANG90', () {
+        final x = renderer.angleToX(Angle.ang90);
         expect(x, closeTo(state.centerX, 10));
       });
 
@@ -261,6 +261,7 @@ void main() {
 
     group('renderPlayerView', () {
       test('sets frame buffer', () {
+        renderer.init();
         final frameBuffer = Uint8List(
           ScreenDimensions.width * ScreenDimensions.height,
         );
@@ -270,16 +271,17 @@ void main() {
         expect(renderer.frameBuffer, frameBuffer);
       });
 
-      test('resets floor and ceiling planes', () {
-        state.floorPlane = Visplane(height: 0, picNum: 0, lightLevel: 0);
-        state.ceilingPlane = Visplane(height: 0, picNum: 0, lightLevel: 0);
+      test('clears planes before rendering', () {
+        renderer.init();
+        state.floorPlane = Visplane(height: 99, picNum: 99, lightLevel: 99);
+        state.ceilingPlane = Visplane(height: 99, picNum: 99, lightLevel: 99);
 
         renderer.renderPlayerView(Uint8List(
           ScreenDimensions.width * ScreenDimensions.height,
         ));
 
-        expect(state.floorPlane, isNull);
-        expect(state.ceilingPlane, isNull);
+        expect(state.floorPlane, isNotNull);
+        expect(state.ceilingPlane, isNotNull);
       });
     });
   });

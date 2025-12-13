@@ -218,6 +218,13 @@ class TextureManager {
     return getFlat(flatNumForName(name));
   }
 
+  Uint8List getSpritePatch(int patchNum) {
+    return _wadManager.cacheLumpNum(_firstSprite + patchNum);
+  }
+
+  int get firstSpriteLump => _firstSprite;
+  int get lastSpriteLump => _lastSprite;
+
   Uint8List generateComposite(int textureNum) {
     if (_compositeCache.containsKey(textureNum)) {
       return _compositeCache[textureNum]!;
@@ -275,7 +282,41 @@ class TextureManager {
   List<String> get patchNames => _patchNames?.names ?? [];
   List<TextureDef> get textures => List.unmodifiable(_textures);
 
+  Uint8List getTextureColumn(int textureNum, int col) {
+    if (textureNum < 0 || textureNum >= _textures.length) {
+      return _emptyColumn;
+    }
+
+    final texDef = _textures[textureNum];
+    final wrappedCol = col & (texDef.width - 1);
+
+    final composite = generateComposite(textureNum);
+    final column = Uint8List(texDef.height);
+
+    for (var y = 0; y < texDef.height; y++) {
+      column[y] = composite[y * texDef.width + wrappedCol];
+    }
+
+    return column;
+  }
+
+  int getTextureHeight(int textureNum) {
+    if (textureNum < 0 || textureNum >= _textures.length) {
+      return 128;
+    }
+    return _textures[textureNum].height;
+  }
+
+  int getTextureWidth(int textureNum) {
+    if (textureNum < 0 || textureNum >= _textures.length) {
+      return 64;
+    }
+    return _textures[textureNum].width;
+  }
+
   void clearCache() {
     _compositeCache.clear();
   }
+
+  static final Uint8List _emptyColumn = Uint8List(128);
 }

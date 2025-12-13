@@ -19,7 +19,7 @@ abstract final class _BboxIndices {
 final Int32List _checkCoord = Int32List.fromList([
   3, 0, 2, 1,
   3, 0, 2, 0,
-  3, 1, 2, 1,
+  3, 1, 2, 0,
   0, 0, 0, 0,
   2, 0, 2, 1,
   0, 0, 0, 0,
@@ -38,6 +38,7 @@ class BspTraversal {
 
   final List<ClipRange> _solidSegs = [];
   SegCallback? onAddLine;
+  SubsectorCallback? onEnterSubsector;
 
   void clearClipSegs() {
     _solidSegs
@@ -68,6 +69,9 @@ class BspTraversal {
 
   void _renderSubsector(int num) {
     final sub = _state.subsectors[num];
+
+    onEnterSubsector?.call(sub.sector);
+
     final count = sub.numLines;
     final firstLine = sub.firstLine;
 
@@ -259,12 +263,16 @@ class BspTraversal {
       return true;
     }
 
+    var angle1Clipped = angle1;
+    var angle2Clipped = angle2;
+
     var tSpan1 = (angle1 + _state.clipAngle).u32.s32;
     if (tSpan1 > 2 * _state.clipAngle) {
       tSpan1 -= 2 * _state.clipAngle;
       if (tSpan1 >= span) {
         return false;
       }
+      angle1Clipped = _state.clipAngle;
     }
 
     var tSpan2 = (_state.clipAngle - angle2).u32.s32;
@@ -273,6 +281,24 @@ class BspTraversal {
       if (tSpan2 >= span) {
         return false;
       }
+      angle2Clipped = -_state.clipAngle;
+    }
+
+    final sx1 = _renderer.angleToX((angle1Clipped + Angle.ang90).u32.s32);
+    var sx2 = _renderer.angleToX((angle2Clipped + Angle.ang90).u32.s32);
+
+    if (sx1 == sx2) {
+      return false;
+    }
+    sx2--;
+
+    var startIdx = 0;
+    while (_solidSegs[startIdx].last < sx2) {
+      startIdx++;
+    }
+
+    if (sx1 >= _solidSegs[startIdx].first && sx2 <= _solidSegs[startIdx].last) {
+      return false;
     }
 
     return true;
@@ -280,3 +306,4 @@ class BspTraversal {
 }
 
 typedef SegCallback = void Function(Seg seg, int start, int stop, int rwAngle1);
+typedef SubsectorCallback = void Function(Sector sector);

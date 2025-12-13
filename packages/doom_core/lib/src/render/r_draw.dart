@@ -4,7 +4,6 @@ import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
 
 abstract final class _DrawConstants {
-  static const int textureMask = 127;
   static const int flatSize = 64;
   static const int flatMask = flatSize - 1;
   static const int flatShift = 6;
@@ -86,8 +85,10 @@ class ColumnDrawer {
     final fracStep = iscale;
     var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
 
+    final texMask = src.length - 1;
+
     do {
-      final texIndex = (frac >> Fixed32.fracBits) & _DrawConstants.textureMask;
+      final texIndex = (frac >> Fixed32.fracBits) & texMask;
       dest[destIndex] = cmap[src[texIndex]];
       destIndex += ScreenDimensions.width;
       frac += fracStep;
@@ -108,9 +109,10 @@ class ColumnDrawer {
 
     final fracStep = iscale;
     var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
+    final texMask = src.length - 1;
 
     do {
-      final texIndex = (frac >> Fixed32.fracBits) & _DrawConstants.textureMask;
+      final texIndex = (frac >> Fixed32.fracBits) & texMask;
       final pixel = cmap[src[texIndex]];
       dest[destIndex] = pixel;
       dest[destIndex + 1] = pixel;
@@ -186,8 +188,10 @@ class TranslatedColumnDrawer {
     final fracStep = iscale;
     var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
 
+    final texMask = src.length - 1;
+
     do {
-      final texIndex = (frac >> Fixed32.fracBits) & _DrawConstants.textureMask;
+      final texIndex = (frac >> Fixed32.fracBits) & texMask;
       dest[destIndex] = cmap[trans[src[texIndex]]];
       destIndex += ScreenDimensions.width;
       frac += fracStep;

@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_draw.dart';
 import 'package:doom_core/src/render/r_segs.dart';
 import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
+import 'package:doom_wad/doom_wad.dart';
 
 abstract final class _SpriteConstants {
   static const int minZ = Fixed32.fracUnit * 4;
@@ -40,6 +42,187 @@ class SpriteRenderer {
     _vissprites.clear();
     _visspriteHead = null;
     _visspriteTail = null;
+    _totalThingsProcessed = 0;
+  }
+
+  void addSprites(Sector sector) {
+    if (sector.validCount == _state.validCount) {
+      return;
+    }
+    sector.validCount = _state.validCount;
+
+    final lightNum = (sector.lightLevel >> RenderConstants.lightSegShift) + _state.extraLight;
+    _spriteLights = _state.scaleLight[lightNum.clamp(0, RenderConstants.lightLevels - 1)];
+
+    var thingCount = 0;
+    var thing = sector.thingList;
+    while (thing != null) {
+      thingCount++;
+      _projectSprite(thing);
+      thing = thing.sNext;
+    }
+    _totalThingsProcessed += thingCount;
+  }
+
+  int _totalThingsProcessed = 0;
+  int get totalThingsProcessed => _totalThingsProcessed;
+
+  List<Uint8List?> _spriteLights = [];
+
+  void _projectSprite(Mobj thing) {
+    final trX = thing.x - _state.viewX;
+    final trY = thing.y - _state.viewY;
+
+    final gxt = Fixed32.mul(trX, _state.viewCos);
+    final gyt = -Fixed32.mul(trY, _state.viewSin);
+
+    final tz = gxt - gyt;
+
+    if (tz < _SpriteConstants.minZ) {
+      return;
+    }
+
+    final xScale = Fixed32.div(_state.projection, tz);
+
+    final gxtNeg = -Fixed32.mul(trX, _state.viewSin);
+    final gytPos = Fixed32.mul(trY, _state.viewCos);
+    var tx = -(gytPos + gxtNeg);
+
+    if (tx.abs() > tz << 2) {
+      return;
+    }
+
+    final spriteNum = thing.sprite;
+    final frameNum = thing.frame & FrameFlag.frameMask;
+
+    if (spriteNum >= _state.sprites.length) {
+      return;
+    }
+    final sprdef = _state.sprites[spriteNum];
+    if (frameNum >= sprdef.numFrames) {
+      return;
+    }
+    final sprframe = sprdef.spriteFrames[frameNum];
+
+    int lump;
+    bool flip;
+
+    if (sprframe.rotate) {
+      final ang = _pointToAngle(thing.x, thing.y);
+      final rot = ((ang - thing.angle + (Angle.ang45 >> 1) * 9).u32 >> 29) & 7;
+      lump = sprframe.lump[rot];
+      flip = sprframe.flip[rot] != 0;
+    } else {
+      lump = sprframe.lump[0];
+      flip = sprframe.flip[0] != 0;
+    }
+
+    if (lump >= _state.spriteWidth.length || lump >= _state.spriteOffset.length) {
+      return;
+    }
+
+    tx -= _state.spriteOffset[lump];
+    final x1 = (_state.centerXFrac + Fixed32.mul(tx, xScale)) >> Fixed32.fracBits;
+
+    if (x1 > _state.viewWidth) {
+      return;
+    }
+
+    tx += _state.spriteWidth[lump];
+    final x2 = ((_state.centerXFrac + Fixed32.mul(tx, xScale)) >> Fixed32.fracBits) - 1;
+
+    if (x2 < 0) {
+      return;
+    }
+
+    final vis = Vissprite()
+      ..mobjFlags = thing.flags
+      ..scale = xScale
+      ..gx = thing.x
+      ..gy = thing.y
+      ..gz = thing.z
+      ..gzt = thing.z + _state.spriteTopOffset[lump]
+      ..textureMid = thing.z + _state.spriteTopOffset[lump] - _state.viewZ
+      ..x1 = x1 < 0 ? 0 : x1
+      ..x2 = x2 >= _state.viewWidth ? _state.viewWidth - 1 : x2;
+
+    final iscale = Fixed32.div(Fixed32.fracUnit, xScale);
+
+    if (flip) {
+      vis
+        ..startFrac = _state.spriteWidth[lump] - 1
+        ..xiscale = -iscale;
+    } else {
+      vis
+        ..startFrac = 0
+        ..xiscale = iscale;
+    }
+
+    if (vis.x1 > x1) {
+      vis.startFrac += vis.xiscale * (vis.x1 - x1);
+    }
+
+    vis.patch = lump;
+
+    if ((thing.flags & MobjFlag.shadow) != 0) {
+      vis.colormap = null;
+    } else if (_state.fixedColormap != null) {
+      vis.colormap = _state.fixedColormap;
+    } else if ((thing.frame & FrameFlag.fullBright) != 0) {
+      vis.colormap = _state.colormaps;
+    } else {
+      final index = (xScale >> RenderConstants.lightScaleShift).clamp(0, RenderConstants.maxLightScale - 1);
+      vis.colormap = _spriteLights[index];
+    }
+
+    _addToSortedList(vis);
+    _vissprites.add(vis);
+  }
+
+  int _pointToAngle(int x, int y) {
+    final dx = x - _state.viewX;
+    final dy = y - _state.viewY;
+
+    if (dx == 0 && dy == 0) {
+      return 0;
+    }
+
+    if (dx >= 0) {
+      if (dy >= 0) {
+        if (dx > dy) {
+          return _tanToAngle(slopeDiv(dy, dx));
+        } else {
+          return Angle.ang90 - 1 - _tanToAngle(slopeDiv(dx, dy));
+        }
+      } else {
+        final absDy = -dy;
+        if (dx > absDy) {
+          return -_tanToAngle(slopeDiv(absDy, dx));
+        } else {
+          return (Angle.ang270 + _tanToAngle(slopeDiv(dx, absDy))).u32.s32;
+        }
+      }
+    } else {
+      final absDx = -dx;
+      if (dy >= 0) {
+        if (absDx > dy) {
+          return (Angle.ang180 - 1 - _tanToAngle(slopeDiv(dy, absDx))).u32.s32;
+        } else {
+          return Angle.ang90 + _tanToAngle(slopeDiv(absDx, dy));
+        }
+      } else {
+        final absDy = -dy;
+        if (absDx > absDy) {
+          return (Angle.ang180 + _tanToAngle(slopeDiv(absDy, absDx))).u32.s32;
+        } else {
+          return (Angle.ang270 - 1 - _tanToAngle(slopeDiv(absDx, absDy))).u32.s32;
+        }
+      }
+    }
+  }
+
+  int _tanToAngle(int slope) {
+    return tanToAngle(slope.clamp(0, Angle.slopeRange));
   }
 
   void addSprite(
@@ -199,7 +382,7 @@ class SpriteRenderer {
     for (final ds in _segRenderer.drawSegs) {
       if (ds.silhouette == Silhouette.none) continue;
 
-      if ((ds.silhouette & Silhouette.bottom) != 0) {
+      if ((ds.silhouette & Silhouette.bottom) != 0 && ds.sprBottomClip != null) {
         for (var x = ds.x1; x <= ds.x2; x++) {
           if (_clipBot[x] > ds.sprBottomClip![x]) {
             _clipBot[x] = ds.sprBottomClip![x];
@@ -207,7 +390,7 @@ class SpriteRenderer {
         }
       }
 
-      if ((ds.silhouette & Silhouette.top) != 0) {
+      if ((ds.silhouette & Silhouette.top) != 0 && ds.sprTopClip != null) {
         for (var x = ds.x1; x <= ds.x2; x++) {
           if (_clipTop[x] < ds.sprTopClip![x]) {
             _clipTop[x] = ds.sprTopClip![x];
@@ -217,9 +400,15 @@ class SpriteRenderer {
     }
   }
 
+  int _drawCallCount = 0;
+  int get drawCallCount => _drawCallCount;
+
   void _drawVissprite(Vissprite vis, Uint8List frameBuffer) {
+    _drawCallCount++;
     final spriteData = onGetSpriteData?.call(vis.patch);
-    if (spriteData == null) return;
+    if (spriteData == null) {
+      return;
+    }
 
     for (var x = vis.x1; x <= vis.x2; x++) {
       _spriteClipBot[x] = _clipBot[x];
@@ -250,34 +439,96 @@ class SpriteRenderer {
     _drawSpriteColumns(vis, spriteData, frameBuffer);
   }
 
+  int _columnsDrawn = 0;
+  int get columnsDrawn => _columnsDrawn;
+
   void _drawSpriteColumns(Vissprite vis, Uint8List spriteData, Uint8List frameBuffer) {
+    final patch = _getPatchFromCache(spriteData);
+    if (patch == null) return;
+
     final column = _drawContext.column..colormap = vis.colormap;
+
+    final sprtopscreen = _state.centerYFrac - Fixed32.mul(vis.textureMid, vis.scale);
 
     var frac = vis.startFrac;
     for (var x = vis.x1; x <= vis.x2; x++) {
       final textureCol = frac >> Fixed32.fracBits;
 
-      column
-        ..x = x
-        ..yl = ((_state.centerYFrac - Fixed32.mul(vis.textureMid, vis.scale)) >> Fixed32.fracBits)
-            .clamp(_spriteClipTop[x] + 1, _state.viewHeight - 1)
-        ..yh = ((_state.centerYFrac + Fixed32.mul(vis.gz - _state.viewZ - vis.textureMid, vis.scale)) >> Fixed32.fracBits)
-            .clamp(0, _spriteClipBot[x] - 1)
-        ..iscale = vis.xiscale
-        ..textureMid = vis.textureMid;
-
-      if (column.yl <= column.yh && textureCol >= 0) {
-        column.source = _getSpriteColumn(spriteData, textureCol);
-        _drawContext.drawColumn(frameBuffer);
+      if (textureCol >= 0 && textureCol < patch.width) {
+        _drawMaskedColumn(
+          column,
+          patch,
+          textureCol,
+          x,
+          sprtopscreen,
+          vis.scale,
+          _spriteClipTop[x],
+          _spriteClipBot[x],
+          frameBuffer,
+        );
       }
 
       frac += vis.xiscale;
     }
   }
 
-  Uint8List _getSpriteColumn(Uint8List spriteData, int col) {
-    return Uint8List(128);
+  void _drawMaskedColumn(
+    ColumnDrawer column,
+    Patch patch,
+    int textureCol,
+    int x,
+    int sprtopscreen,
+    int spryscale,
+    int clipTop,
+    int clipBot,
+    Uint8List frameBuffer,
+  ) {
+    final posts = patch.columns[textureCol];
+    if (posts.isEmpty) return;
+
+    column.x = x;
+
+    for (final post in posts) {
+      final topscreen = sprtopscreen + Fixed32.mul(post.topDelta.toFixed(), spryscale);
+      final bottomscreen = topscreen + Fixed32.mul(post.pixels.length.toFixed(), spryscale);
+
+      var yl = (topscreen + Fixed32.fracUnit - 1) >> Fixed32.fracBits;
+      var yh = (bottomscreen - 1) >> Fixed32.fracBits;
+
+      if (yl <= clipTop) yl = clipTop + 1;
+      if (yh >= clipBot) yh = clipBot - 1;
+
+      if (yl > yh) continue;
+
+      column
+        ..yl = yl
+        ..yh = yh
+        ..iscale = Fixed32.div(Fixed32.fracUnit, spryscale)
+        ..textureMid = post.topDelta.toFixed()
+        ..source = Uint8List.fromList(post.pixels);
+
+      _columnsDrawn++;
+      _drawContext.drawColumn(frameBuffer);
+    }
   }
+
+  Patch? _getPatchFromCache(Uint8List spriteData) {
+    if (spriteData.isEmpty) return null;
+
+    final cacheKey = spriteData.hashCode;
+    var patch = _spriteCache[cacheKey];
+    if (patch == null) {
+      try {
+        patch = Patch.parse(spriteData);
+        _spriteCache[cacheKey] = patch;
+      } catch (e) {
+        return null;
+      }
+    }
+    return patch;
+  }
+
+  final Map<int, Patch> _spriteCache = {};
 
   List<Vissprite> get vissprites => _vissprites;
 }

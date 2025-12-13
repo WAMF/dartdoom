@@ -23,6 +23,8 @@ class SegRenderer {
 
   PlaneCallback? onFloorPlane;
   PlaneCallback? onCeilingPlane;
+  PlaneCheckCallback? onCheckFloorPlane;
+  PlaneCheckCallback? onCheckCeilingPlane;
 
   Int16List _floorClip = Int16List(0);
   Int16List _ceilingClip = Int16List(0);
@@ -66,6 +68,7 @@ class SegRenderer {
   bool _markCeiling = false;
   bool _maskedTexture = false;
 
+  int _rwNormalAngleVal = 0;
   int _rwCenterAngle = 0;
   int _rwOffset = 0;
   int _rwDistance = 0;
@@ -102,6 +105,7 @@ class SegRenderer {
     _calculateScales();
     _setupTextures();
     _setupMarking();
+    _openPlanes();
 
     if (_backSector == null) {
       _renderSolidWall();
@@ -116,32 +120,36 @@ class SegRenderer {
 
     _rwNormalAngle();
 
-    final offsetAngle = (_rwAngle1 - _rwCenterAngle).abs().u32.s32;
+    var offsetAngle = (_rwAngle1 - _rwNormalAngleVal).abs().u32.s32;
     if (offsetAngle > Angle.ang90) {
-      _rwOffset = 0;
-    } else {
-      final fineAngle =
-          (offsetAngle >> Angle.angleToFineShift) & Angle.fineMask;
-      _rwOffset = Fixed32.mul(
-        _hypotenuse(
-          _state.viewX - v1.x,
-          _state.viewY - v1.y,
-        ),
-        fineCosine(fineAngle),
-      );
+      offsetAngle = Angle.ang90;
     }
+    final offsetFineAngle =
+        (offsetAngle >> Angle.angleToFineShift) & Angle.fineMask;
+    _rwOffset = Fixed32.mul(
+      _hypotenuse(
+        _state.viewX - v1.x,
+        _state.viewY - v1.y,
+      ),
+      fineSine(offsetFineAngle),
+    );
 
     _rwOffset += seg.offset + _curSide!.textureOffset;
 
-    final distAngle =
-        ((Angle.ang90 + _state.viewAngle - _rwCenterAngle).u32 >> Angle.angleToFineShift) & Angle.fineMask;
-    _rwDistance = Fixed32.mul(
-      _hypotenuse(_state.viewX - v1.x, _state.viewY - v1.y),
-      fineSine(distAngle),
-    );
+    var offsetAngleForDist = (_rwNormalAngleVal - _rwAngle1).u32;
+    final hypotenuse = _hypotenuse(_state.viewX - v1.x, _state.viewY - v1.y);
+
+    if (offsetAngleForDist.u32 < Angle.ang180.u32) {
+      offsetAngleForDist = (Angle.ang90 - offsetAngleForDist.s32).u32;
+    } else {
+      offsetAngleForDist = (Angle.ang90 + offsetAngleForDist.s32).u32;
+    }
+
+    final distAngle = (offsetAngleForDist >> Angle.angleToFineShift) & Angle.fineMask;
+    _rwDistance = Fixed32.mul(hypotenuse, fineSine(distAngle).abs());
 
     _state.rwDistance = _rwDistance;
-    _state.rwNormalAngle = _rwCenterAngle;
+    _state.rwNormalAngle = _rwNormalAngleVal;
 
     _rwScale = _renderer.scaleFromGlobalAngle(
       (_state.viewAngle + _state.xToViewAngle[_rwX]).u32.s32,
@@ -159,35 +167,21 @@ class SegRenderer {
     _worldTop = _frontSector!.ceilingHeight - _state.viewZ;
     _worldBottom = _frontSector!.floorHeight - _state.viewZ;
 
-    _topFrac = _state.centerYFrac -
-        Fixed32.mul(_worldTop, _rwScale);
-    _topStep = -Fixed32.mul(_rwScaleStep, _worldTop);
+    final scaledWorldTop = _worldTop >> 4;
+    final scaledWorldBottom = _worldBottom >> 4;
 
-    _bottomFrac = _state.centerYFrac -
-        Fixed32.mul(_worldBottom, _rwScale);
-    _bottomStep = -Fixed32.mul(_rwScaleStep, _worldBottom);
+    _topFrac = (_state.centerYFrac >> 4) -
+        Fixed32.mul(scaledWorldTop, _rwScale);
+    _topStep = -Fixed32.mul(_rwScaleStep, scaledWorldTop);
+
+    _bottomFrac = (_state.centerYFrac >> 4) -
+        Fixed32.mul(scaledWorldBottom, _rwScale);
+    _bottomStep = -Fixed32.mul(_rwScaleStep, scaledWorldBottom);
   }
 
   void _rwNormalAngle() {
-    final line = _curLinedef!;
-    final seg = _curLine!;
-
-    if (seg.sidedef == line.frontSide) {
-      _rwCenterAngle = _pointToAngle2(line.v1.x, line.v1.y, line.v2.x, line.v2.y) + Angle.ang90;
-    } else {
-      _rwCenterAngle = _pointToAngle2(line.v2.x, line.v2.y, line.v1.x, line.v1.y) + Angle.ang90;
-    }
-  }
-
-  int _pointToAngle2(int x1, int y1, int x2, int y2) {
-    final savedViewX = _state.viewX;
-    final savedViewY = _state.viewY;
-    _state.viewX = x1;
-    _state.viewY = y1;
-    final result = _renderer.pointToAngle(x2, y2);
-    _state.viewX = savedViewX;
-    _state.viewY = savedViewY;
-    return result;
+    _rwNormalAngleVal = (_curLine!.angle + Angle.ang90).u32.s32;
+    _rwCenterAngle = (Angle.ang90 + _state.viewAngle - _rwNormalAngleVal).u32.s32;
   }
 
   int _hypotenuse(int dx, int dy) {
@@ -246,25 +240,49 @@ class SegRenderer {
   }
 
   void _setupMarking() {
-    _markFloor = _frontSector!.floorHeight < _state.viewZ ||
-        _frontSector!.floorPic == _state.skyFlatNum;
+    if (_backSector == null) {
+      _markFloor = true;
+      _markCeiling = true;
+    } else {
+      final worldHigh = _backSector!.ceilingHeight - _state.viewZ;
+      final worldLow = _backSector!.floorHeight - _state.viewZ;
+      var worldTop = _frontSector!.ceilingHeight - _state.viewZ;
+      final worldBottom = _frontSector!.floorHeight - _state.viewZ;
 
-    _markCeiling = _frontSector!.ceilingHeight > _state.viewZ ||
-        _frontSector!.ceilingPic == _state.skyFlatNum;
-
-    if (_backSector != null) {
-      if (_backSector!.floorHeight >= _frontSector!.ceilingHeight ||
-          _backSector!.ceilingHeight <= _frontSector!.floorHeight) {
-        _markFloor = true;
-        _markCeiling = true;
+      if (_frontSector!.ceilingPic == _state.skyFlatNum &&
+          _backSector!.ceilingPic == _state.skyFlatNum) {
+        worldTop = worldHigh;
       }
 
-      if (_backSector!.ceilingHeight == _frontSector!.ceilingHeight) {
+      if (worldLow != worldBottom ||
+          _backSector!.floorPic != _frontSector!.floorPic ||
+          _backSector!.lightLevel != _frontSector!.lightLevel) {
+        _markFloor = true;
+      } else {
+        _markFloor = false;
+      }
+
+      if (worldHigh != worldTop ||
+          _backSector!.ceilingPic != _frontSector!.ceilingPic ||
+          _backSector!.lightLevel != _frontSector!.lightLevel) {
+        _markCeiling = true;
+      } else {
         _markCeiling = false;
       }
 
-      if (_backSector!.floorHeight == _frontSector!.floorHeight) {
+      if (_backSector!.ceilingHeight <= _frontSector!.floorHeight ||
+          _backSector!.floorHeight >= _frontSector!.ceilingHeight) {
+        _markCeiling = true;
+        _markFloor = true;
+      }
+
+      if (_frontSector!.floorHeight >= _state.viewZ) {
         _markFloor = false;
+      }
+
+      if (_frontSector!.ceilingHeight <= _state.viewZ &&
+          _frontSector!.ceilingPic != _state.skyFlatNum) {
+        _markCeiling = false;
       }
     }
 
@@ -272,13 +290,25 @@ class SegRenderer {
   }
 
   void _setupLighting() {
-    final lightNum = (_frontSector!.lightLevel >> RenderConstants.lightSegShift) + _state.extraLight;
-    final clampedLight = lightNum.clamp(0, RenderConstants.lightLevels - 1);
+    var lightNum = (_frontSector!.lightLevel >> RenderConstants.lightSegShift) + _state.extraLight;
 
-    if (_curLinedef!.flags & LineFlags.mapped == 0) {
-      _wallLights = _state.scaleLight[clampedLight];
-    } else {
-      _wallLights = _state.scaleLight[clampedLight];
+    if (_curLine!.v1.y == _curLine!.v2.y) {
+      lightNum--;
+    } else if (_curLine!.v1.x == _curLine!.v2.x) {
+      lightNum++;
+    }
+
+    final clampedLight = lightNum.clamp(0, RenderConstants.lightLevels - 1);
+    _wallLights = _state.scaleLight[clampedLight];
+  }
+
+  void _openPlanes() {
+    if (_markFloor) {
+      onCheckFloorPlane?.call(_rwX, _rwStopX);
+    }
+
+    if (_markCeiling) {
+      onCheckCeilingPlane?.call(_rwX, _rwStopX);
     }
   }
 
@@ -291,11 +321,14 @@ class SegRenderer {
     _worldHigh = _backSector!.ceilingHeight - _state.viewZ;
     _worldLow = _backSector!.floorHeight - _state.viewZ;
 
-    _pixHigh = _state.centerYFrac - Fixed32.mul(_worldHigh, _rwScale);
-    _pixHighStep = -Fixed32.mul(_rwScaleStep, _worldHigh);
+    final scaledWorldHigh = _worldHigh >> 4;
+    final scaledWorldLow = _worldLow >> 4;
 
-    _pixLow = _state.centerYFrac - Fixed32.mul(_worldLow, _rwScale);
-    _pixLowStep = -Fixed32.mul(_rwScaleStep, _worldLow);
+    _pixHigh = (_state.centerYFrac >> 4) - Fixed32.mul(scaledWorldHigh, _rwScale);
+    _pixHighStep = -Fixed32.mul(_rwScaleStep, scaledWorldHigh);
+
+    _pixLow = (_state.centerYFrac >> 4) - Fixed32.mul(scaledWorldLow, _rwScale);
+    _pixLowStep = -Fixed32.mul(_rwScaleStep, scaledWorldLow);
 
     var silhouette = Silhouette.none;
     if (_frontSector!.floorHeight > _backSector!.floorHeight) {
@@ -350,16 +383,22 @@ class SegRenderer {
 
       if (_markCeiling) {
         final ceilTop = _ceilingClip[x] + 1;
-        final ceilBottom = yl - 1;
-        if (ceilBottom >= ceilTop) {
+        var ceilBottom = yl - 1;
+        if (ceilBottom >= _floorClip[x]) {
+          ceilBottom = _floorClip[x] - 1;
+        }
+        if (ceilTop <= ceilBottom) {
           onCeilingPlane?.call(x, ceilTop, ceilBottom);
         }
       }
 
       if (_markFloor) {
-        final floorTop = yh + 1;
+        var floorTop = yh + 1;
         final floorBottom = _floorClip[x] - 1;
-        if (floorBottom >= floorTop) {
+        if (floorTop <= _ceilingClip[x]) {
+          floorTop = _ceilingClip[x] + 1;
+        }
+        if (floorTop <= floorBottom) {
           onFloorPlane?.call(x, floorTop, floorBottom);
         }
       }
@@ -425,7 +464,8 @@ class SegRenderer {
   ) {
     if (yl > yh) return;
 
-    final fineAngle = ((Angle.ang90 + _state.xToViewAngle[x]).u32 >> Angle.angleToFineShift) & Angle.fineMask;
+    final angle = (_rwCenterAngle + _state.xToViewAngle[x]).u32.s32;
+    final fineAngle = (angle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
     final textureCol = Fixed32.toInt(
       _rwOffset - Fixed32.mul(fineTangent(fineAngle), _rwDistance),
     );
@@ -444,8 +484,15 @@ class SegRenderer {
   }
 
   Uint8List _getTextureColumn(int textureNum, int col) {
-    return Uint8List(128);
+    final texManager = _state.textureManager;
+    if (texManager == null) {
+      return _emptyColumn;
+    }
+    return texManager.getTextureColumn(textureNum, col);
   }
+
+  static final Uint8List _emptyColumn = Uint8List(128);
 }
 
 typedef PlaneCallback = void Function(int x, int top, int bottom);
+typedef PlaneCheckCallback = void Function(int start, int stop);

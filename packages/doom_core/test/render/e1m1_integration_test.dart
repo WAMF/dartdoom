@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/p_mobj.dart';
 import 'package:doom_core/src/render/r_bsp.dart';
 import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_main.dart';
@@ -199,6 +200,8 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
+      final thingSpawner = ThingSpawner(state)..spawnMapThings(mapData);
+
       final renderer = Renderer(state)..init();
 
       final player1Start = mapData.things.firstWhere(
@@ -209,7 +212,7 @@ void main() {
         player1Start.x.toFixed(),
         player1Start.y.toFixed(),
         _ViewHeight.standing.toFixed(),
-        (player1Start.angle * Angle.ang90 ~/ 90).u32.s32,
+        Angle.ang90,
       );
 
       final frameBuffer = Uint8List(
@@ -217,12 +220,19 @@ void main() {
       );
       renderer.renderPlayerView(frameBuffer);
 
+      var nonZeroPixels = 0;
+      for (final pixel in frameBuffer) {
+        if (pixel != 0) nonZeroPixels++;
+      }
+      expect(nonZeroPixels, greaterThan(0));
+      expect(thingSpawner.mobjs, isNotEmpty);
+
       final playpalIndex = wadManager.getNumForName('PLAYPAL');
       final playpalData = wadManager.readLump(playpalIndex);
       final palette = PlayPal.parse(playpalData).palettes.first;
 
       final capture = FrameCapture(palette);
-      final outputPath = 'test/output/e1m1_player_start.png';
+      const outputPath = 'test/output/e1m1_player_start.png';
 
       final outputDir = Directory('test/output');
       if (!outputDir.existsSync()) {
@@ -234,9 +244,6 @@ void main() {
       final outputFile = File(outputPath);
       expect(outputFile.existsSync(), isTrue);
       expect(outputFile.lengthSync(), greaterThan(0));
-
-      // ignore: avoid_print
-      print('Frame captured to: ${outputFile.absolute.path}');
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
@@ -50,12 +51,25 @@ class LevelLoader {
       ..segs = _segs
       ..subsectors = _subsectors
       ..nodes = _nodes
-      ..firstFlat = _textureManager.firstFlat;
+      ..firstFlat = _textureManager.firstFlat
+      ..textureManager = _textureManager;
 
     _setupFlatTranslation(state);
     _setupTextureTranslation(state);
+    _setupSky(state);
 
     return state;
+  }
+
+  void _setupSky(RenderState state) {
+    try {
+      state.skyFlatNum = _textureManager.flatNumForName('F_SKY1');
+    } catch (_) {
+      state.skyFlatNum = 0;
+    }
+
+    final skyTextureNum = _textureManager.checkTextureNumForName('SKY1');
+    state.skyTexture = skyTextureNum >= 0 ? skyTextureNum : 0;
   }
 
   void _setupVertices(List<MapVertex> mapVertices) {
@@ -300,6 +314,137 @@ class RenderData {
   void initData(RenderState state) {
     _loadColormaps(state);
     _initLightTables(state);
+    _initSprites(state);
+  }
+
+  void _initSprites(RenderState state) {
+    state.firstSpriteLump = _wadManager.getNumForName('S_START') + 1;
+    state.lastSpriteLump = _wadManager.getNumForName('S_END') - 1;
+    state.numSpriteLumps = state.lastSpriteLump - state.firstSpriteLump + 1;
+
+    state.spriteWidth = List.filled(state.numSpriteLumps, 0);
+    state.spriteOffset = List.filled(state.numSpriteLumps, 0);
+    state.spriteTopOffset = List.filled(state.numSpriteLumps, 0);
+
+    for (var i = 0; i < state.numSpriteLumps; i++) {
+      final patchData = _wadManager.cacheLumpNum(state.firstSpriteLump + i);
+      if (patchData.length < 8) continue;
+
+      final byteData = ByteData.sublistView(patchData);
+      final width = byteData.getInt16(0, Endian.little);
+      final leftOffset = byteData.getInt16(4, Endian.little);
+      final topOffset = byteData.getInt16(6, Endian.little);
+
+      state.spriteWidth[i] = width << Fixed32.fracBits;
+      state.spriteOffset[i] = leftOffset << Fixed32.fracBits;
+      state.spriteTopOffset[i] = topOffset << Fixed32.fracBits;
+    }
+
+    _initSpriteDefs(state);
+  }
+
+  void _initSpriteDefs(RenderState state) {
+    state.sprites = [];
+
+    for (var i = 0; i < spriteNames.length; i++) {
+      final name = spriteNames[i];
+      final frames = <int, _TempSpriteFrame>{};
+      var maxFrame = -1;
+
+      for (var lump = state.firstSpriteLump; lump <= state.lastSpriteLump; lump++) {
+        final lumpName = _wadManager.getLumpInfo(lump).name.toUpperCase();
+        if (!lumpName.startsWith(name)) continue;
+        if (lumpName.length < 6) continue;
+
+        final frameChar = lumpName.codeUnitAt(4) - 0x41;
+        final rotationChar = lumpName.codeUnitAt(5) - 0x30;
+
+        if (frameChar < 0 || frameChar > 28) continue;
+
+        _installSpriteLump(
+          frames,
+          lump - state.firstSpriteLump,
+          frameChar,
+          rotationChar,
+          false,
+        );
+
+        if (frameChar > maxFrame) maxFrame = frameChar;
+
+        if (lumpName.length >= 8) {
+          final frameChar2 = lumpName.codeUnitAt(6) - 0x41;
+          final rotationChar2 = lumpName.codeUnitAt(7) - 0x30;
+          if (frameChar2 >= 0 && frameChar2 <= 28) {
+            _installSpriteLump(
+              frames,
+              lump - state.firstSpriteLump,
+              frameChar2,
+              rotationChar2,
+              true,
+            );
+            if (frameChar2 > maxFrame) maxFrame = frameChar2;
+          }
+        }
+      }
+
+      if (maxFrame == -1) {
+        state.sprites.add(SpriteDef(numFrames: 0, spriteFrames: []));
+        continue;
+      }
+
+      final spriteFrames = <SpriteFrame>[];
+      for (var f = 0; f <= maxFrame; f++) {
+        final temp = frames[f];
+        if (temp == null) {
+          spriteFrames.add(SpriteFrame(
+            rotate: false,
+            lump: Int32List.fromList(List.filled(8, 0)),
+            flip: Uint8List(8),
+          ),);
+        } else {
+          spriteFrames.add(SpriteFrame(
+            rotate: temp.rotate,
+            lump: Int32List.fromList(temp.lump),
+            flip: Uint8List.fromList(temp.flip),
+          ),);
+        }
+      }
+
+      state.sprites.add(SpriteDef(
+        numFrames: maxFrame + 1,
+        spriteFrames: spriteFrames,
+      ),);
+    }
+  }
+
+  void _installSpriteLump(
+    Map<int, _TempSpriteFrame> frames,
+    int lump,
+    int frame,
+    int rotation,
+    bool flipped,
+  ) {
+    var temp = frames[frame];
+    if (temp == null) {
+      temp = _TempSpriteFrame()
+        ..rotate = rotation != 0;
+      frames[frame] = temp;
+    }
+
+    if (rotation == 0) {
+      temp.rotate = false;
+      for (var r = 0; r < 8; r++) {
+        temp.lump[r] = lump;
+        temp.flip[r] = flipped ? 1 : 0;
+      }
+    } else {
+      temp.rotate = true;
+      final r = rotation - 1;
+      if (r >= 0 && r < 8) {
+        temp.lump[r] = lump;
+        temp.flip[r] = flipped ? 1 : 0;
+      }
+    }
   }
 
   void _loadColormaps(RenderState state) {
@@ -315,7 +460,8 @@ class RenderData {
           ((RenderConstants.lightLevels - 1 - i) * 2) * _ColormapConstants.numColormaps ~/ RenderConstants.lightLevels;
 
       for (var j = 0; j < RenderConstants.maxLightScale; j++) {
-        final level = startMap - j * ScreenDimensions.width ~/ (_ColormapConstants.viewDistance * RenderConstants.maxLightScale);
+        final scaledWidth = state.viewWidth << state.detailShift;
+        final level = startMap - j * ScreenDimensions.width ~/ scaledWidth ~/ _ColormapConstants.distMap;
         final clampedLevel = level.clamp(0, _ColormapConstants.numColormaps - 1);
 
         state.scaleLight[i][j] = Uint8List.sublistView(
@@ -331,8 +477,9 @@ class RenderData {
           ((RenderConstants.lightLevels - 1 - i) * 2) * _ColormapConstants.numColormaps ~/ RenderConstants.lightLevels;
 
       for (var j = 0; j < RenderConstants.maxLightZ; j++) {
-        final scale = Fixed32.div(ScreenDimensions.width.toFixed() ~/ 2, (j + 1) << RenderConstants.lightZShift);
-        var level = startMap - Fixed32.toInt(scale) ~/ _ColormapConstants.distMap;
+        var scale = Fixed32.div(ScreenDimensions.width.toFixed() ~/ 2, (j + 1) << RenderConstants.lightZShift);
+        scale >>= RenderConstants.lightScaleShift;
+        var level = startMap - scale ~/ _ColormapConstants.distMap;
         level = level.clamp(0, _ColormapConstants.numColormaps - 1);
 
         state.zLight[i][j] = Uint8List.sublistView(
@@ -364,5 +511,10 @@ abstract final class _ColormapConstants {
   static const int colormapSize = 256;
   static const int numColormaps = 32;
   static const int distMap = 2;
-  static const int viewDistance = 160;
+}
+
+class _TempSpriteFrame {
+  bool rotate = false;
+  List<int> lump = List.filled(8, -1);
+  List<int> flip = List.filled(8, 0);
 }

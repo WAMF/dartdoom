@@ -157,63 +157,130 @@ void main() {
       });
     });
 
-    group('setFloorPlane and setCeilingPlane', () {
+    group('enterSubsector', () {
       setUp(() {
         planeRenderer.clearPlanes();
       });
 
-      test('setFloorPlane finds and sets floor plane', () {
-        planeRenderer.setFloorPlane(0, 5, 160);
+      test('creates floor plane when floor below viewZ', () {
+        final sector = Sector(
+          floorHeight: 0,
+          ceilingHeight: 128.toFixed(),
+          floorPic: 5,
+          ceilingPic: 10,
+          lightLevel: 160,
+          special: 0,
+          tag: 0,
+        );
+        planeRenderer.enterSubsector(sector);
 
         expect(planeRenderer.floorPlane, isNotNull);
         expect(planeRenderer.floorPlane!.picNum, 5);
         expect(state.floorPlane, planeRenderer.floorPlane);
       });
 
-      test('setCeilingPlane finds and sets ceiling plane', () {
-        planeRenderer.setCeilingPlane(128.toFixed(), 10, 200);
+      test('creates ceiling plane when ceiling above viewZ', () {
+        final sector = Sector(
+          floorHeight: 0,
+          ceilingHeight: 128.toFixed(),
+          floorPic: 5,
+          ceilingPic: 10,
+          lightLevel: 200,
+          special: 0,
+          tag: 0,
+        );
+        planeRenderer.enterSubsector(sector);
 
         expect(planeRenderer.ceilingPlane, isNotNull);
         expect(planeRenderer.ceilingPlane!.picNum, 10);
         expect(state.ceilingPlane, planeRenderer.ceilingPlane);
       });
-    });
 
-    group('spanFloor and spanCeiling', () {
-      setUp(() {
-        planeRenderer.clearPlanes();
-        planeRenderer.setFloorPlane(0, 5, 160);
-        planeRenderer.setCeilingPlane(128.toFixed(), 10, 200);
+      test('sets floor plane to null when floor at or above viewZ', () {
+        final sector = Sector(
+          floorHeight: 50.toFixed(),
+          ceilingHeight: 128.toFixed(),
+          floorPic: 5,
+          ceilingPic: 10,
+          lightLevel: 160,
+          special: 0,
+          tag: 0,
+        );
+        planeRenderer.enterSubsector(sector);
+
+        expect(planeRenderer.floorPlane, isNull);
+        expect(state.floorPlane, isNull);
       });
 
-      test('spanFloor sets floor clip values', () {
-        planeRenderer.spanFloor(100, 50, 100);
+      test('sets ceiling plane to null when ceiling at or below viewZ', () {
+        final sector = Sector(
+          floorHeight: 0,
+          ceilingHeight: 40.toFixed(),
+          floorPic: 5,
+          ceilingPic: 10,
+          lightLevel: 160,
+          special: 0,
+          tag: 0,
+        );
+        planeRenderer.enterSubsector(sector);
+
+        expect(planeRenderer.ceilingPlane, isNull);
+        expect(state.ceilingPlane, isNull);
+      });
+
+      test('creates ceiling plane for sky even when below viewZ', () {
+        state.skyFlatNum = 10;
+        final sector = Sector(
+          floorHeight: 0,
+          ceilingHeight: 40.toFixed(),
+          floorPic: 5,
+          ceilingPic: 10,
+          lightLevel: 160,
+          special: 0,
+          tag: 0,
+        );
+        planeRenderer.enterSubsector(sector);
+
+        expect(planeRenderer.ceilingPlane, isNotNull);
+        expect(state.ceilingPlane, planeRenderer.ceilingPlane);
+      });
+    });
+
+    group('setFloorPlane and setCeilingPlane', () {
+      setUp(() {
+        planeRenderer.clearPlanes();
+      });
+
+      test('setFloorPlane sets floor clip values', () {
+        planeRenderer.setFloorPlane(100, 50, 100);
 
         expect(planeRenderer.floorPlane!.top[100], 50);
         expect(planeRenderer.floorPlane!.bottom[100], 100);
       });
 
-      test('spanCeiling sets ceiling clip values', () {
-        planeRenderer.spanCeiling(100, 20, 40);
+      test('setCeilingPlane sets ceiling clip values', () {
+        planeRenderer.setCeilingPlane(100, 20, 40);
 
         expect(planeRenderer.ceilingPlane!.top[100], 20);
         expect(planeRenderer.ceilingPlane!.bottom[100], 40);
       });
 
-      test('spanFloor ignores invalid range', () {
+      test('setFloorPlane ignores invalid range', () {
+        planeRenderer.setFloorPlane(100, 50, 100);
         final plane = planeRenderer.floorPlane!;
         final originalTop = plane.top[100];
 
-        planeRenderer.spanFloor(100, 100, 50);
+        planeRenderer.setFloorPlane(100, 100, 50);
 
         expect(plane.top[100], originalTop);
       });
 
-      test('spanCeiling ignores invalid range', () {
+      test('setCeilingPlane ignores invalid range', () {
+        planeRenderer.setCeilingPlane(100, 50, 100);
         final plane = planeRenderer.ceilingPlane!;
         final originalTop = plane.top[100];
 
-        planeRenderer.spanCeiling(100, 100, 50);
+        planeRenderer.setCeilingPlane(100, 100, 50);
 
         expect(plane.top[100], originalTop);
       });
