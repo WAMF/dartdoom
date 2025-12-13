@@ -12,6 +12,11 @@ abstract final class _SegConstants {
   static const int heightUnit = 1 << heightBits;
 }
 
+abstract final class _SilhouetteConstants {
+  static const int maxHeight = 0x7FFFFFFF;
+  static const int minHeight = -0x7FFFFFFF;
+}
+
 class SegRenderer {
   SegRenderer(this._state, this._renderer, this._drawContext);
 
@@ -120,24 +125,27 @@ class SegRenderer {
 
     _rwNormalAngle();
 
-    var offsetAngle = (_rwAngle1 - _rwNormalAngleVal).abs().u32.s32;
-    if (offsetAngle > Angle.ang90) {
-      offsetAngle = Angle.ang90;
+    final hyp = _hypotenuse(_state.viewX - v1.x, _state.viewY - v1.y);
+
+    var offsetAngle = (_rwNormalAngleVal - _rwAngle1).u32;
+    final origOffsetAngle = offsetAngle;
+    if (offsetAngle > Angle.ang180.u32) {
+      offsetAngle = (-offsetAngle.s32).u32;
+    }
+    if (offsetAngle > Angle.ang90.u32) {
+      offsetAngle = Angle.ang90.u32;
     }
     final offsetFineAngle =
         (offsetAngle >> Angle.angleToFineShift) & Angle.fineMask;
-    _rwOffset = Fixed32.mul(
-      _hypotenuse(
-        _state.viewX - v1.x,
-        _state.viewY - v1.y,
-      ),
-      fineSine(offsetFineAngle),
-    );
+    _rwOffset = Fixed32.mul(hyp, fineSine(offsetFineAngle));
+
+    if (origOffsetAngle < Angle.ang180.u32) {
+      _rwOffset = -_rwOffset;
+    }
 
     _rwOffset += seg.offset + _curSide!.textureOffset;
 
     var offsetAngleForDist = (_rwNormalAngleVal - _rwAngle1).u32;
-    final hypotenuse = _hypotenuse(_state.viewX - v1.x, _state.viewY - v1.y);
 
     if (offsetAngleForDist.u32 < Angle.ang180.u32) {
       offsetAngleForDist = (Angle.ang90 - offsetAngleForDist.s32).u32;
@@ -146,7 +154,7 @@ class SegRenderer {
     }
 
     final distAngle = (offsetAngleForDist >> Angle.angleToFineShift) & Angle.fineMask;
-    _rwDistance = Fixed32.mul(hypotenuse, fineSine(distAngle).abs());
+    _rwDistance = Fixed32.mul(hyp, fineSine(distAngle).abs());
 
     _state.rwDistance = _rwDistance;
     _state.rwNormalAngle = _rwNormalAngleVal;
@@ -313,8 +321,13 @@ class SegRenderer {
   }
 
   void _renderSolidWall() {
-    _createDrawSeg(Silhouette.both);
+    _createDrawSegWithHeights(
+      Silhouette.both,
+      _SilhouetteConstants.maxHeight,
+      _SilhouetteConstants.minHeight,
+    );
     _renderSegLoop();
+    _saveSpriteClips();
   }
 
   void _renderTwoSidedWall() {
@@ -331,23 +344,60 @@ class SegRenderer {
     _pixLowStep = -Fixed32.mul(_rwScaleStep, scaledWorldLow);
 
     var silhouette = Silhouette.none;
+    var bsilHeight = _SilhouetteConstants.maxHeight;
+    var tsilHeight = _SilhouetteConstants.minHeight;
+
     if (_frontSector!.floorHeight > _backSector!.floorHeight) {
       silhouette |= Silhouette.bottom;
+      bsilHeight = _frontSector!.floorHeight;
     } else if (_backSector!.floorHeight > _state.viewZ) {
       silhouette |= Silhouette.bottom;
     }
 
     if (_frontSector!.ceilingHeight < _backSector!.ceilingHeight) {
       silhouette |= Silhouette.top;
+      tsilHeight = _frontSector!.ceilingHeight;
     } else if (_backSector!.ceilingHeight < _state.viewZ) {
       silhouette |= Silhouette.top;
     }
 
-    _createDrawSeg(silhouette);
+    if (_backSector!.ceilingHeight <= _frontSector!.floorHeight) {
+      silhouette |= Silhouette.bottom;
+      bsilHeight = _SilhouetteConstants.maxHeight;
+    }
+
+    if (_backSector!.floorHeight >= _frontSector!.ceilingHeight) {
+      silhouette |= Silhouette.top;
+      tsilHeight = _SilhouetteConstants.minHeight;
+    }
+
+    _createDrawSegWithHeights(silhouette, bsilHeight, tsilHeight);
     _renderSegLoop();
+    _saveSpriteClips();
   }
 
-  void _createDrawSeg(int silhouette) {
+  void _saveSpriteClips() {
+    if (drawSegs.isEmpty) return;
+
+    final ds = drawSegs.last;
+    final width = _rwStopX - _rwX + 1;
+
+    if ((ds.silhouette & Silhouette.top) != 0 || _maskedTexture) {
+      ds.sprTopClip = Int16List(width);
+      for (var i = 0; i < width; i++) {
+        ds.sprTopClip![i] = _ceilingClip[_rwX + i];
+      }
+    }
+
+    if ((ds.silhouette & Silhouette.bottom) != 0 || _maskedTexture) {
+      ds.sprBottomClip = Int16List(width);
+      for (var i = 0; i < width; i++) {
+        ds.sprBottomClip![i] = _floorClip[_rwX + i];
+      }
+    }
+  }
+
+  void _createDrawSegWithHeights(int silhouette, int bsilHeight, int tsilHeight) {
     final ds = DrawSeg(
       curLine: _curLine!,
       x1: _rwX,
@@ -356,8 +406,8 @@ class SegRenderer {
       scale2: _rwScale + _rwScaleStep * (_rwStopX - _rwX),
       scaleStep: _rwScaleStep,
       silhouette: silhouette,
-      bsilHeight: silhouette & Silhouette.bottom != 0 ? _frontSector!.floorHeight : 0,
-      tsilHeight: silhouette & Silhouette.top != 0 ? _frontSector!.ceilingHeight : 0,
+      bsilHeight: bsilHeight,
+      tsilHeight: tsilHeight,
     );
 
     if (_maskedTexture) {
@@ -375,11 +425,23 @@ class SegRenderer {
     var pixLowCurrent = _pixLow;
 
     for (var x = _rwX; x <= _rwStopX; x++) {
+      final ceilingClipX = _ceilingClip[x];
+      final floorClipX = _floorClip[x];
+
+      if (ceilingClipX >= floorClipX) {
+        topFracCurrent += _topStep;
+        bottomFracCurrent += _bottomStep;
+        rwScaleCurrent += _rwScaleStep;
+        pixHighCurrent += _pixHighStep;
+        pixLowCurrent += _pixLowStep;
+        continue;
+      }
+
       final top = (topFracCurrent + _SegConstants.heightUnit - 1) >> _SegConstants.heightBits;
       final bottom = bottomFracCurrent >> _SegConstants.heightBits;
 
-      final yl = top.clamp(_ceilingClip[x] + 1, _state.viewHeight);
-      final yh = bottom.clamp(-1, _floorClip[x] - 1);
+      final yl = top.clamp(ceilingClipX + 1, _state.viewHeight);
+      final yh = bottom.clamp(-1, floorClipX - 1);
 
       if (_markCeiling) {
         final ceilTop = _ceilingClip[x] + 1;
@@ -410,42 +472,45 @@ class SegRenderer {
         _ceilingClip[x] = _state.viewHeight;
         _floorClip[x] = -1;
       } else {
-        var midYl = yl;
-        var midYh = yh;
-
         if (_topTexture != 0) {
-          final mid = pixHighCurrent >> _SegConstants.heightBits;
+          var mid = pixHighCurrent >> _SegConstants.heightBits;
+          pixHighCurrent += _pixHighStep;
+
           if (mid >= _floorClip[x]) {
-            midYl = _floorClip[x];
-          } else if (mid > _ceilingClip[x]) {
-            if (mid > yl) {
-              _drawColumn(x, yl, mid - 1, _topTexture, _rwTopTextureMid, rwScaleCurrent);
-            }
-            midYl = mid;
+            mid = _floorClip[x] - 1;
+          }
+
+          if (mid >= yl) {
+            _drawColumn(x, yl, mid, _topTexture, _rwTopTextureMid, rwScaleCurrent);
+            _ceilingClip[x] = mid.clamp(0, _state.viewHeight - 1);
+          } else {
+            _ceilingClip[x] = (yl - 1).clamp(0, _state.viewHeight - 1);
+          }
+        } else {
+          if (_markCeiling) {
+            _ceilingClip[x] = (yl - 1).clamp(0, _state.viewHeight - 1);
           }
         }
 
         if (_bottomTexture != 0) {
-          final mid = (pixLowCurrent + _SegConstants.heightUnit - 1) >> _SegConstants.heightBits;
+          var mid = (pixLowCurrent + _SegConstants.heightUnit - 1) >> _SegConstants.heightBits;
+          pixLowCurrent += _pixLowStep;
+
           if (mid <= _ceilingClip[x]) {
-            midYh = _ceilingClip[x];
-          } else if (mid < _floorClip[x]) {
-            if (mid < yh) {
-              _drawColumn(x, mid + 1, yh, _bottomTexture, _rwBottomTextureMid, rwScaleCurrent);
-            }
-            midYh = mid;
+            mid = _ceilingClip[x] + 1;
+          }
+
+          if (mid <= yh) {
+            _drawColumn(x, mid, yh, _bottomTexture, _rwBottomTextureMid, rwScaleCurrent);
+            _floorClip[x] = mid.clamp(0, _state.viewHeight - 1);
+          } else {
+            _floorClip[x] = (yh + 1).clamp(0, _state.viewHeight - 1);
+          }
+        } else {
+          if (_markFloor) {
+            _floorClip[x] = (yh + 1).clamp(0, _state.viewHeight - 1);
           }
         }
-
-        if (_markCeiling) {
-          _ceilingClip[x] = midYl.clamp(0, _state.viewHeight - 1);
-        }
-        if (_markFloor) {
-          _floorClip[x] = midYh.clamp(0, _state.viewHeight - 1);
-        }
-
-        pixHighCurrent += _pixHighStep;
-        pixLowCurrent += _pixLowStep;
       }
 
       rwScaleCurrent += _rwScaleStep;
@@ -465,7 +530,7 @@ class SegRenderer {
     if (yl > yh) return;
 
     final angle = (_rwCenterAngle + _state.xToViewAngle[x]).u32.s32;
-    final fineAngle = (angle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
+    final fineAngle = (angle.u32 >> Angle.angleToFineShift) & (Angle.fineAngles ~/ 2 - 1);
     final textureCol = Fixed32.toInt(
       _rwOffset - Fixed32.mul(fineTangent(fineAngle), _rwDistance),
     );

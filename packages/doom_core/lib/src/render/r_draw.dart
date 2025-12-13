@@ -85,10 +85,11 @@ class ColumnDrawer {
     final fracStep = iscale;
     var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
 
-    final texMask = src.length - 1;
+    final srcLen = src.length;
 
     do {
-      final texIndex = (frac >> Fixed32.fracBits) & texMask;
+      var texIndex = (frac >> Fixed32.fracBits) % srcLen;
+      if (texIndex < 0) texIndex += srcLen;
       dest[destIndex] = cmap[src[texIndex]];
       destIndex += ScreenDimensions.width;
       frac += fracStep;
@@ -109,10 +110,11 @@ class ColumnDrawer {
 
     final fracStep = iscale;
     var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
-    final texMask = src.length - 1;
+    final srcLen = src.length;
 
     do {
-      final texIndex = (frac >> Fixed32.fracBits) & texMask;
+      var texIndex = (frac >> Fixed32.fracBits) % srcLen;
+      if (texIndex < 0) texIndex += srcLen;
       final pixel = cmap[src[texIndex]];
       dest[destIndex] = pixel;
       dest[destIndex + 1] = pixel;
@@ -188,10 +190,11 @@ class TranslatedColumnDrawer {
     final fracStep = iscale;
     var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
 
-    final texMask = src.length - 1;
+    final srcLen = src.length;
 
     do {
-      final texIndex = (frac >> Fixed32.fracBits) & texMask;
+      var texIndex = (frac >> Fixed32.fracBits) % srcLen;
+      if (texIndex < 0) texIndex += srcLen;
       dest[destIndex] = cmap[trans[src[texIndex]]];
       destIndex += ScreenDimensions.width;
       frac += fracStep;

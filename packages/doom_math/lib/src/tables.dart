@@ -84,18 +84,37 @@ class DoomTables {
     for (var i = 0; i <= _AngleConstants.slopeRange; i++) {
       final tan = i / _AngleConstants.slopeRange;
       final angle = math.atan(tan);
-      table[i] = (angle * 0x80000000 / (math.pi / 2)).round().u32;
+      table[i] = (angle * 0x80000000 / math.pi).round().u32;
     }
 
     return table;
   }
 
   int slopeDiv(int num, int den) {
+    final numD = num.toDouble();
+    final denD = den.toDouble();
+    if (numD.isNaN || numD.isInfinite || denD.isNaN || denD.isInfinite) {
+      return _AngleConstants.slopeRange;
+    }
+
     if (den < 512) {
       return _AngleConstants.slopeRange;
     }
 
-    final ans = (num << 3) ~/ (den >> 8);
+    final denShifted = den >> 8;
+    if (denShifted == 0) {
+      return _AngleConstants.slopeRange;
+    }
+
+    final numShifted = numD * 8;
+    if (numShifted.isNaN || numShifted.isInfinite) {
+      return _AngleConstants.slopeRange;
+    }
+
+    final ans = numShifted ~/ denShifted;
+    if (ans < 0) {
+      return _AngleConstants.slopeRange;
+    }
     return ans <= _AngleConstants.slopeRange ? ans : _AngleConstants.slopeRange;
   }
 }

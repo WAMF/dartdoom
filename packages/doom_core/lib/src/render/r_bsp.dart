@@ -84,31 +84,34 @@ class BspTraversal {
     final angle1 = _renderer.pointToAngle(seg.v1.x, seg.v1.y);
     final angle2 = _renderer.pointToAngle(seg.v2.x, seg.v2.y);
 
-    final span = (angle1 - angle2).u32.s32;
-    if (span <= 0) {
+    final span = (angle1 - angle2).u32;
+    if (span >= Angle.ang180) {
       return;
     }
 
     final rwAngle1 = angle1;
-    var angle1Adj = (angle1 - _state.viewAngle).u32.s32;
-    var angle2Adj = (angle2 - _state.viewAngle).u32.s32;
+    var angle1Adj = (angle1 - _state.viewAngle).u32;
+    var angle2Adj = (angle2 - _state.viewAngle).u32;
 
-    var tSpan = (angle1Adj + _state.clipAngle).u32.s32;
-    if (tSpan > 2 * _state.clipAngle) {
-      tSpan -= 2 * _state.clipAngle;
+    final clipAngle = _state.clipAngle.u32;
+    final doubleClip = (2 * clipAngle).u32;
+
+    var tSpan = (angle1Adj + clipAngle).u32;
+    if (tSpan > doubleClip) {
+      tSpan = (tSpan - doubleClip).u32;
       if (tSpan >= span) {
         return;
       }
-      angle1Adj = _state.clipAngle;
+      angle1Adj = clipAngle;
     }
 
-    tSpan = (_state.clipAngle - angle2Adj).u32.s32;
-    if (tSpan > 2 * _state.clipAngle) {
-      tSpan -= 2 * _state.clipAngle;
+    tSpan = (clipAngle - angle2Adj).u32;
+    if (tSpan > doubleClip) {
+      tSpan = (tSpan - doubleClip).u32;
       if (tSpan >= span) {
         return;
       }
-      angle2Adj = -_state.clipAngle;
+      angle2Adj = (-_state.clipAngle).u32;
     }
 
     final x1 = _renderer.angleToX((angle1Adj + Angle.ang90).u32.s32);
@@ -255,33 +258,36 @@ class BspTraversal {
     final x2 = bboxArray[_checkCoord[checkIdx + 2]];
     final y2 = bboxArray[_checkCoord[checkIdx + 3]];
 
-    final angle1 = _renderer.pointToAngle(x1, y1) - _state.viewAngle;
-    final angle2 = _renderer.pointToAngle(x2, y2) - _state.viewAngle;
+    final angle1 = (_renderer.pointToAngle(x1, y1) - _state.viewAngle).u32;
+    final angle2 = (_renderer.pointToAngle(x2, y2) - _state.viewAngle).u32;
 
-    final span = (angle1 - angle2).u32.s32;
+    final span = (angle1 - angle2).u32;
     if (span >= Angle.ang180) {
       return true;
     }
 
+    final clipAngle = _state.clipAngle.u32;
+    final doubleClip = (2 * clipAngle).u32;
+
     var angle1Clipped = angle1;
     var angle2Clipped = angle2;
 
-    var tSpan1 = (angle1 + _state.clipAngle).u32.s32;
-    if (tSpan1 > 2 * _state.clipAngle) {
-      tSpan1 -= 2 * _state.clipAngle;
+    var tSpan1 = (angle1 + clipAngle).u32;
+    if (tSpan1 > doubleClip) {
+      tSpan1 = (tSpan1 - doubleClip).u32;
       if (tSpan1 >= span) {
         return false;
       }
-      angle1Clipped = _state.clipAngle;
+      angle1Clipped = clipAngle;
     }
 
-    var tSpan2 = (_state.clipAngle - angle2).u32.s32;
-    if (tSpan2 > 2 * _state.clipAngle) {
-      tSpan2 -= 2 * _state.clipAngle;
+    var tSpan2 = (clipAngle - angle2).u32;
+    if (tSpan2 > doubleClip) {
+      tSpan2 = (tSpan2 - doubleClip).u32;
       if (tSpan2 >= span) {
         return false;
       }
-      angle2Clipped = -_state.clipAngle;
+      angle2Clipped = (-_state.clipAngle).u32;
     }
 
     final sx1 = _renderer.angleToX((angle1Clipped + Angle.ang90).u32.s32);

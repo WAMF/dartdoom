@@ -147,7 +147,7 @@ class Renderer {
       ..viewZ = viewZ
       ..viewAngle = viewAngle;
 
-    final fineAngle = (viewAngle >> Angle.angleToFineShift) & Angle.fineMask;
+    final fineAngle = (viewAngle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
     state.viewCos = fineCosine(fineAngle);
     state.viewSin = fineSine(fineAngle);
 
@@ -247,30 +247,30 @@ class Renderer {
         if (dx > dy) {
           return _tanToAngle(slopeDiv(dy, dx));
         } else {
-          return Angle.ang90 - 1 - _tanToAngle(slopeDiv(dx, dy));
+          return (Angle.ang90 - 1 - _tanToAngle(slopeDiv(dx, dy))).u32;
         }
       } else {
         final absDy = -dy;
         if (dx > absDy) {
-          return -_tanToAngle(slopeDiv(absDy, dx));
+          return (-_tanToAngle(slopeDiv(absDy, dx))).u32;
         } else {
-          return (Angle.ang270 + _tanToAngle(slopeDiv(dx, absDy))).u32.s32;
+          return (Angle.ang270 + _tanToAngle(slopeDiv(dx, absDy))).u32;
         }
       }
     } else {
       final absDx = -dx;
       if (dy >= 0) {
         if (absDx > dy) {
-          return (Angle.ang180 - 1 - _tanToAngle(slopeDiv(dy, absDx))).u32.s32;
+          return (Angle.ang180 - 1 - _tanToAngle(slopeDiv(dy, absDx))).u32;
         } else {
-          return Angle.ang90 + _tanToAngle(slopeDiv(absDx, dy));
+          return (Angle.ang90 + _tanToAngle(slopeDiv(absDx, dy))).u32;
         }
       } else {
         final absDy = -dy;
         if (absDx > absDy) {
-          return (Angle.ang180 + _tanToAngle(slopeDiv(absDy, absDx))).u32.s32;
+          return (Angle.ang180 + _tanToAngle(slopeDiv(absDy, absDx))).u32;
         } else {
-          return (Angle.ang270 - 1 - _tanToAngle(slopeDiv(absDx, absDy))).u32.s32;
+          return (Angle.ang270 - 1 - _tanToAngle(slopeDiv(absDx, absDy))).u32;
         }
       }
     }
@@ -286,8 +286,8 @@ class Renderer {
     final rwDistance = state.rwDistance;
     final projection = state.projection;
 
-    final anglea = (Angle.ang90 + visAngle - viewAngle).u32.s32;
-    final angleb = (Angle.ang90 + visAngle - rwNormalAngle).u32.s32;
+    final anglea = (Angle.ang90 + visAngle - viewAngle).u32;
+    final angleb = (Angle.ang90 + visAngle - rwNormalAngle).u32;
 
     final sinea = fineSine((anglea >> Angle.angleToFineShift) & Angle.fineMask).abs();
     final sineb = fineSine((angleb >> Angle.angleToFineShift) & Angle.fineMask).abs();

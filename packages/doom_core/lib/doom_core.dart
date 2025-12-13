@@ -1,9 +1,12 @@
 export 'src/doomdef.dart';
 export 'src/events/doom_event.dart';
 export 'src/events/tic_cmd.dart';
+export 'src/game/doom_game.dart';
+export 'src/game/g_input.dart';
 export 'src/game/game_info.dart';
 export 'src/game/mobj.dart';
 export 'src/game/p_mobj.dart';
+export 'src/game/player.dart';
 export 'src/game/test_runner.dart';
 export 'src/platform/doom_platform.dart';
 export 'src/render/r_data.dart';

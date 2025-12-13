@@ -128,6 +128,7 @@ class Mobj {
   int moveCount = 0;
 
   Mobj? target;
+  Object? player;
 
   int reactionTime = 0;
   int threshold = 0;

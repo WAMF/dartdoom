@@ -72,6 +72,7 @@ class Sector {
   List<Line> lines = [];
 
   Mobj? thingList;
+  Object? specialData;
 
   int soundTraversed = 0;
   int blockBox0 = 0;

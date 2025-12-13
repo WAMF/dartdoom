@@ -192,30 +192,30 @@ class SpriteRenderer {
         if (dx > dy) {
           return _tanToAngle(slopeDiv(dy, dx));
         } else {
-          return Angle.ang90 - 1 - _tanToAngle(slopeDiv(dx, dy));
+          return (Angle.ang90 - 1 - _tanToAngle(slopeDiv(dx, dy))).u32;
         }
       } else {
         final absDy = -dy;
         if (dx > absDy) {
-          return -_tanToAngle(slopeDiv(absDy, dx));
+          return (-_tanToAngle(slopeDiv(absDy, dx))).u32;
         } else {
-          return (Angle.ang270 + _tanToAngle(slopeDiv(dx, absDy))).u32.s32;
+          return (Angle.ang270 + _tanToAngle(slopeDiv(dx, absDy))).u32;
         }
       }
     } else {
       final absDx = -dx;
       if (dy >= 0) {
         if (absDx > dy) {
-          return (Angle.ang180 - 1 - _tanToAngle(slopeDiv(dy, absDx))).u32.s32;
+          return (Angle.ang180 - 1 - _tanToAngle(slopeDiv(dy, absDx))).u32;
         } else {
-          return Angle.ang90 + _tanToAngle(slopeDiv(absDx, dy));
+          return (Angle.ang90 + _tanToAngle(slopeDiv(absDx, dy))).u32;
         }
       } else {
         final absDy = -dy;
         if (absDx > absDy) {
-          return (Angle.ang180 + _tanToAngle(slopeDiv(absDy, absDx))).u32.s32;
+          return (Angle.ang180 + _tanToAngle(slopeDiv(absDy, absDx))).u32;
         } else {
-          return (Angle.ang270 - 1 - _tanToAngle(slopeDiv(absDx, absDy))).u32.s32;
+          return (Angle.ang270 - 1 - _tanToAngle(slopeDiv(absDx, absDy))).u32;
         }
       }
     }
@@ -223,6 +223,35 @@ class SpriteRenderer {
 
   int _tanToAngle(int slope) {
     return tanToAngle(slope.clamp(0, Angle.slopeRange));
+  }
+
+  bool _pointOnSegSide(int x, int y, Seg seg) {
+    final lx = seg.v1.x;
+    final ly = seg.v1.y;
+    final ldx = seg.v2.x - lx;
+    final ldy = seg.v2.y - ly;
+
+    if (ldx == 0) {
+      if (x <= lx) {
+        return ldy > 0;
+      }
+      return ldy < 0;
+    }
+
+    if (ldy == 0) {
+      if (y <= ly) {
+        return ldx < 0;
+      }
+      return ldx > 0;
+    }
+
+    final dx = x - lx;
+    final dy = y - ly;
+
+    final left = Fixed32.mul(ldy >> Fixed32.fracBits, dx);
+    final right = Fixed32.mul(dy, ldx >> Fixed32.fracBits);
+
+    return right >= left;
   }
 
   void addSprite(
@@ -337,7 +366,7 @@ class SpriteRenderer {
       if (frame < spriteDef.numFrames) {
         final spriteFrame = spriteDef.spriteFrames[frame];
         if (spriteFrame.rotate) {
-          final rot = ((angle - Angle.ang90) >> 29) & 7;
+          final rot = ((angle - Angle.ang90).u32 >> 29) & 7;
           return spriteFrame.lump[rot];
         }
         return spriteFrame.lump[0];
@@ -366,10 +395,10 @@ class SpriteRenderer {
   void _drawSprites(Uint8List frameBuffer) {
     _initClipArrays();
 
-    var vis = _visspriteHead;
+    var vis = _visspriteTail;
     while (vis != null) {
       _drawVissprite(vis, frameBuffer);
-      vis = vis.next;
+      vis = vis.prev;
     }
   }
 
@@ -377,26 +406,6 @@ class SpriteRenderer {
     for (var i = 0; i < _state.viewWidth; i++) {
       _clipBot[i] = _state.viewHeight;
       _clipTop[i] = -1;
-    }
-
-    for (final ds in _segRenderer.drawSegs) {
-      if (ds.silhouette == Silhouette.none) continue;
-
-      if ((ds.silhouette & Silhouette.bottom) != 0 && ds.sprBottomClip != null) {
-        for (var x = ds.x1; x <= ds.x2; x++) {
-          if (_clipBot[x] > ds.sprBottomClip![x]) {
-            _clipBot[x] = ds.sprBottomClip![x];
-          }
-        }
-      }
-
-      if ((ds.silhouette & Silhouette.top) != 0 && ds.sprTopClip != null) {
-        for (var x = ds.x1; x <= ds.x2; x++) {
-          if (_clipTop[x] < ds.sprTopClip![x]) {
-            _clipTop[x] = ds.sprTopClip![x];
-          }
-        }
-      }
     }
   }
 
@@ -411,33 +420,80 @@ class SpriteRenderer {
     }
 
     for (var x = vis.x1; x <= vis.x2; x++) {
-      _spriteClipBot[x] = _clipBot[x];
-      _spriteClipTop[x] = _clipTop[x];
+      _spriteClipBot[x] = _sentinelValue;
+      _spriteClipTop[x] = _sentinelValue;
     }
 
-    for (final ds in _segRenderer.drawSegs) {
+    final drawSegs = _segRenderer.drawSegs;
+    for (var i = drawSegs.length - 1; i >= 0; i--) {
+      final ds = drawSegs[i];
+
       if (ds.x1 > vis.x2 || ds.x2 < vis.x1) continue;
-      if (ds.scale1 > vis.scale && ds.scale2 > vis.scale) continue;
+      if (ds.silhouette == Silhouette.none && ds.maskedTextureCol == null) continue;
 
       final r1 = ds.x1 < vis.x1 ? vis.x1 : ds.x1;
       final r2 = ds.x2 > vis.x2 ? vis.x2 : ds.x2;
 
-      var scale = ds.scale1 + ds.scaleStep * (r1 - ds.x1);
-      for (var x = r1; x <= r2; x++) {
-        if (scale > vis.scale) {
-          if (ds.sprTopClip != null && _spriteClipTop[x] < ds.sprTopClip![x]) {
-            _spriteClipTop[x] = ds.sprTopClip![x];
-          }
-          if (ds.sprBottomClip != null && _spriteClipBot[x] > ds.sprBottomClip![x]) {
-            _spriteClipBot[x] = ds.sprBottomClip![x];
+      int lowScale;
+      int highScale;
+      if (ds.scale1 > ds.scale2) {
+        lowScale = ds.scale2;
+        highScale = ds.scale1;
+      } else {
+        lowScale = ds.scale1;
+        highScale = ds.scale2;
+      }
+
+      if (highScale < vis.scale ||
+          (lowScale < vis.scale && !_pointOnSegSide(vis.gx, vis.gy, ds.curLine))) {
+        continue;
+      }
+
+      var silhouette = ds.silhouette;
+      if (vis.gz >= ds.bsilHeight) {
+        silhouette &= ~Silhouette.bottom;
+      }
+      if (vis.gzt <= ds.tsilHeight) {
+        silhouette &= ~Silhouette.top;
+      }
+
+      if (silhouette == Silhouette.bottom) {
+        for (var x = r1; x <= r2; x++) {
+          if (_spriteClipBot[x] == _sentinelValue && ds.sprBottomClip != null) {
+            _spriteClipBot[x] = ds.sprBottomClip![x - ds.x1];
           }
         }
-        scale += ds.scaleStep;
+      } else if (silhouette == Silhouette.top) {
+        for (var x = r1; x <= r2; x++) {
+          if (_spriteClipTop[x] == _sentinelValue && ds.sprTopClip != null) {
+            _spriteClipTop[x] = ds.sprTopClip![x - ds.x1];
+          }
+        }
+      } else if (silhouette == Silhouette.both) {
+        for (var x = r1; x <= r2; x++) {
+          if (_spriteClipBot[x] == _sentinelValue && ds.sprBottomClip != null) {
+            _spriteClipBot[x] = ds.sprBottomClip![x - ds.x1];
+          }
+          if (_spriteClipTop[x] == _sentinelValue && ds.sprTopClip != null) {
+            _spriteClipTop[x] = ds.sprTopClip![x - ds.x1];
+          }
+        }
+      }
+    }
+
+    for (var x = vis.x1; x <= vis.x2; x++) {
+      if (_spriteClipBot[x] == _sentinelValue) {
+        _spriteClipBot[x] = _state.viewHeight;
+      }
+      if (_spriteClipTop[x] == _sentinelValue) {
+        _spriteClipTop[x] = -1;
       }
     }
 
     _drawSpriteColumns(vis, spriteData, frameBuffer);
   }
+
+  static const int _sentinelValue = -2;
 
   int _columnsDrawn = 0;
   int get columnsDrawn => _columnsDrawn;

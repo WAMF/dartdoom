@@ -162,7 +162,7 @@ class PlaneRenderer {
 
     final length = Fixed32.mul(distance, _distScale(x1));
 
-    final angle = (_state.viewAngle + _state.xToViewAngle[x1]).u32.s32;
+    final angle = (_state.viewAngle + _state.xToViewAngle[x1]).u32;
     final fineAngle = (angle >> Angle.angleToFineShift) & Angle.fineMask;
 
     _drawContext.span
@@ -249,7 +249,7 @@ class PlaneRenderer {
   }
 
   void _setupBaseScale() {
-    final angle = (_state.viewAngle - Angle.ang90).u32.s32;
+    final angle = (_state.viewAngle - Angle.ang90).u32;
     final fineAngle = (angle >> Angle.angleToFineShift) & Angle.fineMask;
 
     _basexScale = Fixed32.div(fineCosine(fineAngle), _state.centerXFrac);

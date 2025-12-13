@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_mobj.dart';
 import 'package:doom_core/src/render/r_data.dart';
-import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_main.dart';
 import 'package:doom_core/src/render/r_state.dart';
@@ -78,7 +78,7 @@ class _SpriteRendererAccess {
       scale: xScale,
       patch: lump,
       type: thing.type,
-    ));
+    ),);
   }
 }
 
@@ -132,18 +132,18 @@ void main() {
       stderr.writeln('=== Sprite Render Debug ===');
       stderr.writeln('Player start: (${player1Start.x}, ${player1Start.y})');
       stderr.writeln('Spawned mobjs: ${thingSpawner.mobjs.length}');
-      stderr.writeln('');
+      stderr.writeln();
 
       stderr.writeln('Checking nearby mobjs:');
       for (final mobj in thingSpawner.mobjs) {
         final dx = (mobj.x >> 16) - player1Start.x;
         final dy = (mobj.y >> 16) - player1Start.y;
-        final dist = (dx * dx + dy * dy);
+        final dist = dx * dx + dy * dy;
         if (dist < 500 * 500) {
           stderr.writeln('  type=${mobj.type}, sprite=${mobj.sprite}, pos=(${mobj.x >> 16}, ${mobj.y >> 16}), dist=${math.sqrt(dist.toDouble()).toInt()}');
         }
       }
-      stderr.writeln('');
+      stderr.writeln();
 
       stderr.writeln('Sprite definitions check:');
       for (var i = 0; i < 5 && i < state.sprites.length; i++) {
@@ -153,7 +153,7 @@ void main() {
           stderr.writeln('    frame[0]: rotate=${sprdef.spriteFrames[0].rotate}, lump[0]=${sprdef.spriteFrames[0].lump[0]}');
         }
       }
-      stderr.writeln('');
+      stderr.writeln();
 
       stderr.writeln('Sprite width/offset arrays:');
       stderr.writeln('  spriteWidth.length: ${state.spriteWidth.length}');
@@ -164,7 +164,7 @@ void main() {
         stderr.writeln('  spriteOffset[0]: ${state.spriteOffset[0]} (${state.spriteOffset[0] >> 16} pixels)');
         stderr.writeln('  spriteTopOffset[0]: ${state.spriteTopOffset[0]} (${state.spriteTopOffset[0] >> 16} pixels)');
       }
-      stderr.writeln('');
+      stderr.writeln();
 
       renderer.setupFrame(
         player1Start.x.toFixed(),
@@ -181,7 +181,7 @@ void main() {
       stderr.writeln('  viewCos: ${state.viewCos}');
       stderr.writeln('  viewSin: ${state.viewSin}');
       stderr.writeln('  projection: ${state.projection >> 16}');
-      stderr.writeln('');
+      stderr.writeln();
 
       final frameBuffer = Uint8List(
         ScreenDimensions.width * ScreenDimensions.height,
@@ -206,7 +206,7 @@ void main() {
 
       stderr.writeln('=== Find Visible Sprites ===');
       stderr.writeln('Player at ($px, $py) facing north (ANG90)');
-      stderr.writeln('');
+      stderr.writeln();
 
       stderr.writeln('Sprites in FOV (dy > 0 and |dx| < dy):');
       var count = 0;
@@ -259,7 +259,7 @@ void main() {
       stderr.writeln('  gxt: ${gxt >> 16}, gyt: ${gyt >> 16}');
       stderr.writeln('  tz (depth): ${tz >> 16}');
 
-      final minZ = Fixed32.fracUnit * 4;
+      const minZ = Fixed32.fracUnit * 4;
       stderr.writeln('  minZ: ${minZ >> 16}');
       stderr.writeln('  tz < minZ: ${tz < minZ}');
 
@@ -269,7 +269,7 @@ void main() {
 
         final gxtNeg = -Fixed32.mul(trX, state.viewSin);
         final gytPos = Fixed32.mul(trY, state.viewCos);
-        var tx = -(gytPos + gxtNeg);
+        final tx = -(gytPos + gxtNeg);
         stderr.writeln('  tx: ${tx >> 16}');
 
         final spriteNum = mobj.sprite;
@@ -298,7 +298,7 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      ThingSpawner(state)..spawnMapThings(mapData);
+      ThingSpawner(state).spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 
@@ -328,7 +328,7 @@ void main() {
         stderr.writeln('    textureMid=${vis.textureMid}, gz=${vis.gz}, gzt=${vis.gzt}');
       }
 
-      stderr.writeln('');
+      stderr.writeln();
       stderr.writeln('=== Debug Renderer Stats ===');
       final spriteRenderer = _SpriteRendererAccess(state);
       spriteRenderer.renderForDebug(state.sectors);
@@ -340,7 +340,7 @@ void main() {
       final state = levelLoader.loadLevel(mapData);
       RenderData(wadManager).initData(state);
 
-      ThingSpawner(state)..spawnMapThings(mapData);
+      ThingSpawner(state).spawnMapThings(mapData);
 
       final renderer = Renderer(state)..init();
 
@@ -382,7 +382,7 @@ void main() {
         final lumpInfo = wadManager.getLumpInfo(lumpNum);
         final patchData = wadManager.cacheLumpNum(lumpNum);
 
-        stderr.writeln('Sprite lump $i: ${lumpInfo?.name}');
+        stderr.writeln('Sprite lump $i: ${lumpInfo.name}');
         if (patchData.length >= 8) {
           final byteData = ByteData.sublistView(patchData);
           final width = byteData.getInt16(0, Endian.little);
@@ -396,12 +396,12 @@ void main() {
         }
       }
 
-      stderr.writeln('');
+      stderr.writeln();
       stderr.writeln('Looking for BAR1A0 (barrel sprite):');
       final lastSpriteLump = wadManager.getNumForName('S_END') - 1;
       for (var lumpNum = firstSpriteLump; lumpNum <= lastSpriteLump; lumpNum++) {
         final lumpInfo = wadManager.getLumpInfo(lumpNum);
-        if (lumpInfo?.name.startsWith('BAR1') == true) {
+        if (lumpInfo.name.startsWith('BAR1') ?? false) {
           final patchData = wadManager.cacheLumpNum(lumpNum);
           final byteData = ByteData.sublistView(patchData);
           final width = byteData.getInt16(0, Endian.little);
@@ -409,16 +409,16 @@ void main() {
           final leftOffset = byteData.getInt16(4, Endian.little);
           final topOffset = byteData.getInt16(6, Endian.little);
 
-          stderr.writeln('  ${lumpInfo?.name}: width=$width, height=$height, leftOffset=$leftOffset, topOffset=$topOffset');
+          stderr.writeln('  ${lumpInfo.name}: width=$width, height=$height, leftOffset=$leftOffset, topOffset=$topOffset');
           break;
         }
       }
 
-      stderr.writeln('');
+      stderr.writeln();
       stderr.writeln('Looking for POSS (zombie) sprites:');
       for (var lumpNum = firstSpriteLump; lumpNum <= lastSpriteLump; lumpNum++) {
         final lumpInfo = wadManager.getLumpInfo(lumpNum);
-        if (lumpInfo?.name.startsWith('POSS') == true) {
+        if (lumpInfo.name.startsWith('POSS') ?? false) {
           final patchData = wadManager.cacheLumpNum(lumpNum);
           final byteData = ByteData.sublistView(patchData);
           final width = byteData.getInt16(0, Endian.little);
@@ -426,12 +426,12 @@ void main() {
           final leftOffset = byteData.getInt16(4, Endian.little);
           final topOffset = byteData.getInt16(6, Endian.little);
 
-          stderr.writeln('  ${lumpInfo?.name}: width=$width, height=$height, leftOffset=$leftOffset, topOffset=$topOffset');
+          stderr.writeln('  ${lumpInfo.name}: width=$width, height=$height, leftOffset=$leftOffset, topOffset=$topOffset');
           break;
         }
       }
 
-      stderr.writeln('');
+      stderr.writeln();
       stderr.writeln('Checking sprite lump indices for vissprite patches:');
       final patchIndices = [313, 437, 475];
       for (final idx in patchIndices) {
@@ -444,7 +444,7 @@ void main() {
         final leftOffset = byteData.getInt16(4, Endian.little);
         final topOffset = byteData.getInt16(6, Endian.little);
 
-        stderr.writeln('  patch[$idx]: ${lumpInfo?.name} width=$width, height=$height, leftOffset=$leftOffset, topOffset=$topOffset');
+        stderr.writeln('  patch[$idx]: ${lumpInfo.name} width=$width, height=$height, leftOffset=$leftOffset, topOffset=$topOffset');
       }
     });
   });

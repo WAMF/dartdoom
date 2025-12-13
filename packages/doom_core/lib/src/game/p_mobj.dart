@@ -1,9 +1,19 @@
 import 'package:doom_core/src/game/game_info.dart';
+import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_map.dart';
+import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
+
+abstract final class PhysicsConstants {
+  static const int gravity = Fixed32.fracUnit;
+  static const int friction = 0xe800;
+  static const int maxMove = 30 * Fixed32.fracUnit;
+  static const int stopSpeed = 0x1000;
+}
 
 abstract final class _SpawnConstants {
   static const int onFloorZ = -0x7FFFFFFF;
@@ -79,8 +89,8 @@ class ThingSpawner {
     final ss = mobj.subsector;
     if (ss == null || ss is! Subsector) return null;
 
-    mobj.floorZ = ss.sector.floorHeight << Fixed32.fracBits;
-    mobj.ceilingZ = ss.sector.ceilingHeight << Fixed32.fracBits;
+    mobj.floorZ = ss.sector.floorHeight;
+    mobj.ceilingZ = ss.sector.ceilingHeight;
 
     if (z == _SpawnConstants.onFloorZ) {
       mobj.z = mobj.floorZ;
@@ -166,4 +176,133 @@ class ThingSpawner {
     }
     _mobjs.clear();
   }
+}
+
+void mobjThinker(Mobj mobj, LevelLocals level) {
+  if (mobj.momX != 0 || mobj.momY != 0) {
+    xyMovement(mobj, level);
+  }
+
+  if (mobj.z != mobj.floorZ || mobj.momZ != 0) {
+    zMovement(mobj, level);
+  }
+}
+
+void xyMovement(Mobj mo, LevelLocals level) {
+  if (mo.momX == 0 && mo.momY == 0) {
+    return;
+  }
+
+  var xMove = mo.momX;
+  var yMove = mo.momY;
+
+  if (xMove > PhysicsConstants.maxMove) {
+    xMove = PhysicsConstants.maxMove;
+  } else if (xMove < -PhysicsConstants.maxMove) {
+    xMove = -PhysicsConstants.maxMove;
+  }
+
+  if (yMove > PhysicsConstants.maxMove) {
+    yMove = PhysicsConstants.maxMove;
+  } else if (yMove < -PhysicsConstants.maxMove) {
+    yMove = -PhysicsConstants.maxMove;
+  }
+
+  final pTryX = mo.x + xMove;
+  final pTryY = mo.y + yMove;
+
+  if (!tryMove(mo, pTryX, pTryY, level)) {
+    if (mo.player != null) {
+      slideMove(mo, level);
+    } else if ((mo.flags & MobjFlag.missile) != 0) {
+      mo.momX = mo.momY = mo.momZ = 0;
+    } else {
+      mo.momX = mo.momY = 0;
+    }
+  }
+
+  if ((mo.flags & (MobjFlag.missile | MobjFlag.skullFly)) != 0) {
+    return;
+  }
+
+  if (mo.z > mo.floorZ) {
+    return;
+  }
+
+  mo.momX = Fixed32.mul(mo.momX, PhysicsConstants.friction);
+  mo.momY = Fixed32.mul(mo.momY, PhysicsConstants.friction);
+
+  if (mo.momX.abs() < PhysicsConstants.stopSpeed &&
+      mo.momY.abs() < PhysicsConstants.stopSpeed) {
+    mo.momX = 0;
+    mo.momY = 0;
+  }
+}
+
+void zMovement(Mobj mo, LevelLocals level) {
+  if (mo.player != null && mo.z < mo.floorZ) {
+    final player = mo.player! as Player;
+    player.viewHeight -= mo.floorZ - mo.z;
+    player.deltaViewHeight = (PlayerConstants.viewHeight - player.viewHeight) >> 3;
+  }
+
+  mo.z += mo.momZ;
+
+  if ((mo.flags & MobjFlag.float) != 0 && mo.target != null) {
+    final dist = _approxDist(mo.x - mo.target!.x, mo.y - mo.target!.y);
+    final delta = mo.target!.z + (mo.height >> 1) - mo.z;
+
+    if (delta < 0 && dist < -(delta * 3)) {
+      mo.z -= Fixed32.fracUnit;
+    } else if (delta > 0 && dist < (delta * 3)) {
+      mo.z += Fixed32.fracUnit;
+    }
+  }
+
+  if (mo.z <= mo.floorZ) {
+    if ((mo.flags & MobjFlag.skullFly) != 0) {
+      mo.momZ = -mo.momZ;
+    }
+
+    if (mo.momZ < 0) {
+      if (mo.player != null && mo.momZ < -PhysicsConstants.gravity * 8) {
+        final player = mo.player! as Player;
+        player.deltaViewHeight = mo.momZ >> 3;
+      }
+      mo.momZ = 0;
+    }
+
+    mo.z = mo.floorZ;
+
+    if ((mo.flags & MobjFlag.missile) != 0 && (mo.flags & MobjFlag.noClip) == 0) {
+      return;
+    }
+  } else if ((mo.flags & MobjFlag.noGravity) == 0) {
+    if (mo.momZ == 0) {
+      mo.momZ = -PhysicsConstants.gravity * 2;
+    } else {
+      mo.momZ -= PhysicsConstants.gravity;
+    }
+  }
+
+  if (mo.z + mo.height > mo.ceilingZ) {
+    mo.z = mo.ceilingZ - mo.height;
+
+    if (mo.momZ > 0) {
+      mo.momZ = 0;
+    }
+
+    if ((mo.flags & MobjFlag.skullFly) != 0) {
+      mo.momZ = -mo.momZ;
+    }
+  }
+}
+
+int _approxDist(int dx, int dy) {
+  dx = dx.abs();
+  dy = dy.abs();
+  if (dx < dy) {
+    return dx + dy - (dx >> 1);
+  }
+  return dx + dy - (dy >> 1);
 }

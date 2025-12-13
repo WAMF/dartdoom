@@ -1,0 +1,203 @@
+import 'package:doom_core/src/game/level_locals.dart';
+import 'package:doom_core/src/game/specials/move_plane.dart';
+import 'package:doom_core/src/game/thinker.dart';
+import 'package:doom_core/src/render/r_defs.dart';
+import 'package:doom_math/doom_math.dart';
+
+abstract final class DoorConstants {
+  static const int vdoorSpeed = 2 * Fixed32.fracUnit;
+  static const int vdoorWait = 150;
+}
+
+abstract final class DoorDirection {
+  static const int closing = -1;
+  static const int waiting = 0;
+  static const int opening = 1;
+  static const int initialWait = 2;
+}
+
+enum DoorType {
+  normal,
+  close30ThenOpen,
+  close,
+  open,
+  raiseIn5Mins,
+  blazeRaise,
+  blazeOpen,
+  blazeClose,
+}
+
+class DoorThinker extends Thinker {
+  DoorThinker(this.sector);
+
+  final Sector sector;
+  DoorType type = DoorType.normal;
+  int topHeight = 0;
+  int speed = DoorConstants.vdoorSpeed;
+  int direction = DoorDirection.opening;
+  int topWait = DoorConstants.vdoorWait;
+  int topCountdown = 0;
+}
+
+void doorThink(DoorThinker door) {
+  switch (door.direction) {
+    case DoorDirection.waiting:
+      door.topCountdown--;
+      if (door.topCountdown <= 0) {
+        switch (door.type) {
+          case DoorType.blazeRaise:
+          case DoorType.normal:
+            door.direction = DoorDirection.closing;
+          case DoorType.close30ThenOpen:
+            door.direction = DoorDirection.opening;
+          default:
+            break;
+        }
+      }
+
+    case DoorDirection.initialWait:
+      door.topCountdown--;
+      if (door.topCountdown <= 0) {
+        if (door.type == DoorType.raiseIn5Mins) {
+          door.direction = DoorDirection.opening;
+          door.type = DoorType.normal;
+        }
+      }
+
+    case DoorDirection.closing:
+      final floorHeight = door.sector.floorHeight;
+      final res = movePlane(
+        door.sector,
+        door.speed,
+        floorHeight,
+        false,
+        1,
+        door.direction,
+      );
+
+      if (res == MoveResult.pastDest) {
+        switch (door.type) {
+          case DoorType.blazeRaise:
+          case DoorType.blazeClose:
+          case DoorType.normal:
+          case DoorType.close:
+            door.sector.specialData = null;
+            door.function = null;
+          case DoorType.close30ThenOpen:
+            door.direction = DoorDirection.waiting;
+            door.topCountdown = 35 * 30;
+          default:
+            break;
+        }
+      } else if (res == MoveResult.crushed) {
+        switch (door.type) {
+          case DoorType.blazeClose:
+          case DoorType.close:
+            break;
+          default:
+            door.direction = DoorDirection.opening;
+        }
+      }
+
+    case DoorDirection.opening:
+      final res = movePlane(
+        door.sector,
+        door.speed,
+        door.topHeight,
+        false,
+        1,
+        door.direction,
+      );
+
+      if (res == MoveResult.pastDest) {
+        switch (door.type) {
+          case DoorType.blazeRaise:
+          case DoorType.normal:
+            door.direction = DoorDirection.waiting;
+            door.topCountdown = door.topWait;
+          case DoorType.close30ThenOpen:
+          case DoorType.blazeOpen:
+          case DoorType.open:
+            door.sector.specialData = null;
+            door.function = null;
+          default:
+            break;
+        }
+      }
+  }
+}
+
+DoorThinker? evDoDoor(Line line, DoorType type, LevelLocals level) {
+  final sector = line.backSector;
+  if (sector == null) return null;
+
+  if (sector.specialData != null) return null;
+
+  final door = DoorThinker(sector)
+    ..type = type
+    ..topWait = DoorConstants.vdoorWait
+    ..speed = DoorConstants.vdoorSpeed;
+
+  level.thinkers.add(door);
+  sector.specialData = door;
+  door.function = (_) => doorThink(door);
+
+  switch (type) {
+    case DoorType.blazeClose:
+    case DoorType.close:
+      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight -= 4 << Fixed32.fracBits;
+      door.direction = DoorDirection.closing;
+
+    case DoorType.close30ThenOpen:
+      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight -= 4 << Fixed32.fracBits;
+      door.direction = DoorDirection.closing;
+
+    case DoorType.blazeRaise:
+    case DoorType.blazeOpen:
+      door.direction = DoorDirection.opening;
+      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight -= 4 << Fixed32.fracBits;
+      door.speed = DoorConstants.vdoorSpeed * 4;
+
+    case DoorType.normal:
+    case DoorType.open:
+      door.direction = DoorDirection.opening;
+      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight -= 4 << Fixed32.fracBits;
+
+    case DoorType.raiseIn5Mins:
+      door.direction = DoorDirection.initialWait;
+      door.topHeight = _findLowestCeilingSurrounding(sector);
+      door.topHeight -= 4 << Fixed32.fracBits;
+      door.topCountdown = 35 * 60 * 5;
+  }
+
+  return door;
+}
+
+int _findLowestCeilingSurrounding(Sector sector) {
+  var height = 0x7FFFFFFF;
+
+  for (final line in sector.lines) {
+    final other = _getNextSector(line, sector);
+    if (other != null) {
+      final ceilHeight = other.ceilingHeight;
+      if (ceilHeight < height) {
+        height = ceilHeight;
+      }
+    }
+  }
+
+  return height;
+}
+
+Sector? _getNextSector(Line line, Sector sector) {
+  if ((line.flags & 0x04) == 0) return null;
+
+  if (line.frontSector == sector) {
+    return line.backSector;
+  }
+  return line.frontSector;
+}
