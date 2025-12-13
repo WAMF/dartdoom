@@ -462,6 +462,7 @@ class SpriteRenderer {
           x,
           sprtopscreen,
           vis.scale,
+          vis.textureMid,
           _spriteClipTop[x],
           _spriteClipBot[x],
           frameBuffer,
@@ -479,6 +480,7 @@ class SpriteRenderer {
     int x,
     int sprtopscreen,
     int spryscale,
+    int basetexturemid,
     int clipTop,
     int clipBot,
     Uint8List frameBuffer,
@@ -504,7 +506,7 @@ class SpriteRenderer {
         ..yl = yl
         ..yh = yh
         ..iscale = Fixed32.div(Fixed32.fracUnit, spryscale)
-        ..textureMid = post.topDelta.toFixed()
+        ..textureMid = basetexturemid - post.topDelta.toFixed()
         ..source = Uint8List.fromList(post.pixels);
 
       _columnsDrawn++;
