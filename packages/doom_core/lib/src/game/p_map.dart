@@ -257,48 +257,250 @@ int _pointOnLineSide(int x, int y, Line line) {
   return right >= left ? 1 : 0;
 }
 
-int _tmXMove = 0;
-int _tmYMove = 0;
+late int _tmXMove;
+late int _tmYMove;
 Mobj? _slideMo;
+late int _bestSlideFrac;
+Line? _bestSlideLine;
+
+abstract final class _SlideConstants {
+  static const int fudgeFactor = 0x800;
+}
 
 void slideMove(Mobj mo, LevelLocals level) {
   _slideMo = mo;
-  var hitCount = 0;
 
-  do {
-    if (++hitCount == 3) {
-      if (!tryMove(mo, mo.x, mo.y + mo.momY, level)) {
-        tryMove(mo, mo.x + mo.momX, mo.y, level);
+  for (var hitCount = 0; hitCount < 3; hitCount++) {
+
+    int leadX;
+    int leadY;
+    int trailX;
+    int trailY;
+
+    if (mo.momX > 0) {
+      leadX = mo.x + mo.radius;
+      trailX = mo.x - mo.radius;
+    } else {
+      leadX = mo.x - mo.radius;
+      trailX = mo.x + mo.radius;
+    }
+
+    if (mo.momY > 0) {
+      leadY = mo.y + mo.radius;
+      trailY = mo.y - mo.radius;
+    } else {
+      leadY = mo.y - mo.radius;
+      trailY = mo.y + mo.radius;
+    }
+
+    _bestSlideFrac = Fixed32.fracUnit + 1;
+    _bestSlideLine = null;
+
+    _slidePathTraverse(leadX, leadY, leadX + mo.momX, leadY + mo.momY, level);
+    _slidePathTraverse(trailX, leadY, trailX + mo.momX, leadY + mo.momY, level);
+    _slidePathTraverse(leadX, trailY, leadX + mo.momX, trailY + mo.momY, level);
+
+    if (_bestSlideFrac == Fixed32.fracUnit + 1) {
+      _stairStep(mo, level);
+      return;
+    }
+
+    _bestSlideFrac -= _SlideConstants.fudgeFactor;
+
+    if (_bestSlideFrac > 0) {
+      final newX = Fixed32.mul(mo.momX, _bestSlideFrac);
+      final newY = Fixed32.mul(mo.momY, _bestSlideFrac);
+
+      if (!tryMove(mo, mo.x + newX, mo.y + newY, level)) {
+        _stairStep(mo, level);
+        return;
       }
+    }
+
+    _bestSlideFrac = Fixed32.fracUnit - (_bestSlideFrac + _SlideConstants.fudgeFactor);
+
+    if (_bestSlideFrac > Fixed32.fracUnit) {
+      _bestSlideFrac = Fixed32.fracUnit;
+    }
+
+    if (_bestSlideFrac <= 0) {
       return;
     }
 
-    final newX = mo.x + mo.momX;
-    final newY = mo.y + mo.momY;
+    _tmXMove = Fixed32.mul(mo.momX, _bestSlideFrac);
+    _tmYMove = Fixed32.mul(mo.momY, _bestSlideFrac);
 
-    if (tryMove(mo, newX, newY, level)) {
-      return;
-    }
-
-    final blockLine = _ctx.blockingLine;
-    if (blockLine == null) {
-      mo.momX = mo.momY = 0;
-      return;
-    }
-
-    _tmXMove = mo.momX;
-    _tmYMove = mo.momY;
-
-    _hitSlideLine(blockLine);
+    _hitSlideLine(_bestSlideLine!);
 
     mo.momX = _tmXMove;
     mo.momY = _tmYMove;
 
-    if (!tryMove(mo, mo.x + _tmXMove, mo.y + _tmYMove, level)) {
-      continue;
+    if (tryMove(mo, mo.x + _tmXMove, mo.y + _tmYMove, level)) {
+      return;
     }
+  }
+
+  _stairStep(mo, level);
+}
+
+void _stairStep(Mobj mo, LevelLocals level) {
+  if (!tryMove(mo, mo.x, mo.y + mo.momY, level)) {
+    tryMove(mo, mo.x + mo.momX, mo.y, level);
+  }
+}
+
+void _slidePathTraverse(int x1, int y1, int x2, int y2, LevelLocals level) {
+  final blockmap = level.blockmap;
+  if (blockmap == null) return;
+
+  level.renderState.validCount++;
+  final validCount = level.renderState.validCount;
+
+  final dx = x2 - x1;
+  final dy = y2 - y1;
+
+  final (bx1, by1) = blockmap.worldToBlock(x1, y1);
+  final (bx2, by2) = blockmap.worldToBlock(x2, y2);
+
+  final stepX = bx2 > bx1 ? 1 : (bx2 < bx1 ? -1 : 0);
+  final stepY = by2 > by1 ? 1 : (by2 < by1 ? -1 : 0);
+
+  var bx = bx1;
+  var by = by1;
+
+  final maxSteps = (bx2 - bx1).abs() + (by2 - by1).abs() + 2;
+  var steps = 0;
+
+  while (steps < maxSteps) {
+    steps++;
+
+    if (blockmap.isValidBlock(bx, by)) {
+      for (final lineNum in blockmap.getLinesInBlock(bx, by)) {
+        final line = level.renderState.lines[lineNum];
+
+        if (line.validCount == validCount) continue;
+        line.validCount = validCount;
+
+        _addLineIntercept(x1, y1, dx, dy, line);
+      }
+    }
+
+    if (bx == bx2 && by == by2) break;
+
+    if (stepX != 0 && bx != bx2) {
+      bx += stepX;
+    } else if (stepY != 0 && by != by2) {
+      by += stepY;
+    } else {
+      break;
+    }
+  }
+}
+
+void _addLineIntercept(int x1, int y1, int dx, int dy, Line line) {
+  int s1;
+  int s2;
+
+  if (dx.abs() > 16 * Fixed32.fracUnit || dy.abs() > 16 * Fixed32.fracUnit) {
+    s1 = _pointOnDivlineSide(line.v1.x, line.v1.y, x1, y1, dx, dy);
+    s2 = _pointOnDivlineSide(line.v2.x, line.v2.y, x1, y1, dx, dy);
+  } else {
+    s1 = _pointOnLineSide(x1, y1, line);
+    s2 = _pointOnLineSide(x1 + dx, y1 + dy, line);
+  }
+
+  if (s1 == s2) return;
+
+  final frac = _interceptVector(x1, y1, dx, dy, line);
+
+  if (frac < 0) return;
+
+  _slideTraverse(line, frac);
+}
+
+int _pointOnDivlineSide(int x, int y, int lineX, int lineY, int lineDx, int lineDy) {
+  if (lineDx == 0) {
+    if (x <= lineX) {
+      return lineDy > 0 ? 1 : 0;
+    }
+    return lineDy < 0 ? 1 : 0;
+  }
+
+  if (lineDy == 0) {
+    if (y <= lineY) {
+      return lineDx < 0 ? 1 : 0;
+    }
+    return lineDx > 0 ? 1 : 0;
+  }
+
+  final ptDx = x - lineX;
+  final ptDy = y - lineY;
+
+  final left = Fixed32.mul(lineDy >> Fixed32.fracBits, ptDx);
+  final right = Fixed32.mul(ptDy, lineDx >> Fixed32.fracBits);
+
+  return right < left ? 0 : 1;
+}
+
+int _interceptVector(int traceX, int traceY, int traceDx, int traceDy, Line line) {
+  final lineX = line.v1.x;
+  final lineY = line.v1.y;
+  final lineDx = line.dx;
+  final lineDy = line.dy;
+
+  final den = Fixed32.mul(lineDy >> 8, traceDx) - Fixed32.mul(lineDx >> 8, traceDy);
+  if (den == 0) return 0;
+
+  final num = Fixed32.mul((lineX - traceX) >> 8, lineDy) +
+      Fixed32.mul((traceY - lineY) >> 8, lineDx);
+
+  return Fixed32.div(num, den);
+}
+
+void _slideTraverse(Line line, int frac) {
+  if (line.backSector == null) {
+    if (_pointOnLineSide(_slideMo!.x, _slideMo!.y, line) != 0) {
+      return;
+    }
+    _updateBestSlide(line, frac);
     return;
-  } while (true);
+  }
+
+  final front = line.frontSector;
+  final back = line.backSector;
+  if (front == null || back == null) {
+    _updateBestSlide(line, frac);
+    return;
+  }
+
+  final openTop = front.ceilingHeight < back.ceilingHeight
+      ? front.ceilingHeight
+      : back.ceilingHeight;
+  final openBottom =
+      front.floorHeight > back.floorHeight ? front.floorHeight : back.floorHeight;
+  final openRange = openTop - openBottom;
+
+  if (openRange < _slideMo!.height) {
+    _updateBestSlide(line, frac);
+    return;
+  }
+
+  if (openTop - _slideMo!.z < _slideMo!.height) {
+    _updateBestSlide(line, frac);
+    return;
+  }
+
+  if (openBottom - _slideMo!.z > _MapConstants.maxStepHeight) {
+    _updateBestSlide(line, frac);
+    return;
+  }
+}
+
+void _updateBestSlide(Line line, int frac) {
+  if (frac < _bestSlideFrac) {
+    _bestSlideFrac = frac;
+    _bestSlideLine = line;
+  }
 }
 
 void _hitSlideLine(Line ld) {

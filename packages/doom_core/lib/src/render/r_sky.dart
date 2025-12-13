@@ -8,6 +8,7 @@ import 'package:doom_math/doom_math.dart';
 abstract final class _SkyConstants {
   static const int textureWidth = 256;
   static const int textureMid = 100 * Fixed32.fracUnit;
+  static const int angleToSkyShift = 22;
 }
 
 class SkyRenderer {
@@ -52,7 +53,7 @@ class SkyRenderer {
       if (yl == 0xff) continue;
 
       final angle = (_state.viewAngle + _state.xToViewAngle[x]).u32;
-      final col = ((angle + _skyColumnOffset) >> (Angle.angleToFineShift + 4)) & (_SkyConstants.textureWidth - 1);
+      final col = ((angle + _skyColumnOffset) >> _SkyConstants.angleToSkyShift) & (_SkyConstants.textureWidth - 1);
 
       _drawSkyColumn(x, yl, yh, col);
     }
