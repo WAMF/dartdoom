@@ -48,7 +48,7 @@ abstract final class _WeaponInfo {
   ];
 }
 
-bool giveAmmo(Player player, AmmoType ammo, int num) {
+bool giveAmmo(Player player, AmmoType ammo, int num, {Skill? skill}) {
   if (ammo == AmmoType.noAmmo) {
     return false;
   }
@@ -67,6 +67,10 @@ bool giveAmmo(Player player, AmmoType ammo, int num) {
     amount *= _AmmoValues.clipAmmo[ammoIndex];
   } else {
     amount = _AmmoValues.clipAmmo[ammoIndex] ~/ 2;
+  }
+
+  if (skill == Skill.imTooYoungToDie || skill == Skill.nightmare) {
+    amount <<= 1;
   }
 
   final oldAmmo = player.ammo[ammoIndex];
@@ -120,7 +124,12 @@ bool giveAmmo(Player player, AmmoType ammo, int num) {
   return true;
 }
 
-bool giveWeapon(Player player, WeaponType weapon, {required bool dropped}) {
+bool giveWeapon(
+  Player player,
+  WeaponType weapon, {
+  required bool dropped,
+  Skill? skill,
+}) {
   var gaveAmmo = false;
   var gaveWeapon = false;
 
@@ -131,7 +140,7 @@ bool giveWeapon(Player player, WeaponType weapon, {required bool dropped}) {
 
   final ammoType = _WeaponInfo.weaponAmmo[weaponIndex];
   if (ammoType != AmmoType.noAmmo) {
-    gaveAmmo = giveAmmo(player, ammoType, dropped ? 1 : 2);
+    gaveAmmo = giveAmmo(player, ammoType, dropped ? 1 : 2, skill: skill);
   }
 
   if (!player.weaponOwned[weaponIndex]) {
@@ -334,31 +343,31 @@ void touchSpecialThing(Mobj special, Mobj toucher, LevelLocals level) {
 
     case SpriteNum.clip:
       if ((special.flags & MobjFlag.dropped) != 0) {
-        pickedUp = giveAmmo(player, AmmoType.clip, 0);
+        pickedUp = giveAmmo(player, AmmoType.clip, 0, skill: level.skill);
       } else {
-        pickedUp = giveAmmo(player, AmmoType.clip, 1);
+        pickedUp = giveAmmo(player, AmmoType.clip, 1, skill: level.skill);
       }
 
     case SpriteNum.ammo:
-      pickedUp = giveAmmo(player, AmmoType.clip, 5);
+      pickedUp = giveAmmo(player, AmmoType.clip, 5, skill: level.skill);
 
     case SpriteNum.rock:
-      pickedUp = giveAmmo(player, AmmoType.missile, 1);
+      pickedUp = giveAmmo(player, AmmoType.missile, 1, skill: level.skill);
 
     case SpriteNum.brok:
-      pickedUp = giveAmmo(player, AmmoType.missile, 5);
+      pickedUp = giveAmmo(player, AmmoType.missile, 5, skill: level.skill);
 
     case SpriteNum.cell:
-      pickedUp = giveAmmo(player, AmmoType.cell, 1);
+      pickedUp = giveAmmo(player, AmmoType.cell, 1, skill: level.skill);
 
     case SpriteNum.celp:
-      pickedUp = giveAmmo(player, AmmoType.cell, 5);
+      pickedUp = giveAmmo(player, AmmoType.cell, 5, skill: level.skill);
 
     case SpriteNum.shel:
-      pickedUp = giveAmmo(player, AmmoType.shell, 1);
+      pickedUp = giveAmmo(player, AmmoType.shell, 1, skill: level.skill);
 
     case SpriteNum.sbox:
-      pickedUp = giveAmmo(player, AmmoType.shell, 5);
+      pickedUp = giveAmmo(player, AmmoType.shell, 5, skill: level.skill);
 
     case SpriteNum.bpak:
       if (!player.backpack) {
@@ -368,34 +377,56 @@ void touchSpecialThing(Mobj special, Mobj toucher, LevelLocals level) {
         player.backpack = true;
       }
       for (var i = 0; i < _AmmoValues.maxAmmo.length; i++) {
-        giveAmmo(player, AmmoType.values[i], 1);
+        giveAmmo(player, AmmoType.values[i], 1, skill: level.skill);
       }
       pickedUp = true;
 
     case SpriteNum.bfug:
-      pickedUp = giveWeapon(player, WeaponType.bfg, dropped: false);
+      pickedUp = giveWeapon(
+        player,
+        WeaponType.bfg,
+        dropped: false,
+        skill: level.skill,
+      );
 
     case SpriteNum.mgun:
       pickedUp = giveWeapon(
         player,
         WeaponType.chaingun,
         dropped: (special.flags & MobjFlag.dropped) != 0,
+        skill: level.skill,
       );
 
     case SpriteNum.csaw:
-      pickedUp = giveWeapon(player, WeaponType.chainsaw, dropped: false);
+      pickedUp = giveWeapon(
+        player,
+        WeaponType.chainsaw,
+        dropped: false,
+        skill: level.skill,
+      );
 
     case SpriteNum.laun:
-      pickedUp = giveWeapon(player, WeaponType.missile, dropped: false);
+      pickedUp = giveWeapon(
+        player,
+        WeaponType.missile,
+        dropped: false,
+        skill: level.skill,
+      );
 
     case SpriteNum.plas:
-      pickedUp = giveWeapon(player, WeaponType.plasma, dropped: false);
+      pickedUp = giveWeapon(
+        player,
+        WeaponType.plasma,
+        dropped: false,
+        skill: level.skill,
+      );
 
     case SpriteNum.shot:
       pickedUp = giveWeapon(
         player,
         WeaponType.shotgun,
         dropped: (special.flags & MobjFlag.dropped) != 0,
+        skill: level.skill,
       );
 
     case SpriteNum.sgn2:
@@ -403,6 +434,7 @@ void touchSpecialThing(Mobj special, Mobj toucher, LevelLocals level) {
         player,
         WeaponType.superShotgun,
         dropped: (special.flags & MobjFlag.dropped) != 0,
+        skill: level.skill,
       );
   }
 
@@ -419,10 +451,17 @@ void touchSpecialThing(Mobj special, Mobj toucher, LevelLocals level) {
 }
 
 void _removeMobj(Mobj mobj, LevelLocals level) {
+  removeMobj(mobj, level);
+}
+
+void removeMobj(Mobj mobj, LevelLocals level) {
   _unlinkFromSector(mobj);
+  _unlinkFromBlockmap(mobj, level);
   mobj
     ..flags &= ~(MobjFlag.special | MobjFlag.solid | MobjFlag.shootable)
-    ..health = 0;
+    ..health = 0
+    ..stateNum = StateNum.sNull
+    ..tics = -1;
 }
 
 void _unlinkFromSector(Mobj mobj) {
@@ -444,6 +483,34 @@ void _unlinkFromSector(Mobj mobj) {
   mobj
     ..sNext = null
     ..sPrev = null;
+}
+
+void _unlinkFromBlockmap(Mobj mobj, LevelLocals level) {
+  if ((mobj.flags & MobjFlag.noBlockmap) != 0) return;
+
+  final blockmap = level.blockmap;
+  final blockLinks = level.blockLinks;
+  if (blockmap == null || blockLinks == null) return;
+
+  if (mobj.bNext != null) {
+    mobj.bNext!.bPrev = mobj.bPrev;
+  }
+
+  if (mobj.bPrev != null) {
+    mobj.bPrev!.bNext = mobj.bNext;
+  } else {
+    final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
+    if (blockmap.isValidBlock(blockX, blockY)) {
+      final index = blockY * blockmap.columns + blockX;
+      if (blockLinks[index] == mobj) {
+        blockLinks[index] = mobj.bNext;
+      }
+    }
+  }
+
+  mobj
+    ..bNext = null
+    ..bPrev = null;
 }
 
 void damageMobj(
@@ -470,6 +537,10 @@ void damageMobj(
 
   final player = target.player;
   var actualDamage = damage;
+
+  if (player != null && level.skill == Skill.imTooYoungToDie) {
+    actualDamage >>= 1;
+  }
 
   final sourcePlayer = source?.player;
   if (inflictor != null &&

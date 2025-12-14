@@ -1,3 +1,4 @@
+import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/blockmap.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_switch.dart';
@@ -20,6 +21,8 @@ class LevelLocals {
   Blockmap? blockmap;
   SwitchManager? switchManager;
   List<Mobj?>? blockLinks;
+
+  Skill skill = Skill.hurtMePlenty;
 
   int levelTime = 0;
   int totalKills = 0;

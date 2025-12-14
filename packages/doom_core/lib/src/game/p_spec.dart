@@ -545,9 +545,7 @@ void damageMobj(
 bool setMobjState(Mobj mobj, int stateNum, LevelLocals level) {
   while (true) {
     if (stateNum == StateNum.sNull) {
-      mobj
-        ..stateNum = StateNum.sNull
-        ..tics = -1;
+      inter.removeMobj(mobj, level);
       return false;
     }
 

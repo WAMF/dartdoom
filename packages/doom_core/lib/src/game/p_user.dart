@@ -44,12 +44,6 @@ void playerThink(Player player, LevelLocals level) {
     player.useDown = false;
   }
 
-  if ((cmd.buttons & TicCmdButtons.attack) != 0) {
-    player.attackDown = true;
-  } else {
-    player.attackDown = false;
-  }
-
   movePsprites(player, level);
 }
 

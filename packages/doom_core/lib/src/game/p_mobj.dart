@@ -1,3 +1,4 @@
+import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
@@ -27,6 +28,12 @@ abstract final class _MonsterSpeed {
   static const int slow = 8;
   static const int normal = 10;
   static const int fast = 15;
+}
+
+abstract final class _ThingFlags {
+  static const int easy = 1;
+  static const int normal = 2;
+  static const int hard = 4;
 }
 
 abstract final class _BarrelConstants {
@@ -427,6 +434,10 @@ class ThingSpawner {
       return;
     }
 
+    if (!_shouldSpawnForSkill(thing.options)) {
+      return;
+    }
+
     final def = thingDefs[thing.type];
     if (def == null) {
       return;
@@ -457,6 +468,24 @@ class ThingSpawner {
     }
   }
 
+  bool _shouldSpawnForSkill(int options) {
+    final skill = _level.skill;
+    int bit;
+
+    switch (skill) {
+      case Skill.imTooYoungToDie:
+      case Skill.heyNotTooRough:
+        bit = _ThingFlags.easy;
+      case Skill.hurtMePlenty:
+        bit = _ThingFlags.normal;
+      case Skill.ultraViolence:
+      case Skill.nightmare:
+        bit = _ThingFlags.hard;
+    }
+
+    return (options & bit) != 0;
+  }
+
   Mobj? _spawnMobj(int x, int y, int z, ThingDef def, int thingType) {
     final info = _getMonsterInfo(thingType);
 
@@ -471,7 +500,9 @@ class ThingSpawner {
       ..type = thingType
       ..info = info
       ..health = info?.spawnHealth ?? 1000
-      ..reactionTime = info?.reactionTime ?? 8;
+      ..reactionTime = _level.skill == Skill.nightmare
+          ? 0
+          : (info?.reactionTime ?? 8);
 
     final spawnState = info?.spawnState ?? 0;
     if (spawnState > 0 && spawnState < states.length) {
@@ -647,7 +678,8 @@ void xyMovement(Mobj mo, LevelLocals level) {
     if (mo.player != null) {
       slideMove(mo, level);
     } else if ((mo.flags & MobjFlag.missile) != 0) {
-      mo.momX = mo.momY = mo.momZ = 0;
+      explodeMissile(mo, level);
+      return;
     } else {
       mo.momX = mo.momY = 0;
     }
@@ -707,6 +739,7 @@ void zMovement(Mobj mo, LevelLocals level) {
     mo.z = mo.floorZ;
 
     if ((mo.flags & MobjFlag.missile) != 0 && (mo.flags & MobjFlag.noClip) == 0) {
+      explodeMissile(mo, level);
       return;
     }
   } else if ((mo.flags & MobjFlag.noGravity) == 0) {
@@ -726,6 +759,11 @@ void zMovement(Mobj mo, LevelLocals level) {
 
     if ((mo.flags & MobjFlag.skullFly) != 0) {
       mo.momZ = -mo.momZ;
+    }
+
+    if ((mo.flags & MobjFlag.missile) != 0 && (mo.flags & MobjFlag.noClip) == 0) {
+      explodeMissile(mo, level);
+      return;
     }
   }
 }
@@ -968,7 +1006,8 @@ void explodeMissile(Mobj mo, LevelLocals level) {
     spec.setMobjStateNum(mo, info.deathState, level);
   }
 
-  mo.flags &= ~MobjFlag.missile;
-
+  mo.tics -= level.random.pRandom() & 3;
   if (mo.tics < 1) mo.tics = 1;
+
+  mo.flags &= ~MobjFlag.missile;
 }

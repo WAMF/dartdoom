@@ -188,6 +188,24 @@ bool _checkThings(Mobj thing, int x, int y, LevelLocals level) {
           continue;
         }
 
+        if ((_ctx.tmFlags & MobjFlag.missile) != 0) {
+          if (other == thing.target) {
+            other = next;
+            continue;
+          }
+
+          if ((other.flags & MobjFlag.shootable) == 0) {
+            other = next;
+            continue;
+          }
+
+          final damage =
+              ((level.random.pRandom() % 8) + 1) * (thing.info?.damage ?? 3);
+          inter.damageMobj(other, thing, thing.target, damage, level);
+
+          return false;
+        }
+
         if ((other.flags & MobjFlag.special) != 0) {
           if ((_ctx.tmFlags & MobjFlag.pickup) != 0) {
             inter.touchSpecialThing(other, thing, level);

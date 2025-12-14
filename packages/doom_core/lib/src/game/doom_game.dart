@@ -232,7 +232,9 @@ class DoomGame {
     final renderer = Renderer(renderState)..init();
     _renderer = renderer;
 
-    final level = LevelLocals(renderState)..init();
+    final level = LevelLocals(renderState)
+      ..init()
+      ..skill = _skill;
     _level = level;
 
     if (mapData.blockmap != null) {
