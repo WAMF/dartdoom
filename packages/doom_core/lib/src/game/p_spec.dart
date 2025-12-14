@@ -44,6 +44,26 @@ abstract final class _LineSpecial {
   static const int switchFloorRaiseNearest = 119;
   static const int switchCeilingCrush = 49;
   static const int switchCeilingStop = 57;
+  static const int switchLowerCeilingToFloor = 41;
+  static const int switchLowerFloorToLowest = 60;
+  static const int switchRaiseFloor = 64;
+  static const int switchRaiseFloorCrush = 65;
+  static const int switchRaiseFloor24Change = 66;
+  static const int switchRaiseFloor32Change = 67;
+  static const int switchRaiseToTexture = 68;
+  static const int switchLowerFloor = 69;
+  static const int switchTurboLower = 70;
+  static const int switchLowerCeilingToFloor2 = 43;
+  static const int switchRaiseFloor2 = 101;
+  static const int switchLowerFloor2 = 102;
+  static const int switchRaiseFloorTurbo = 131;
+  static const int switchRaiseFloor24 = 132;
+  static const int switchRaiseFloor512 = 140;
+  static const int switchBuildStairs = 7;
+  static const int switchBuildStairsTurbo = 127;
+  static const int switchLightsOff = 35;
+  static const int switchLightsToBrightest = 104;
+  static const int switchPlatStop = 54;
 
   static const int walkOpenDoor = 2;
   static const int walkCloseDoor = 3;
@@ -62,15 +82,63 @@ abstract final class _LineSpecial {
   static const int walkExit = 52;
   static const int walkSecretExit = 124;
 
-  static const int retriggerRaiseDoor = 86;
-  static const int retriggerOpenDoor = 87;
+  static const int walkRaiseFloor = 5;
+  static const int walkFastCrushAndRaise = 6;
+  static const int walkBuildStairs = 8;
+  static const int walkLightToBrightest = 12;
+  static const int walkLightToMax = 13;
+  static const int walkStartStrobe = 17;
+  static const int walkLowerFloor = 19;
+  static const int walkRaiseToTexture = 30;
+  static const int walkLightToDark = 35;
+  static const int walkTurboLower = 36;
+  static const int walkLowerAndChange = 37;
+  static const int walkLowerFloorToLowest = 38;
+  static const int walkRaiseCeilingLowerFloor = 40;
+  static const int walkLowerCeiling = 44;
+  static const int walkCrushAndRaise = 25;
+  static const int walkRaiseFloorCrush = 56;
+  static const int walkRaiseFloor24 = 58;
+  static const int walkRaiseFloor24Change = 59;
+  static const int walkBuildStairsTurbo = 100;
+  static const int walkLightOff = 104;
+  static const int walkBlazePlatDown = 121;
+  static const int walkRaiseFloorTurbo = 130;
+  static const int walkSilentCrush = 141;
+
+  static const int impactRaiseFloor = 24;
+  static const int impactOpenDoor = 46;
+  static const int impactRaiseFloorNearest = 47;
+
+  static const int retriggerOpenDoor = 86;
+  static const int retriggerPlatPerpetual = 87;
   static const int retriggerPlatDownWaitUp = 88;
+  static const int retriggerPlatStop = 89;
+  static const int retriggerRaiseDoor = 90;
   static const int retriggerCloseDoor = 75;
   static const int retriggerCloseDoor30 = 76;
   static const int retriggerBlazeRaise = 105;
   static const int retriggerBlazeOpen = 106;
   static const int retriggerBlazeClose = 107;
   static const int retriggerBlazePlatDown = 120;
+  static const int retriggerLowerCeiling = 72;
+  static const int retriggerCrushAndRaise = 73;
+  static const int retriggerCeilingStop = 74;
+  static const int retriggerFastCrush = 77;
+  static const int retriggerLightToDark = 79;
+  static const int retriggerLightToBrightest = 80;
+  static const int retriggerLightToMax = 81;
+  static const int retriggerLowerFloorToLowest = 82;
+  static const int retriggerLowerFloor = 83;
+  static const int retriggerLowerAndChange = 84;
+  static const int retriggerRaiseFloor = 91;
+  static const int retriggerRaiseFloor24 = 92;
+  static const int retriggerRaiseFloor24Change = 93;
+  static const int retriggerRaiseFloorCrush = 94;
+  static const int retriggerRaiseToTexture = 96;
+  static const int retriggerTurboLower = 98;
+  static const int retriggerRaiseFloorToNearest = 128;
+  static const int retriggerRaiseFloorTurbo = 129;
 }
 
 abstract final class _ThingType {
@@ -197,6 +265,91 @@ void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
       if (evCeilingCrushStop(line, _activeCeilings)) {
         changeSwitchTexture(line, false, level);
       }
+
+    case _LineSpecial.switchLowerCeilingToFloor:
+    case _LineSpecial.switchLowerCeilingToFloor2:
+      if (evDoCeiling(line, CeilingType.lowerToFloor, level, _activeCeilings)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchLowerFloorToLowest:
+      if (evDoFloor(line, FloorType.lowerFloorToLowest, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloor:
+    case _LineSpecial.switchRaiseFloor2:
+      if (evDoFloor(line, FloorType.raiseFloor, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloorCrush:
+      if (evDoFloor(line, FloorType.raiseFloorCrush, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloor24Change:
+      if (evDoFloor(line, FloorType.raiseFloor24AndChange, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloor32Change:
+      if (evDoPlat(line, PlatType.raiseAndChange, 32, level) != null) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseToTexture:
+      if (evDoFloor(line, FloorType.raiseToTexture, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchLowerFloor:
+    case _LineSpecial.switchLowerFloor2:
+      if (evDoFloor(line, FloorType.lowerFloor, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchTurboLower:
+      if (evDoFloor(line, FloorType.turboLower, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloorTurbo:
+      if (evDoFloor(line, FloorType.raiseFloorTurbo, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloor24:
+      if (evDoFloor(line, FloorType.raiseFloor24, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchRaiseFloor512:
+      if (evDoFloor(line, FloorType.raiseFloor512, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchBuildStairs:
+      if (evBuildStairs(line, StairType.build8, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchBuildStairsTurbo:
+      if (evBuildStairs(line, StairType.turbo16, level)) {
+        changeSwitchTexture(line, false, level);
+      }
+
+    case _LineSpecial.switchLightsOff:
+      evLightTurnOn(line, 35, level);
+      changeSwitchTexture(line, false, level);
+
+    case _LineSpecial.switchLightsToBrightest:
+      evTurnTagLightsOff(line, level);
+      changeSwitchTexture(line, false, level);
+
+    case _LineSpecial.switchPlatStop:
+      evStopPlat(line, level, _activePlatforms);
+      changeSwitchTexture(line, false, level);
   }
 }
 
@@ -366,6 +519,183 @@ void crossSpecialLine(Line line, int side, Mobj thing, LevelLocals level) {
 
     case _LineSpecial.retriggerBlazePlatDown:
       evDoPlat(line, PlatType.blazeDWUS, 0, level);
+
+    case _LineSpecial.walkRaiseFloor:
+      evDoFloor(line, FloorType.raiseFloor, level);
+      line.special = 0;
+
+    case _LineSpecial.walkFastCrushAndRaise:
+      evDoCeiling(line, CeilingType.fastCrushAndRaise, level, _activeCeilings);
+      line.special = 0;
+
+    case _LineSpecial.walkBuildStairs:
+      evBuildStairs(line, StairType.build8, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLightToBrightest:
+      evLightTurnOn(line, 0, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLightToMax:
+      evLightTurnOn(line, 255, level);
+      line.special = 0;
+
+    case _LineSpecial.walkStartStrobe:
+      evStartLightStrobing(line, level, level.random);
+      line.special = 0;
+
+    case _LineSpecial.walkLowerFloor:
+      evDoFloor(line, FloorType.lowerFloor, level);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseToTexture:
+      evDoFloor(line, FloorType.raiseToTexture, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLightToDark:
+      evLightTurnOn(line, 35, level);
+      line.special = 0;
+
+    case _LineSpecial.walkTurboLower:
+      evDoFloor(line, FloorType.turboLower, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLowerAndChange:
+      evDoFloor(line, FloorType.lowerAndChange, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLowerFloorToLowest:
+      evDoFloor(line, FloorType.lowerFloorToLowest, level);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseCeilingLowerFloor:
+      evDoCeiling(line, CeilingType.raiseToHighest, level, _activeCeilings);
+      evDoFloor(line, FloorType.lowerFloorToLowest, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLowerCeiling:
+      evDoCeiling(line, CeilingType.lowerAndCrush, level, _activeCeilings);
+      line.special = 0;
+
+    case _LineSpecial.walkCrushAndRaise:
+      evDoCeiling(line, CeilingType.crushAndRaise, level, _activeCeilings);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseFloorCrush:
+      evDoFloor(line, FloorType.raiseFloorCrush, level);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseFloor24:
+      evDoFloor(line, FloorType.raiseFloor24, level);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseFloor24Change:
+      evDoFloor(line, FloorType.raiseFloor24AndChange, level);
+      line.special = 0;
+
+    case _LineSpecial.walkBuildStairsTurbo:
+      evBuildStairs(line, StairType.turbo16, level);
+      line.special = 0;
+
+    case _LineSpecial.walkLightOff:
+      evTurnTagLightsOff(line, level);
+      line.special = 0;
+
+    case _LineSpecial.walkBlazePlatDown:
+      evDoPlat(line, PlatType.blazeDWUS, 0, level);
+      line.special = 0;
+
+    case _LineSpecial.walkRaiseFloorTurbo:
+      evDoFloor(line, FloorType.raiseFloorTurbo, level);
+      line.special = 0;
+
+    case _LineSpecial.walkSilentCrush:
+      evDoCeiling(line, CeilingType.silentCrushAndRaise, level, _activeCeilings);
+      line.special = 0;
+
+    case _LineSpecial.retriggerLowerCeiling:
+      evDoCeiling(line, CeilingType.lowerAndCrush, level, _activeCeilings);
+
+    case _LineSpecial.retriggerCrushAndRaise:
+      evDoCeiling(line, CeilingType.crushAndRaise, level, _activeCeilings);
+
+    case _LineSpecial.retriggerCeilingStop:
+      evCeilingCrushStop(line, _activeCeilings);
+
+    case _LineSpecial.retriggerFastCrush:
+      evDoCeiling(line, CeilingType.fastCrushAndRaise, level, _activeCeilings);
+
+    case _LineSpecial.retriggerLightToDark:
+      evLightTurnOn(line, 35, level);
+
+    case _LineSpecial.retriggerLightToBrightest:
+      evLightTurnOn(line, 0, level);
+
+    case _LineSpecial.retriggerLightToMax:
+      evLightTurnOn(line, 255, level);
+
+    case _LineSpecial.retriggerLowerFloorToLowest:
+      evDoFloor(line, FloorType.lowerFloorToLowest, level);
+
+    case _LineSpecial.retriggerLowerFloor:
+      evDoFloor(line, FloorType.lowerFloor, level);
+
+    case _LineSpecial.retriggerLowerAndChange:
+      evDoFloor(line, FloorType.lowerAndChange, level);
+
+    case _LineSpecial.retriggerPlatPerpetual:
+      evDoPlat(line, PlatType.perpetualRaise, 0, level);
+
+    case _LineSpecial.retriggerPlatStop:
+      evStopPlat(line, level, _activePlatforms);
+
+    case _LineSpecial.retriggerRaiseFloor:
+      evDoFloor(line, FloorType.raiseFloor, level);
+
+    case _LineSpecial.retriggerRaiseFloor24:
+      evDoFloor(line, FloorType.raiseFloor24, level);
+
+    case _LineSpecial.retriggerRaiseFloor24Change:
+      evDoFloor(line, FloorType.raiseFloor24AndChange, level);
+
+    case _LineSpecial.retriggerRaiseFloorCrush:
+      evDoFloor(line, FloorType.raiseFloorCrush, level);
+
+    case _LineSpecial.retriggerRaiseToTexture:
+      evDoFloor(line, FloorType.raiseToTexture, level);
+
+    case _LineSpecial.retriggerTurboLower:
+      evDoFloor(line, FloorType.turboLower, level);
+
+    case _LineSpecial.retriggerRaiseFloorToNearest:
+      evDoFloor(line, FloorType.raiseFloorToNearest, level);
+
+    case _LineSpecial.retriggerRaiseFloorTurbo:
+      evDoFloor(line, FloorType.raiseFloorTurbo, level);
+  }
+}
+
+void shootSpecialLine(Mobj thing, Line line, LevelLocals level) {
+  if (thing.player == null) {
+    final canActivate = switch (line.special) {
+      _LineSpecial.impactOpenDoor => true,
+      _ => false,
+    };
+    if (!canActivate) return;
+  }
+
+  switch (line.special) {
+    case _LineSpecial.impactRaiseFloor:
+      evDoFloor(line, FloorType.raiseFloor, level);
+      changeSwitchTexture(line, false, level);
+
+    case _LineSpecial.impactOpenDoor:
+      evDoDoor(line, DoorType.open, level);
+      changeSwitchTexture(line, true, level);
+
+    case _LineSpecial.impactRaiseFloorNearest:
+      evDoPlat(line, PlatType.raiseToNearestAndChange, 0, level);
+      changeSwitchTexture(line, false, level);
   }
 }
 
@@ -710,7 +1040,14 @@ void _pitRadiusAttack(
   if (dist < 0) dist = 0;
   if (dist >= damage) return;
 
-  if (sight.checkSight(thing, spot, level.renderState)) {
+  final canSee = sight.checkSight(
+    thing,
+    spot,
+    level.renderState,
+    rejectMatrix: level.rejectMatrix,
+    numSectors: level.numSectors,
+  );
+  if (canSee) {
     inter.damageMobj(thing, spot, source, damage - dist, level);
   }
 }
@@ -724,6 +1061,7 @@ void killMobj(Mobj? source, Mobj target, LevelLocals level) {
 }
 
 final ActiveCeilings _activeCeilings = ActiveCeilings();
+final ActivePlatforms _activePlatforms = ActivePlatforms();
 
 void spawnSpecials(LevelLocals level) {
   final random = level.random;
