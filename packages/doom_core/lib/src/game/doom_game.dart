@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:doom_core/src/doomdef.dart';
+import 'package:doom_core/src/events/doom_event.dart';
 import 'package:doom_core/src/game/blockmap.dart';
 import 'package:doom_core/src/game/g_game.dart';
 import 'package:doom_core/src/game/g_input.dart';
@@ -12,12 +13,15 @@ import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/hud/hu_stuff.dart';
 import 'package:doom_core/src/hud/st_stuff.dart';
+import 'package:doom_core/src/menu/m_menu.dart';
 import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_main.dart';
 import 'package:doom_core/src/render/r_state.dart';
+import 'package:doom_core/src/video/f_wipe.dart';
 import 'package:doom_core/src/video/frame_buffer.dart';
 import 'package:doom_core/src/video/palette_converter.dart';
+import 'package:doom_core/src/video/v_video.dart';
 import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 
@@ -25,13 +29,19 @@ abstract final class _PlayerStartType {
   static const int player1 = 1;
 }
 
+abstract final class _DemoConstants {
+  static const int titleTics = 170;
+  static const int pageTics = 200;
+}
+
 class DoomGame {
   late WadManager _wadManager;
   late TextureManager _textureManager;
-  late RenderState _renderState;
-  late Renderer _renderer;
-  late LevelLocals _level;
+  RenderState? _renderState;
+  Renderer? _renderer;
+  LevelLocals? _level;
   late GameTicker _ticker;
+  late MenuSystem _menuSystem;
   final InputHandler input = InputHandler();
 
   final StatusBar _statusBar = StatusBar();
@@ -42,18 +52,43 @@ class DoomGame {
   final int _consoleplayer = 0;
   bool _hudNeedsRefresh = true;
 
-  RenderState get renderState => _renderState;
-  Renderer get renderer => _renderer;
-  LevelLocals get level => _level;
+  GameState _gameState = GameState.demoScreen;
+  GameAction _gameAction = GameAction.nothing;
+
+  Skill _skill = Skill.hurtMePlenty;
+  int _deferredEpisode = 1;
+  int _deferredMap = 1;
+
+  int _demoSequence = -1;
+  int _pageTic = 0;
+  String _pageName = '';
+  bool _advanceDemo = false;
+  final Map<String, Patch> _pageCache = {};
+
+  final ScreenWipe _wipe = ScreenWipe();
+  GameState _wipeGameState = GameState.demoScreen;
+  bool _forceWipe = false;
+
+  RenderState? get renderState => _renderState;
+  Renderer? get renderer => _renderer;
+  LevelLocals? get level => _level;
   int get consoleplayer => _consoleplayer;
   PaletteConverter get paletteConverter => _paletteConverter;
+  GameState get gameState => _gameState;
+  MenuSystem get menuSystem => _menuSystem;
+  Skill get skill => _skill;
 
-  Player get player => _level.players[_consoleplayer];
+  Player? get player => _level?.players[_consoleplayer];
 
   void init(Uint8List wadBytes) {
     _wadManager = WadManager()..addWad(wadBytes);
     _textureManager = TextureManager(_wadManager)..init();
     _ticker = GameTicker();
+
+    _menuSystem = MenuSystem(_wadManager, _screenBuffers)
+      ..init()
+      ..onNewGame = _deferedInitNew
+      ..onQuitGame = _quitToTitle;
 
     _statusBar.loadGraphics(_wadManager);
     _hudMessages.loadFont(_wadManager);
@@ -61,6 +96,127 @@ class DoomGame {
     final playPalData = _wadManager.cacheLumpName('PLAYPAL');
     final playPal = PlayPal.parse(playPalData);
     _paletteConverter.loadPalettes(playPal);
+
+    _startTitle();
+  }
+
+  void _startTitle() {
+    _gameState = GameState.demoScreen;
+    _demoSequence = -1;
+    _advanceDemo = false;
+    _doAdvanceDemo();
+  }
+
+  void _advanceDemoFlag() {
+    _advanceDemo = true;
+  }
+
+  void _doAdvanceDemo() {
+    _demoSequence = (_demoSequence + 1) % 7;
+
+    switch (_demoSequence) {
+      case 0:
+        _pageTic = _DemoConstants.titleTics;
+        _pageName = 'TITLEPIC';
+        _gameState = GameState.demoScreen;
+      case 1:
+        _pageTic = _DemoConstants.pageTics;
+        _pageName = 'CREDIT';
+        _gameState = GameState.demoScreen;
+      case 2:
+        _pageTic = _DemoConstants.pageTics;
+        _pageName = 'HELP2';
+        _gameState = GameState.demoScreen;
+      case 3:
+        _pageTic = _DemoConstants.titleTics;
+        _pageName = 'TITLEPIC';
+        _gameState = GameState.demoScreen;
+      case 4:
+        _pageTic = _DemoConstants.pageTics;
+        _pageName = 'CREDIT';
+        _gameState = GameState.demoScreen;
+      case 5:
+        _pageTic = _DemoConstants.pageTics;
+        _pageName = 'HELP2';
+        _gameState = GameState.demoScreen;
+      case 6:
+        _pageTic = _DemoConstants.titleTics;
+        _pageName = 'TITLEPIC';
+        _gameState = GameState.demoScreen;
+    }
+  }
+
+  void _pageTicker() {
+    if (_advanceDemo) {
+      _doAdvanceDemo();
+      _advanceDemo = false;
+    }
+
+    if (--_pageTic < 0) {
+      _advanceDemoFlag();
+    }
+  }
+
+  void _drawPage() {
+    if (_pageName.isEmpty) return;
+
+    var patch = _pageCache[_pageName];
+    if (patch == null) {
+      final lumpNum = _wadManager.checkNumForName(_pageName);
+      if (lumpNum >= 0) {
+        final data = _wadManager.cacheLumpNum(lumpNum);
+        patch = Patch.parse(data);
+        _pageCache[_pageName] = patch;
+      }
+    }
+
+    if (patch != null) {
+      VVideo.drawPatchDirect(_screenBuffers.primary, 0, 0, patch);
+    }
+  }
+
+  void _deferedInitNew(Skill skill, int episode, int map) {
+    _skill = skill;
+    _deferredEpisode = episode;
+    _deferredMap = map;
+    _gameAction = GameAction.newGame;
+  }
+
+  void _quitToTitle() {
+    _forceWipe = true;
+    _level = null;
+    _renderer = null;
+    _renderState = null;
+    _startTitle();
+  }
+
+  void _processGameAction() {
+    switch (_gameAction) {
+      case GameAction.newGame:
+        _doNewGame();
+      case GameAction.nothing:
+      case GameAction.loadLevel:
+      case GameAction.loadGame:
+      case GameAction.saveGame:
+      case GameAction.playDemo:
+      case GameAction.completed:
+      case GameAction.victory:
+      case GameAction.worldDone:
+      case GameAction.screenshot:
+        break;
+    }
+    _gameAction = GameAction.nothing;
+  }
+
+  void _doNewGame() {
+    _forceWipe = true;
+    final mapName = _buildMapName(_deferredEpisode, _deferredMap);
+    loadLevel(mapName);
+    _gameState = GameState.level;
+  }
+
+  String _buildMapName(int episode, int map) {
+    return 'E${episode}M$map';
   }
 
   void loadLevel(String mapName) {
@@ -68,32 +224,42 @@ class DoomGame {
     final mapData = mapLoader.loadMap(mapName);
 
     final levelLoader = LevelLoader(_textureManager);
-    _renderState = levelLoader.loadLevel(mapData);
+    final renderState = levelLoader.loadLevel(mapData);
+    _renderState = renderState;
 
-    RenderData(_wadManager).initData(_renderState);
+    RenderData(_wadManager).initData(renderState);
 
-    _renderer = Renderer(_renderState)..init();
+    final renderer = Renderer(renderState)..init();
+    _renderer = renderer;
 
-    _level = LevelLocals(_renderState)..init();
+    final level = LevelLocals(renderState)..init();
+    _level = level;
 
     if (mapData.blockmap != null) {
-      _level.blockmap = Blockmap.parse(mapData.blockmap!);
-      _level.initBlockLinks();
+      level
+        ..blockmap = Blockmap.parse(mapData.blockmap!)
+        ..initBlockLinks();
     }
 
-    ThingSpawner(_renderState, _level).spawnMapThings(mapData);
+    ThingSpawner(renderState, level).spawnMapThings(mapData);
 
     _spawnPlayer(mapData);
 
-    spec.spawnSpecials(_level);
-    spec.initPicAnims(_level);
+    spec.spawnSpecials(level);
+    spec.initPicAnims(level);
 
-    _statusBar.init(player, _screenBuffers.screens);
-    _hudMessages.init(player, _screenBuffers.primary, levelName: mapName);
+    final p = player;
+    if (p != null) {
+      _statusBar.init(p, _screenBuffers.screens);
+      _hudMessages.init(p, _screenBuffers.primary, levelName: mapName);
+    }
     _hudNeedsRefresh = true;
   }
 
   void _spawnPlayer(MapData mapData) {
+    final level = _level;
+    if (level == null) return;
+
     for (final thing in mapData.things) {
       if (thing.type == _PlayerStartType.player1 + _consoleplayer) {
         final x = thing.x << Fixed32.fracBits;
@@ -117,26 +283,26 @@ class DoomGame {
           ..ceilingZ = ss.sector.ceilingHeight
           ..z = ss.sector.floorHeight;
 
-        final player = _level.players[_consoleplayer]
+        final p = level.players[_consoleplayer]
           ..mobj = mobj
           ..playerState = PlayerState.live
           ..health = PlayerConstants.maxHealth
           ..viewHeight = PlayerConstants.viewHeight
           ..viewZ = mobj.z + PlayerConstants.viewHeight;
         mobj
-          ..player = player
+          ..player = p
           ..spawnX = x
           ..spawnY = y
           ..spawnAngle = mobj.angle
           ..health = PlayerConstants.maxHealth;
 
-        player
+        p
           ..weaponOwned[WeaponType.fist.index] = true
           ..weaponOwned[WeaponType.pistol.index] = true
           ..readyWeapon = WeaponType.pistol
           ..ammo[AmmoType.clip.index] = 50;
 
-        setupPsprites(player);
+        setupPsprites(p);
 
         return;
       }
@@ -144,8 +310,11 @@ class DoomGame {
   }
 
   void _setPlayerMobjPosition(Mobj mobj) {
-    final nodes = _renderState.nodes;
-    final subsectors = _renderState.subsectors;
+    final renderState = _renderState;
+    if (renderState == null) return;
+
+    final nodes = renderState.nodes;
+    final subsectors = renderState.subsectors;
 
     if (nodes.isEmpty) {
       if (subsectors.isNotEmpty) {
@@ -186,8 +355,11 @@ class DoomGame {
   void _linkToBlockmap(Mobj mobj) {
     if ((mobj.flags & MobjFlag.noBlockmap) != 0) return;
 
-    final blockmap = _level.blockmap;
-    final blockLinks = _level.blockLinks;
+    final level = _level;
+    if (level == null) return;
+
+    final blockmap = level.blockmap;
+    final blockLinks = level.blockLinks;
     if (blockmap == null || blockLinks == null) return;
 
     final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
@@ -231,32 +403,77 @@ class DoomGame {
   }
 
   void runTic() {
-    final cmd = player.cmd;
-    input.buildTicCmd(cmd);
-    _ticker.tick(_level);
+    _processGameAction();
 
-    _statusBar.ticker();
-    _hudMessages.ticker();
+    _menuSystem.ticker();
+
+    switch (_gameState) {
+      case GameState.level:
+        if (!_menuSystem.isActive) {
+          final p = player;
+          final l = _level;
+          if (p != null && l != null) {
+            final cmd = p.cmd;
+            input.buildTicCmd(cmd);
+            _ticker.tick(l);
+
+            _statusBar.ticker();
+            _hudMessages.ticker();
+          }
+        }
+      case GameState.demoScreen:
+        if (!_menuSystem.isActive) {
+          _pageTicker();
+        }
+      case GameState.intermission:
+      case GameState.finale:
+        break;
+    }
+  }
+
+  void handleEvent(DoomEvent event) {
+    if (_menuSystem.responder(event)) {
+      return;
+    }
+
+    if (event.type == DoomEventType.keyDown) {
+      input.keyDown(event.data1);
+    } else if (event.type == DoomEventType.keyUp) {
+      input.keyUp(event.data1);
+    }
   }
 
   void render(Uint8List frameBuffer) {
-    final mobj = player.mobj;
-    if (mobj == null) return;
+    final wipe = _gameState != _wipeGameState || _forceWipe;
 
-    _renderer
-      ..setupFrame(
-        mobj.x,
-        mobj.y,
-        player.viewZ,
-        mobj.angle,
-      )
-      ..renderPlayerView(_screenBuffers.primary, player: player);
+    if (wipe && !_wipe.isActive) {
+      _wipe.captureStartScreen(_screenBuffers.primary);
+    }
 
-    _statusBar.drawer(refresh: _hudNeedsRefresh);
-    _hudMessages.drawer();
-    _hudNeedsRefresh = false;
+    if (_gameState == GameState.level) {
+      _renderLevel();
+    } else {
+      _drawPage();
+    }
 
-    _paletteConverter.updatePaletteForPlayer(player);
+    _menuSystem.drawer();
+
+    if (wipe && !_wipe.isActive) {
+      _wipe
+        ..captureEndScreen(_screenBuffers.primary)
+        ..startWipe();
+      _wipeGameState = _gameState;
+      _forceWipe = false;
+    }
+
+    if (_wipe.isActive) {
+      _wipe.doWipe(_screenBuffers.primary, 1);
+    }
+
+    final p = player;
+    if (p != null) {
+      _paletteConverter.updatePaletteForPlayer(p);
+    }
 
     for (var i = 0; i < ScreenConstants.pixelCount; i++) {
       frameBuffer[i] = _screenBuffers.primary[i];
@@ -265,25 +482,60 @@ class DoomGame {
 
   void renderWithPalette(Uint8List rgbaBuffer) {
     final indexedBuffer = _screenBuffers.primary;
-    final mobj = player.mobj;
+    final wipe = _gameState != _wipeGameState || _forceWipe;
+
+    if (wipe && !_wipe.isActive) {
+      _wipe.captureStartScreen(indexedBuffer);
+    }
+
+    if (_gameState == GameState.level) {
+      _renderLevel();
+    } else {
+      _drawPage();
+    }
+
+    _menuSystem.drawer();
+
+    if (wipe && !_wipe.isActive) {
+      _wipe
+        ..captureEndScreen(indexedBuffer)
+        ..startWipe();
+      _wipeGameState = _gameState;
+      _forceWipe = false;
+    }
+
+    if (_wipe.isActive) {
+      _wipe.doWipe(indexedBuffer, 1);
+    }
+
+    final p = player;
+    if (p != null) {
+      _paletteConverter.updatePaletteForPlayer(p);
+    }
+
+    _paletteConverter.convertFrame(indexedBuffer, rgbaBuffer);
+  }
+
+  void _renderLevel() {
+    final p = player;
+    final r = _renderer;
+    if (p == null || r == null) return;
+
+    final mobj = p.mobj;
     if (mobj == null) return;
 
-    _renderer
+    r
       ..setupFrame(
         mobj.x,
         mobj.y,
-        player.viewZ,
+        p.viewZ,
         mobj.angle,
       )
-      ..renderPlayerView(indexedBuffer, player: player);
+      ..renderPlayerView(_screenBuffers.primary, player: p);
 
     _statusBar.drawer(refresh: _hudNeedsRefresh);
     _hudMessages.drawer();
     _hudNeedsRefresh = false;
-
-    _paletteConverter
-      ..updatePaletteForPlayer(player)
-      ..convertFrame(indexedBuffer, rgbaBuffer);
   }
 
   void keyDown(int keyCode) {

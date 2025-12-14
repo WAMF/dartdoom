@@ -56,9 +56,7 @@ class _DoomWidgetState extends State<DoomWidget> {
       _paletteConverter.setPalette(_palette!);
     }
 
-    _game = DoomGame()
-      ..init(wadBytes)
-      ..loadLevel(widget.mapName);
+    _game = DoomGame()..init(wadBytes);
 
     _frameBuffer = Uint8List(ScreenDimensions.width * ScreenDimensions.height);
     _rgbaBuffer = Uint8List(ScreenDimensions.width * ScreenDimensions.height * 4);
@@ -133,11 +131,15 @@ class _DoomWidgetState extends State<DoomWidget> {
 
     final keyCode = _logicalKeyToCode(event.logicalKey);
     if (keyCode != null) {
-      if (event is KeyDownEvent) {
-        game.keyDown(keyCode);
-      } else if (event is KeyUpEvent) {
-        game.keyUp(keyCode);
+      final DoomEventType eventType;
+      if (event is KeyDownEvent || event is KeyRepeatEvent) {
+        eventType = DoomEventType.keyDown;
+      } else {
+        eventType = DoomEventType.keyUp;
       }
+
+      final doomEvent = DoomEvent(type: eventType, data1: keyCode);
+      game.handleEvent(doomEvent);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
