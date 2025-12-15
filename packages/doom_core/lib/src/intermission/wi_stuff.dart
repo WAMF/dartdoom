@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:doom_core/src/video/frame_buffer.dart';
 import 'package:doom_core/src/video/v_video.dart';
+import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 
 abstract final class _IntermissionConstants {
@@ -17,12 +18,81 @@ abstract final class _IntermissionConstants {
   static const int spTimeY = ScreenConstants.height - 32;
 }
 
+enum _AnimType { always, random, level }
+
+class _AnimDef {
+  const _AnimDef({
+    required this.type,
+    required this.period,
+    required this.numFrames,
+    required this.x,
+    required this.y,
+    this.data1 = 0,
+    // ignore: unused_element_parameter
+    this.data2 = 0,
+  });
+
+  final _AnimType type;
+  final int period;
+  final int numFrames;
+  final int x;
+  final int y;
+  final int data1;
+  final int data2;
+}
+
+class _AnimState {
+  _AnimState(this.def);
+
+  final _AnimDef def;
+  final List<Patch?> patches = [];
+  int nextTic = 0;
+  int ctr = -1;
+}
+
+const _epsd0Anims = [
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 224, y: 104),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 184, y: 160),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 112, y: 136),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 72, y: 112),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 88, y: 96),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 64, y: 48),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 192, y: 40),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 136, y: 16),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 80, y: 16),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 64, y: 24),
+];
+
+const _epsd1Anims = [
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 1),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 2),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 3),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 4),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 5),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 6),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 7),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 3, x: 192, y: 144, data1: 8),
+  _AnimDef(type: _AnimType.level, period: 11, numFrames: 1, x: 128, y: 136, data1: 8),
+];
+
+const _epsd2Anims = [
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 104, y: 168),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 40, y: 136),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 160, y: 96),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 104, y: 80),
+  _AnimDef(type: _AnimType.always, period: 11, numFrames: 3, x: 120, y: 32),
+  _AnimDef(type: _AnimType.always, period: 8, numFrames: 3, x: 40, y: 0),
+];
+
+const _animDefs = [_epsd0Anims, _epsd1Anims, _epsd2Anims];
+
 enum _IntermissionState { statCount, showNextLoc, noState }
 
 class Intermission {
-  Intermission(this._wadManager);
+  Intermission(this._wadManager, this._random);
 
   final WadManager _wadManager;
+  final DoomRandom _random;
 
   _IntermissionState _state = _IntermissionState.statCount;
   int _cnt = 0;
@@ -65,6 +135,7 @@ class Intermission {
 
   Patch? _splat;
   final List<Patch?> _yah = [null, null];
+  final List<_AnimState> _anims = [];
 
   bool _dataLoaded = false;
 
@@ -142,7 +213,31 @@ class Intermission {
       _lnames.add(_loadPatch(name));
     }
 
+    _loadAnimations();
+
     _dataLoaded = true;
+  }
+
+  void _loadAnimations() {
+    _anims.clear();
+    final epsdIndex = _episode - 1;
+    if (epsdIndex < 0 || epsdIndex >= _animDefs.length) return;
+
+    final defs = _animDefs[epsdIndex];
+    for (var j = 0; j < defs.length; j++) {
+      final def = defs[j];
+      final animState = _AnimState(def);
+
+      for (var i = 0; i < def.numFrames; i++) {
+        if (epsdIndex != 1 || j != 8) {
+          final name = 'WIA$epsdIndex${j.toString().padLeft(2, '0')}${i.toString().padLeft(2, '0')}';
+          animState.patches.add(_loadPatch(name));
+        } else {
+          animState.patches.add(_anims[4].patches[i]);
+        }
+      }
+      _anims.add(animState);
+    }
   }
 
   Patch? _loadPatch(String name) {
@@ -168,6 +263,73 @@ class Intermission {
     _state = _IntermissionState.showNextLoc;
     _accelerateStage = false;
     _cnt = _IntermissionConstants.showNextLocDelay * _IntermissionConstants.ticRate;
+    _initAnimatedBack();
+  }
+
+  void _initAnimatedBack() {
+    final epsdIndex = _episode - 1;
+    if (epsdIndex < 0 || epsdIndex > 2) return;
+
+    for (final anim in _anims) {
+      anim.ctr = -1;
+
+      if (anim.def.type == _AnimType.always) {
+        anim.nextTic = _bcnt + 1 + (_random.mRandom() % anim.def.period);
+      } else if (anim.def.type == _AnimType.random) {
+        anim.nextTic = _bcnt + 1 + anim.def.data2 + (_random.mRandom() % anim.def.data1);
+      } else if (anim.def.type == _AnimType.level) {
+        anim.nextTic = _bcnt + 1;
+      }
+    }
+  }
+
+  void _updateAnimatedBack() {
+    final epsdIndex = _episode - 1;
+    if (epsdIndex < 0 || epsdIndex > 2) return;
+
+    for (var i = 0; i < _anims.length; i++) {
+      final anim = _anims[i];
+      if (_bcnt != anim.nextTic) continue;
+
+      switch (anim.def.type) {
+        case _AnimType.always:
+          anim.ctr++;
+          if (anim.ctr >= anim.def.numFrames) anim.ctr = 0;
+          anim.nextTic = _bcnt + anim.def.period;
+
+        case _AnimType.random:
+          anim.ctr++;
+          if (anim.ctr == anim.def.numFrames) {
+            anim
+              ..ctr = -1
+              ..nextTic = _bcnt + anim.def.data2 + (_random.mRandom() % anim.def.data1);
+          } else {
+            anim.nextTic = _bcnt + anim.def.period;
+          }
+
+        case _AnimType.level:
+          if (!(_state == _IntermissionState.statCount && i == 7) &&
+              _nextMap == anim.def.data1) {
+            anim.ctr++;
+            if (anim.ctr == anim.def.numFrames) anim.ctr--;
+            anim.nextTic = _bcnt + anim.def.period;
+          }
+      }
+    }
+  }
+
+  void _drawAnimatedBack(Uint8List screen) {
+    final epsdIndex = _episode - 1;
+    if (epsdIndex < 0 || epsdIndex > 2) return;
+
+    for (final anim in _anims) {
+      if (anim.ctr >= 0 && anim.ctr < anim.patches.length) {
+        final patch = anim.patches[anim.ctr];
+        if (patch != null) {
+          VVideo.drawPatchDirect(screen, anim.def.x, anim.def.y, patch);
+        }
+      }
+    }
   }
 
   void _initNoState() {
@@ -194,6 +356,8 @@ class Intermission {
   }
 
   void _updateStats() {
+    _updateAnimatedBack();
+
     if (_accelerateStage && _spState != 10) {
       _accelerateStage = false;
       _cntKills = (_killCount * 100) ~/ _maxKills;
@@ -240,6 +404,8 @@ class Intermission {
   }
 
   void _updateShowNextLoc() {
+    _updateAnimatedBack();
+
     if (--_cnt == 0 || _accelerateStage) {
       _initNoState();
     } else {
@@ -248,6 +414,8 @@ class Intermission {
   }
 
   void _updateNoState() {
+    _updateAnimatedBack();
+
     if (--_cnt == 0) {
       onWorldDone?.call();
     }
@@ -274,6 +442,7 @@ class Intermission {
   }
 
   void _drawStats(Uint8List screen) {
+    _drawAnimatedBack(screen);
     _drawLevelFinished(screen);
 
     final lh = (_nums[0]?.height ?? 12) * 3 ~/ 2;
@@ -374,6 +543,8 @@ class Intermission {
   }
 
   void _drawShowNextLoc(Uint8List screen) {
+    _drawAnimatedBack(screen);
+
     if (_episode <= 3) {
       _drawSplats(screen);
       if (_snlPointerOn) {
@@ -402,12 +573,25 @@ class Intermission {
   }
 
   void _drawYouAreHere(Uint8List screen) {
-    final yah = _yah[(_bcnt ~/ 8) & 1];
-    if (yah == null) return;
-
     final loc = _getLevelLocation(_episode - 1, _nextMap - 1);
-    if (loc != null) {
-      VVideo.drawPatchDirect(screen, loc.$1, loc.$2, yah);
+    if (loc == null) return;
+
+    for (var i = 0; i < 2; i++) {
+      final patch = _yah[i];
+      if (patch == null) continue;
+
+      final left = loc.$1 - patch.leftOffset;
+      final top = loc.$2 - patch.topOffset;
+      final right = left + patch.width;
+      final bottom = top + patch.height;
+
+      if (left >= 0 &&
+          right < ScreenConstants.width &&
+          top >= 0 &&
+          bottom < ScreenConstants.height) {
+        VVideo.drawPatchDirect(screen, loc.$1, loc.$2, patch);
+        return;
+      }
     }
   }
 

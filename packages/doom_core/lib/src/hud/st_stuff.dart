@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:doom_core/src/doomdef.dart';
@@ -7,6 +6,7 @@ import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/hud/st_lib.dart';
 import 'package:doom_core/src/video/frame_buffer.dart';
 import 'package:doom_core/src/video/v_video.dart';
+import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 
 abstract final class _FaceConstants {
@@ -77,7 +77,6 @@ abstract final class _ScreenIndices {
 class StatusBar {
   late Player _player;
   late List<Uint8List> _screens;
-  final _random = math.Random();
 
   late List<Patch> _tallNum;
   late List<Patch> _shortNum;
@@ -324,8 +323,31 @@ class StatusBar {
           _faceCount = _FaceConstants.turnCount;
           _faceIndex = _calcPainOffset() + _FaceConstants.ouchOffset;
         } else {
+          final badGuyAngle = pointToAngle(
+            _player.attacker!.x - _player.mobj!.x,
+            _player.attacker!.y - _player.mobj!.y,
+          );
+
+          final bool turnRight;
+          final int diffAngle;
+          if (badGuyAngle > _player.mobj!.angle) {
+            diffAngle = (badGuyAngle - _player.mobj!.angle).u32;
+            turnRight = diffAngle > Angle.ang180;
+          } else {
+            diffAngle = (_player.mobj!.angle - badGuyAngle).u32;
+            turnRight = diffAngle <= Angle.ang180;
+          }
+
           _faceCount = _FaceConstants.turnCount;
-          _faceIndex = _calcPainOffset() + _FaceConstants.rampageOffset;
+          _faceIndex = _calcPainOffset();
+
+          if (diffAngle < Angle.ang45) {
+            _faceIndex += _FaceConstants.rampageOffset;
+          } else if (turnRight) {
+            _faceIndex += _FaceConstants.turnOffset;
+          } else {
+            _faceIndex += _FaceConstants.turnOffset + 1;
+          }
         }
       }
     }
@@ -372,7 +394,7 @@ class StatusBar {
     }
 
     if (_faceCount == 0) {
-      _faceIndex = _calcPainOffset() + (_random.nextInt(256) % 3);
+      _faceIndex = _calcPainOffset() + (mRandom() % 3);
       _faceCount = _FaceConstants.straightFaceCount;
       _priority = 0;
     }

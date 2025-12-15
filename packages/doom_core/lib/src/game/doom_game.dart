@@ -74,6 +74,7 @@ class DoomGame {
   final ScreenWipe _wipe = ScreenWipe();
   GameState _wipeGameState = GameState.demoScreen;
   bool _forceWipe = false;
+  final DoomRandom _menuRandom = DoomRandom();
 
   RenderState? get renderState => _renderState;
   Renderer? get renderer => _renderer;
@@ -96,7 +97,8 @@ class DoomGame {
       ..onNewGame = _deferedInitNew
       ..onQuitGame = _quitToTitle;
 
-    _intermission = Intermission(_wadManager)..onWorldDone = _worldDone;
+    _intermission = Intermission(_wadManager, _menuRandom)
+      ..onWorldDone = _worldDone;
 
     _statusBar.loadGraphics(_wadManager);
     _hudMessages.loadFont(_wadManager);

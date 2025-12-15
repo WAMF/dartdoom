@@ -20,7 +20,11 @@ const List<int> _rndTable = [
   120, 163, 236, 249,
 ];
 
+int mRandom() => DoomRandom._instance.mRandom();
+
 class DoomRandom {
+  static final DoomRandom _instance = DoomRandom();
+
   int _rndIndex = 0;
   int _prndIndex = 0;
 
