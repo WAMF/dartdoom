@@ -50,6 +50,7 @@ class Vertex {
 
 class Sector {
   Sector({
+    required this.index,
     required this.floorHeight,
     required this.ceilingHeight,
     required this.floorPic,
@@ -59,6 +60,7 @@ class Sector {
     required this.tag,
   });
 
+  final int index;
   int floorHeight;
   int ceilingHeight;
   int floorPic;

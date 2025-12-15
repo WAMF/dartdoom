@@ -194,7 +194,8 @@ class Renderer {
   Uint8List? _getFlat(int flatNum) {
     final texManager = state.textureManager;
     if (texManager == null) return null;
-    return texManager.getFlat(flatNum);
+    final translatedFlat = state.flatTranslation[flatNum];
+    return texManager.getFlat(translatedFlat);
   }
 
   Uint8List? _getSpriteData(int patchNum) {

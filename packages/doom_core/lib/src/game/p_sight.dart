@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_state.dart';
@@ -206,11 +208,29 @@ bool _crossBSPNode(
   return _crossBSPNode(bsp.children[side ^ 1], state, ctx);
 }
 
-bool checkSight(Mobj t1, Mobj t2, RenderState state) {
+bool checkSight(
+  Mobj t1,
+  Mobj t2,
+  RenderState state, {
+  Uint8List? rejectMatrix,
+  int numSectors = 0,
+}) {
   final sub1 = t1.subsector;
   final sub2 = t2.subsector;
   if (sub1 is! Subsector || sub2 is! Subsector) {
     return false;
+  }
+
+  if (rejectMatrix != null && numSectors > 0) {
+    final s1 = sub1.sector.index;
+    final s2 = sub2.sector.index;
+    final pnum = s1 * numSectors + s2;
+    final byteNum = pnum >> 3;
+    final bitNum = 1 << (pnum & 7);
+
+    if (byteNum < rejectMatrix.length && (rejectMatrix[byteNum] & bitNum) != 0) {
+      return false;
+    }
   }
 
   final ctx = _SightContext()

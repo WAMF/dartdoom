@@ -271,7 +271,13 @@ bool checkMissileRange(Mobj actor, DoomRandom random, LevelLocals level) {
 }
 
 bool _checkSight(Mobj actor, Mobj target, LevelLocals level) {
-  return sight.checkSight(actor, target, level.renderState);
+  return sight.checkSight(
+    actor,
+    target,
+    level.renderState,
+    rejectMatrix: level.rejectMatrix,
+    numSectors: level.numSectors,
+  );
 }
 
 bool _tryWalk(Mobj actor, LevelLocals level, DoomRandom random) {

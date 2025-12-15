@@ -205,3 +205,33 @@ Sector? getNextSector(Line line, Sector sector) {
   }
   return line.frontSector;
 }
+
+void spawnDoorCloseIn30(Sector sector, LevelLocals level) {
+  final door = DoorThinker(sector)
+    ..type = DoorType.normal
+    ..speed = DoorConstants.vdoorSpeed
+    ..direction = DoorDirection.waiting
+    ..topCountdown = 30 * 35;
+
+  level.thinkers.add(door);
+  sector
+    ..specialData = door
+    ..special = 0;
+  door.function = (_) => doorThink(door);
+}
+
+void spawnDoorRaiseIn5Mins(Sector sector, LevelLocals level) {
+  final door = DoorThinker(sector)
+    ..type = DoorType.raiseIn5Mins
+    ..speed = DoorConstants.vdoorSpeed
+    ..direction = DoorDirection.initialWait
+    ..topHeight = findLowestCeilingSurrounding(sector) - (4 << Fixed32.fracBits)
+    ..topWait = DoorConstants.vdoorWait
+    ..topCountdown = 5 * 60 * 35;
+
+  level.thinkers.add(door);
+  sector
+    ..specialData = door
+    ..special = 0;
+  door.function = (_) => doorThink(door);
+}

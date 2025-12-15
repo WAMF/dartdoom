@@ -243,6 +243,10 @@ class DoomGame {
         ..initBlockLinks();
     }
 
+    level
+      ..rejectMatrix = mapData.reject
+      ..numSectors = renderState.sectors.length;
+
     ThingSpawner(renderState, level).spawnMapThings(mapData);
 
     _spawnPlayer(mapData);

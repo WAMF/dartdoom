@@ -157,6 +157,7 @@ Subsector pointInSubsector(int x, int y, RenderState state) {
         ? state.subsectors[0]
         : Subsector(
             sector: Sector(
+              index: 0,
               floorHeight: 0,
               ceilingHeight: 0,
               floorPic: 0,

@@ -397,3 +397,59 @@ int _getTextureHeight(int textureNum, LevelLocals level) {
 abstract final class _LineFlags {
   static const int twoSided = 0x04;
 }
+
+abstract final class _DonutSpeed {
+  static const int value = FloorConstants.floorSpeed ~/ 2;
+}
+
+bool evDoDonut(Line line, LevelLocals level) {
+  final sectors = _findSectorsFromTag(line.tag, level);
+  if (sectors.isEmpty) return false;
+
+  var result = false;
+
+  for (final s1 in sectors) {
+    if (s1.specialData != null) continue;
+
+    result = true;
+
+    if (s1.lines.isEmpty) continue;
+    final s2 = _getNextSector(s1.lines[0], s1);
+    if (s2 == null) continue;
+
+    Sector? s3;
+    for (final s2Line in s2.lines) {
+      if (!_isTwoSided(s2Line)) continue;
+      if (s2Line.backSector == s1) continue;
+      s3 = s2Line.backSector;
+      break;
+    }
+    if (s3 == null) continue;
+
+    final risingFloor = FloorThinker(s2)
+      ..type = FloorType.donutRaise
+      ..crush = false
+      ..direction = FloorDirection.up
+      ..speed = _DonutSpeed.value
+      ..texture = s3.floorPic
+      ..newSpecial = 0
+      ..floorDestHeight = s3.floorHeight;
+
+    level.thinkers.add(risingFloor);
+    s2.specialData = risingFloor;
+    risingFloor.function = (_) => floorThink(risingFloor, level);
+
+    final loweringFloor = FloorThinker(s1)
+      ..type = FloorType.lowerFloor
+      ..crush = false
+      ..direction = FloorDirection.down
+      ..speed = _DonutSpeed.value
+      ..floorDestHeight = s3.floorHeight;
+
+    level.thinkers.add(loweringFloor);
+    s1.specialData = loweringFloor;
+    loweringFloor.function = (_) => floorThink(loweringFloor, level);
+  }
+
+  return result;
+}

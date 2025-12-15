@@ -1,9 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/game/blockmap.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_switch.dart';
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/game/thinker.dart';
+import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_state.dart';
 import 'package:doom_math/doom_math.dart';
 
@@ -21,6 +24,8 @@ class LevelLocals {
   Blockmap? blockmap;
   SwitchManager? switchManager;
   List<Mobj?>? blockLinks;
+  Uint8List? rejectMatrix;
+  int numSectors = 0;
 
   Skill skill = Skill.hurtMePlenty;
 
@@ -43,6 +48,8 @@ class LevelLocals {
 
   bool floatOk = false;
   int tmFloorZ = 0;
+
+  List<Line> scrollingLines = [];
 
   void init() {
     thinkers.init();

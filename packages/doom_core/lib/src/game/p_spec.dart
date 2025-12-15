@@ -85,6 +85,7 @@ abstract final class _LineSpecial {
   static const int walkRaiseFloor = 5;
   static const int walkFastCrushAndRaise = 6;
   static const int walkBuildStairs = 8;
+  static const int walkDonut = 9;
   static const int walkLightToBrightest = 12;
   static const int walkLightToMax = 13;
   static const int walkStartStrobe = 17;
@@ -162,12 +163,10 @@ abstract final class _SectorSpecial {
   static const int damage5 = 7;
   static const int lightOscillate = 8;
   static const int secret = 9;
-  // ignore: unused_field
   static const int doorClose30 = 10;
   static const int endLevelDamage = 11;
   static const int lightBlink05Sync = 12;
   static const int lightBlink10Sync = 13;
-  // ignore: unused_field
   static const int doorOpen300 = 14;
   static const int damage20 = 16;
   static const int lightFlicker = 17;
@@ -530,6 +529,10 @@ void crossSpecialLine(Line line, int side, Mobj thing, LevelLocals level) {
 
     case _LineSpecial.walkBuildStairs:
       evBuildStairs(line, StairType.build8, level);
+      line.special = 0;
+
+    case _LineSpecial.walkDonut:
+      evDoDonut(line, level);
       line.special = 0;
 
     case _LineSpecial.walkLightToBrightest:
@@ -1112,6 +1115,37 @@ void spawnSpecials(LevelLocals level) {
 
       case _SectorSpecial.lightFlicker:
         spawnFireFlicker(sector, level, random);
+
+      case _SectorSpecial.doorClose30:
+        spawnDoorCloseIn30(sector, level);
+
+      case _SectorSpecial.doorOpen300:
+        spawnDoorRaiseIn5Mins(sector, level);
+    }
+  }
+
+  _initScrollingLines(level);
+}
+
+abstract final class _ScrollingLineSpecial {
+  static const int scrollLeft = 48;
+}
+
+void _initScrollingLines(LevelLocals level) {
+  level.scrollingLines.clear();
+  for (final line in level.renderState.lines) {
+    if (line.special == _ScrollingLineSpecial.scrollLeft) {
+      level.scrollingLines.add(line);
+    }
+  }
+}
+
+void updateScrollingLines(LevelLocals level) {
+  final sides = level.renderState.sides;
+  for (final line in level.scrollingLines) {
+    final sideNum = line.sideNum[0];
+    if (sideNum >= 0 && sideNum < sides.length) {
+      sides[sideNum].textureOffset += Fixed32.fracUnit;
     }
   }
 }

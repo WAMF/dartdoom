@@ -85,6 +85,7 @@ class LevelLoader {
       (i) {
         final ms = mapSectors[i];
         return Sector(
+          index: i,
           floorHeight: ms.floorHeight.toFixed().s32,
           ceilingHeight: ms.ceilingHeight.toFixed().s32,
           floorPic: _getFlatNum(ms.floorPic),
