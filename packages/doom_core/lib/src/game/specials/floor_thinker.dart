@@ -1,4 +1,5 @@
 import 'package:doom_core/src/game/level_locals.dart';
+import 'package:doom_core/src/game/p_map.dart' as map;
 import 'package:doom_core/src/game/specials/move_plane.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -56,6 +57,9 @@ void floorThink(FloorThinker floor, LevelLocals level) {
     0,
     floor.direction,
   );
+
+  // Update things in sector after floor moves
+  map.changeSector(floor.sector, floor.crush, level);
 
   if (res == MoveResult.pastDest) {
     floor.sector.specialData = null;

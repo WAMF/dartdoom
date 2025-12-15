@@ -1,4 +1,5 @@
 import 'package:doom_core/src/game/level_locals.dart';
+import 'package:doom_core/src/game/p_map.dart' as map;
 import 'package:doom_core/src/game/specials/move_plane.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -91,7 +92,11 @@ class ActiveCeilings {
   }
 }
 
-void ceilingThink(CeilingThinker ceiling, ActiveCeilings activeCeilings) {
+void ceilingThink(
+  CeilingThinker ceiling,
+  ActiveCeilings activeCeilings,
+  LevelLocals level,
+) {
   switch (ceiling.direction) {
     case CeilingDirection.stasis:
       break;
@@ -105,6 +110,9 @@ void ceilingThink(CeilingThinker ceiling, ActiveCeilings activeCeilings) {
         1,
         ceiling.direction,
       );
+
+      // Update things in sector after ceiling moves
+      map.changeSector(ceiling.sector, ceiling.crush, level);
 
       if (res == MoveResult.pastDest) {
         switch (ceiling.type) {
@@ -131,6 +139,9 @@ void ceilingThink(CeilingThinker ceiling, ActiveCeilings activeCeilings) {
         1,
         ceiling.direction,
       );
+
+      // Update things in sector after ceiling moves
+      map.changeSector(ceiling.sector, ceiling.crush, level);
 
       if (res == MoveResult.pastDest) {
         switch (ceiling.type) {
@@ -197,7 +208,7 @@ bool evDoCeiling(
     level.thinkers.add(ceiling);
     sector.specialData = ceiling;
     ceiling.function =
-        (_) => ceilingThink(ceiling, activeCeilings);
+        (_) => ceilingThink(ceiling, activeCeilings, level);
 
     switch (type) {
       case CeilingType.fastCrushAndRaise:

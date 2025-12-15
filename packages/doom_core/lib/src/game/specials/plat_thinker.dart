@@ -1,4 +1,5 @@
 import 'package:doom_core/src/game/level_locals.dart';
+import 'package:doom_core/src/game/p_map.dart' as map;
 import 'package:doom_core/src/game/specials/move_plane.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -65,14 +66,14 @@ class ActivePlatforms {
     }
   }
 
-  void activateInStasis(int tag) {
+  void activateInStasis(int tag, LevelLocals level) {
     for (var i = 0; i < PlatConstants.maxPlatforms; i++) {
       final plat = _platforms[i];
       if (plat != null &&
           plat.tag == tag &&
           plat.status == PlatStatus.inStasis) {
         plat.status = plat.oldStatus;
-        plat.function = (_) => platThink(plat);
+        plat.function = (_) => platThink(plat, level);
       }
     }
   }
@@ -95,7 +96,7 @@ class ActivePlatforms {
   }
 }
 
-void platThink(PlatThinker plat) {
+void platThink(PlatThinker plat, LevelLocals level) {
   switch (plat.status) {
     case PlatStatus.up:
       final res = movePlane(
@@ -106,6 +107,9 @@ void platThink(PlatThinker plat) {
         0,
         1,
       );
+
+      // Update things in sector after platform moves
+      map.changeSector(plat.sector, false, level);
 
       if (res == MoveResult.crushed && !plat.crush) {
         plat.count = plat.wait;
@@ -135,6 +139,9 @@ void platThink(PlatThinker plat) {
         0,
         -1,
       );
+
+      // Update things in sector after platform moves
+      map.changeSector(plat.sector, false, level);
 
       if (res == MoveResult.pastDest) {
         plat.count = plat.wait;
@@ -177,7 +184,7 @@ PlatThinker? evDoPlat(
 
     level.thinkers.add(plat);
     sector.specialData = plat;
-    plat.function = (_) => platThink(plat);
+    plat.function = (_) => platThink(plat, level);
 
     switch (type) {
       case PlatType.raiseToNearestAndChange:

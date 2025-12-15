@@ -153,8 +153,16 @@ abstract final class _ExplodeDamage {
 }
 
 abstract final class _RadiusAttack {
-  static const int maxRadius = 32 * Fixed32.fracUnit;
+  // Note: In original C, MAXRADIUS is 32*FRACUNIT, but due to 32-bit overflow
+  // in the calculation (damage+MAXRADIUS)<<FRACBITS, the MAXRADIUS contribution
+  // is effectively lost. Using plain 32 here to match actual C behavior.
+  static const int maxRadius = 32;
 }
+
+// Locked door messages
+const _pdBlueK = 'You need a blue key to open this door';
+const _pdRedK = 'You need a red key to open this door';
+const _pdYellowK = 'You need a yellow key to open this door';
 
 abstract final class _SectorSpecial {
   static const int lightRandom = 1;
@@ -362,9 +370,72 @@ void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
   }
 }
 
+/// Check if player has the required key for a locked door line special.
+/// Returns true if the door is not locked or the player has the key.
+bool _playerHasKeyForDoor(Player? player, int lineSpecial) {
+  if (player == null) return false;
+
+  switch (lineSpecial) {
+    case _LineSpecial.blueDoorManual:
+    case _LineSpecial.blueDoorOpen:
+      return player.cards[CardType.blueCard.index] ||
+          player.cards[CardType.blueSkull.index];
+    case _LineSpecial.redDoorManual:
+    case _LineSpecial.redDoorOpen:
+      return player.cards[CardType.redCard.index] ||
+          player.cards[CardType.redSkull.index];
+    case _LineSpecial.yellowDoorManual:
+    case _LineSpecial.yellowDoorOpen:
+      return player.cards[CardType.yellowCard.index] ||
+          player.cards[CardType.yellowSkull.index];
+    default:
+      return true; // Not a locked door
+  }
+}
+
+/// Get the message to display when a locked door cannot be opened.
+String? _getLockedDoorMessage(int lineSpecial) {
+  switch (lineSpecial) {
+    case _LineSpecial.blueDoorManual:
+    case _LineSpecial.blueDoorOpen:
+      return _pdBlueK;
+    case _LineSpecial.redDoorManual:
+    case _LineSpecial.redDoorOpen:
+      return _pdRedK;
+    case _LineSpecial.yellowDoorManual:
+    case _LineSpecial.yellowDoorOpen:
+      return _pdYellowK;
+    default:
+      return null;
+  }
+}
+
+/// Check if a line special is a locked door.
+bool _isLockedDoor(int lineSpecial) {
+  return lineSpecial == _LineSpecial.blueDoorManual ||
+      lineSpecial == _LineSpecial.yellowDoorManual ||
+      lineSpecial == _LineSpecial.redDoorManual ||
+      lineSpecial == _LineSpecial.blueDoorOpen ||
+      lineSpecial == _LineSpecial.redDoorOpen ||
+      lineSpecial == _LineSpecial.yellowDoorOpen;
+}
+
 void evVerticalDoor(Line line, Mobj thing, LevelLocals level) {
   final sector = line.backSector;
   if (sector == null) return;
+
+  // Check for locked doors - only players can open them
+  if (_isLockedDoor(line.special)) {
+    final player = thing.player as Player?;
+    if (!_playerHasKeyForDoor(player, line.special)) {
+      // Player doesn't have the key
+      if (player != null) {
+        player.message = _getLockedDoorMessage(line.special);
+      }
+      // TODO: S_StartSound(NULL, sfx_oof) - play denied sound
+      return;
+    }
+  }
 
   if (sector.specialData != null) {
     final door = sector.specialData;

@@ -1178,3 +1178,123 @@ int traceInterceptFrac(int traceX, int traceY, int traceDx, int traceDy, Line li
 void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
   spec.useSpecialLine(thing, line, side, level);
 }
+
+/// Adjusts thing's floorz and ceilingz based on current position.
+/// Returns true if the thing still fits in the sector.
+///
+/// Original C: P_ThingHeightClip (p_map.c)
+bool thingHeightClip(Mobj thing, LevelLocals level) {
+  final onFloor = thing.z == thing.floorZ;
+
+  // Re-check position to get new floor/ceiling heights
+  checkPosition(thing, thing.x, thing.y, level);
+
+  thing.floorZ = _ctx.tmFloorZ;
+  thing.ceilingZ = _ctx.tmCeilingZ;
+
+  if (onFloor) {
+    // Walking things rise with the floor
+    thing.z = thing.floorZ;
+  } else {
+    // Floating things may need to adjust if ceiling lowered
+    if (thing.z + thing.height > thing.ceilingZ) {
+      thing.z = thing.ceilingZ - thing.height;
+    }
+  }
+
+  // Check if thing still fits
+  return thing.ceilingZ - thing.floorZ >= thing.height;
+}
+
+/// Called when a sector's height changes. Updates all things in the sector.
+/// Returns true if something doesn't fit (for crushing logic).
+///
+/// Original C: P_ChangeSector (p_map.c)
+bool changeSector(Sector sector, bool crunch, LevelLocals level) {
+  final blockmap = level.blockmap;
+  final blockLinks = level.blockLinks;
+  if (blockmap == null || blockLinks == null) return false;
+
+  var noFit = false;
+
+  // Iterate through blockmap blocks that overlap this sector
+  // Using sector's blockbox (already computed during map load)
+  final bxMin = sector.blockBox2;
+  final bxMax = sector.blockBox3;
+  final byMin = sector.blockBox1;
+  final byMax = sector.blockBox0;
+
+  for (var by = byMin; by <= byMax; by++) {
+    for (var bx = bxMin; bx <= bxMax; bx++) {
+      if (!blockmap.isValidBlock(bx, by)) continue;
+
+      final index = by * blockmap.columns + bx;
+      var thing = blockLinks[index];
+
+      while (thing != null) {
+        final next = thing.bNext;
+
+        // Only process things in this sector
+        final ss = thing.subsector;
+        if (ss is Subsector && ss.sector == sector) {
+          if (!_pitChangeSector(thing, crunch, level)) {
+            noFit = true;
+          }
+        }
+
+        thing = next;
+      }
+    }
+  }
+
+  return noFit;
+}
+
+/// Helper for changeSector - processes a single thing.
+/// Returns true if thing fits, false if it doesn't.
+///
+/// Original C: PIT_ChangeSector (p_map.c)
+bool _pitChangeSector(Mobj thing, bool crunch, LevelLocals level) {
+  if (thingHeightClip(thing, level)) {
+    return true; // Fits fine
+  }
+
+  // Crunch dead bodies to giblets
+  if (thing.health <= 0) {
+    // Set to giblets state if available
+    // thing.flags &= ~MobjFlag.solid;
+    thing.height = 0;
+    thing.radius = 0;
+    return true;
+  }
+
+  // Can't crunch dropped items - remove them
+  if ((thing.flags & MobjFlag.dropped) != 0) {
+    inter.removeMobj(thing, level);
+    return true;
+  }
+
+  // Non-shootable things don't block
+  if ((thing.flags & MobjFlag.shootable) == 0) {
+    return true;
+  }
+
+  // Thing doesn't fit and is shootable - apply crushing damage
+  if (crunch && (level.levelTime & 3) == 0) {
+    inter.damageMobj(thing, null, null, 10, level);
+
+    // Spawn blood spray
+    final bloodX = thing.x;
+    final bloodY = thing.y;
+    final bloodZ = thing.z + (thing.height >> 1);
+
+    // Create blood effect at thing's position
+    // Using simplified approach - ideally would spawn MT_BLOOD mobj
+    level.bloodSprayX = bloodX;
+    level.bloodSprayY = bloodY;
+    level.bloodSprayZ = bloodZ;
+    level.bloodSprayTic = level.levelTime;
+  }
+
+  return false; // Thing doesn't fit
+}
