@@ -103,22 +103,28 @@ class _DoomScreenState extends State<DoomScreen> {
           ),
           if (_wadFileName != null) ...[
             const SizedBox(width: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green[900],
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                _wadFileName!,
-                style: const TextStyle(color: Colors.white),
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green[900],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _wadFileName!,
+                  style: const TextStyle(color: Colors.white),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],
           const Spacer(),
-          const Text(
-            'Press F1 to toggle debug overlay',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
+          Flexible(
+            child: Text(
+              'Press F1 to toggle debug overlay',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
