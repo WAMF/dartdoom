@@ -13,6 +13,7 @@ import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/hud/hu_stuff.dart';
 import 'package:doom_core/src/hud/st_stuff.dart';
+import 'package:doom_core/src/intermission/wi_stuff.dart';
 import 'package:doom_core/src/menu/m_menu.dart';
 import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -42,6 +43,7 @@ class DoomGame {
   LevelLocals? _level;
   late GameTicker _ticker;
   late MenuSystem _menuSystem;
+  late Intermission _intermission;
   final InputHandler input = InputHandler();
 
   final StatusBar _statusBar = StatusBar();
@@ -58,6 +60,10 @@ class DoomGame {
   Skill _skill = Skill.hurtMePlenty;
   int _deferredEpisode = 1;
   int _deferredMap = 1;
+  int _episode = 1;
+  int _map = 1;
+  bool _secretExit = false;
+  int _nextMap = 1;
 
   int _demoSequence = -1;
   int _pageTic = 0;
@@ -89,6 +95,8 @@ class DoomGame {
       ..init()
       ..onNewGame = _deferedInitNew
       ..onQuitGame = _quitToTitle;
+
+    _intermission = Intermission(_wadManager)..onWorldDone = _worldDone;
 
     _statusBar.loadGraphics(_wadManager);
     _hudMessages.loadFont(_wadManager);
@@ -194,29 +202,87 @@ class DoomGame {
     switch (_gameAction) {
       case GameAction.newGame:
         _doNewGame();
+        _gameAction = GameAction.nothing;
+      case GameAction.completed:
+        _doCompleted();
+      case GameAction.worldDone:
+        _doWorldDone();
+        _gameAction = GameAction.nothing;
       case GameAction.nothing:
       case GameAction.loadLevel:
       case GameAction.loadGame:
       case GameAction.saveGame:
       case GameAction.playDemo:
-      case GameAction.completed:
       case GameAction.victory:
-      case GameAction.worldDone:
       case GameAction.screenshot:
         break;
     }
-    _gameAction = GameAction.nothing;
   }
 
   void _doNewGame() {
     _forceWipe = true;
-    final mapName = _buildMapName(_deferredEpisode, _deferredMap);
+    _episode = _deferredEpisode;
+    _map = _deferredMap;
+    final mapName = _buildMapName(_episode, _map);
     loadLevel(mapName);
     _gameState = GameState.level;
   }
 
   String _buildMapName(int episode, int map) {
     return 'E${episode}M$map';
+  }
+
+  void _doCompleted() {
+    final level = _level;
+    if (level == null) return;
+
+    _secretExit = level.secretExit;
+
+    if (_map == 8) {
+      _gameAction = GameAction.victory;
+      return;
+    }
+
+    if (_secretExit) {
+      _nextMap = 9;
+    } else if (_map == 9) {
+      _nextMap = switch (_episode) {
+        1 => 4,
+        2 => 6,
+        3 => 7,
+        4 => 3,
+        _ => _map + 1,
+      };
+    } else {
+      _nextMap = _map + 1;
+    }
+
+    _intermission.start(
+      episode: _episode,
+      lastMap: _map,
+      nextMap: _nextMap,
+      kills: level.players[_consoleplayer].killCount,
+      maxKills: level.totalKills,
+      items: level.players[_consoleplayer].itemCount,
+      maxItems: level.totalItems,
+      secrets: level.players[_consoleplayer].secretCount,
+      maxSecrets: level.totalSecrets,
+      levelTime: level.levelTime,
+    );
+    _gameState = GameState.intermission;
+    _gameAction = GameAction.nothing;
+  }
+
+  void _worldDone() {
+    _gameAction = GameAction.worldDone;
+  }
+
+  void _doWorldDone() {
+    _forceWipe = true;
+    _map = _nextMap;
+    final mapName = _buildMapName(_episode, _map);
+    loadLevel(mapName);
+    _gameState = GameState.level;
   }
 
   void loadLevel(String mapName) {
@@ -423,6 +489,10 @@ class DoomGame {
             input.buildTicCmd(cmd);
             _ticker.tick(l);
 
+            if (l.exitLevel || l.secretExit) {
+              _gameAction = GameAction.completed;
+            }
+
             _statusBar.ticker();
             _hudMessages.ticker();
           }
@@ -432,6 +502,7 @@ class DoomGame {
           _pageTicker();
         }
       case GameState.intermission:
+        _intermission.ticker();
       case GameState.finale:
         break;
     }
@@ -439,6 +510,11 @@ class DoomGame {
 
   void handleEvent(DoomEvent event) {
     if (_menuSystem.responder(event)) {
+      return;
+    }
+
+    if (_gameState == GameState.intermission && event.type == DoomEventType.keyDown) {
+      _intermission.accelerate();
       return;
     }
 
@@ -458,6 +534,8 @@ class DoomGame {
 
     if (_gameState == GameState.level) {
       _renderLevel();
+    } else if (_gameState == GameState.intermission) {
+      _intermission.drawer(_screenBuffers.primary);
     } else {
       _drawPage();
     }
@@ -496,6 +574,8 @@ class DoomGame {
 
     if (_gameState == GameState.level) {
       _renderLevel();
+    } else if (_gameState == GameState.intermission) {
+      _intermission.drawer(indexedBuffer);
     } else {
       _drawPage();
     }

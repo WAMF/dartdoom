@@ -79,6 +79,8 @@ abstract final class _LineSpecial {
   static const int walkTeleportMonster = 125;
   static const int walkTeleportMonsterRetrigger = 126;
 
+  static const int switchExit = 11;
+  static const int switchSecretExit = 51;
   static const int walkExit = 52;
   static const int walkSecretExit = 124;
 
@@ -349,6 +351,14 @@ void useSpecialLine(Mobj thing, Line line, int side, LevelLocals level) {
     case _LineSpecial.switchPlatStop:
       evStopPlat(line, level, _activePlatforms);
       changeSwitchTexture(line, false, level);
+
+    case _LineSpecial.switchExit:
+      changeSwitchTexture(line, false, level);
+      level.exitLevel = true;
+
+    case _LineSpecial.switchSecretExit:
+      changeSwitchTexture(line, false, level);
+      level.secretExit = true;
   }
 }
 
