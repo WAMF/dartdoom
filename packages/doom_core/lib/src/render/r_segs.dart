@@ -10,6 +10,7 @@ import 'package:doom_wad/doom_wad.dart';
 abstract final class _SegConstants {
   static const int heightBits = 12;
   static const int heightUnit = 1 << heightBits;
+  static const int noTextureColumn = 0x7FFF;
 }
 
 abstract final class _SilhouetteConstants {
@@ -418,7 +419,11 @@ class SegRenderer {
     );
 
     if (_maskedTexture) {
-      ds.maskedTextureCol = Int16List(_rwStopX - _rwX + 1);
+      final width = _rwStopX - _rwX + 1;
+      ds.maskedTextureCol = Int16List(width);
+      for (var i = 0; i < width; i++) {
+        ds.maskedTextureCol![i] = _SegConstants.noTextureColumn;
+      }
     }
 
     drawSegs.add(ds);
