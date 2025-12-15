@@ -40,6 +40,7 @@ void main() {
 
       setUp(() {
         sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 128.toFixed(),
           floorPic: 0,
@@ -173,6 +174,7 @@ void main() {
 
       setUp(() {
         sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 128.toFixed(),
           floorPic: 0,

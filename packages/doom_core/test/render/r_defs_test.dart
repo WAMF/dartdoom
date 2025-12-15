@@ -107,6 +107,7 @@ void main() {
   group('Sector', () {
     test('stores all properties', () {
       final sector = Sector(
+        index: 0,
         floorHeight: 0,
         ceilingHeight: 128,
         floorPic: 1,
@@ -116,6 +117,7 @@ void main() {
         tag: 5,
       );
 
+      expect(sector.index, 0);
       expect(sector.floorHeight, 0);
       expect(sector.ceilingHeight, 128);
       expect(sector.floorPic, 1);
@@ -127,6 +129,7 @@ void main() {
 
     test('has default runtime values', () {
       final sector = Sector(
+        index: 0,
         floorHeight: 0,
         ceilingHeight: 128,
         floorPic: 0,
@@ -145,6 +148,7 @@ void main() {
   group('Side', () {
     test('stores all properties', () {
       final sector = Sector(
+        index: 0,
         floorHeight: 0,
         ceilingHeight: 128,
         floorPic: 0,

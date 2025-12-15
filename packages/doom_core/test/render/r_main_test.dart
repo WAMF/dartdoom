@@ -212,6 +212,7 @@ void main() {
         renderer.init();
 
         final sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 128,
           floorPic: 0,

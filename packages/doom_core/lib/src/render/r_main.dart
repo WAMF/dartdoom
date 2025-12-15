@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_bsp.dart';
+import 'package:doom_core/src/render/r_data.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_core/src/render/r_draw.dart';
 import 'package:doom_core/src/render/r_plane.dart';
@@ -434,6 +435,32 @@ class Renderer {
 
   int xToAngle(int x) {
     return state.xToViewAngle[x];
+  }
+
+  void setViewSize(int detail) {
+    state.detailShift = detail;
+    state.viewWidth = state.scaledViewWidth >> detail;
+
+    if (detail == 0) {
+      drawContext
+        ..columnFunc = DrawerType.column
+        ..baseColumnFunc = DrawerType.column
+        ..spanFunc = DrawerType.span;
+    } else {
+      drawContext
+        ..columnFunc = DrawerType.columnLow
+        ..baseColumnFunc = DrawerType.columnLow
+        ..spanFunc = DrawerType.spanLow;
+    }
+
+    _initBuffer();
+    _initTables();
+    drawContext.setLookups(state.yLookup, state.columnOfs);
+
+    _segRenderer.initClipArrays(state.viewWidth);
+    _spriteRenderer.initClipArrays(state.viewWidth);
+
+    LightTableHelper.initScaleLight(state);
   }
 
   Uint8List? get frameBuffer => _frameBuffer;

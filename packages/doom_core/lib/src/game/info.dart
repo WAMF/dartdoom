@@ -328,6 +328,15 @@ abstract final class StateNum {
   static const int bexp3 = 245;
   static const int bexp4 = 246;
   static const int bexp5 = 247;
+
+  static const int blood1 = 248;
+  static const int blood2 = 249;
+  static const int blood3 = 250;
+
+  static const int puff1 = 251;
+  static const int puff2 = 252;
+  static const int puff3 = 253;
+  static const int puff4 = 254;
 }
 
 enum StateAction {
@@ -646,4 +655,13 @@ const List<MobjState> states = [
   MobjState(SpriteNum.bexp, 2 | FrameFlag.fullBright, 5, StateAction.none, StateNum.bexp4),
   MobjState(SpriteNum.bexp, 3 | FrameFlag.fullBright, 10, StateAction.explode, StateNum.bexp5),
   MobjState(SpriteNum.bexp, 4 | FrameFlag.fullBright, 10, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.blud, 2, 8, StateAction.none, StateNum.blood2),
+  MobjState(SpriteNum.blud, 1, 8, StateAction.none, StateNum.blood3),
+  MobjState(SpriteNum.blud, 0, 8, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.puff, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.puff2),
+  MobjState(SpriteNum.puff, 1, 4, StateAction.none, StateNum.puff3),
+  MobjState(SpriteNum.puff, 2, 4, StateAction.none, StateNum.puff4),
+  MobjState(SpriteNum.puff, 3, 4, StateAction.none, StateNum.sNull),
 ];

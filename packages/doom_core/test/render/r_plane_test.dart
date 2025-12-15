@@ -164,6 +164,7 @@ void main() {
 
       test('creates floor plane when floor below viewZ', () {
         final sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 128.toFixed(),
           floorPic: 5,
@@ -181,6 +182,7 @@ void main() {
 
       test('creates ceiling plane when ceiling above viewZ', () {
         final sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 128.toFixed(),
           floorPic: 5,
@@ -198,6 +200,7 @@ void main() {
 
       test('sets floor plane to null when floor at or above viewZ', () {
         final sector = Sector(
+          index: 0,
           floorHeight: 50.toFixed(),
           ceilingHeight: 128.toFixed(),
           floorPic: 5,
@@ -214,6 +217,7 @@ void main() {
 
       test('sets ceiling plane to null when ceiling at or below viewZ', () {
         final sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 40.toFixed(),
           floorPic: 5,
@@ -231,6 +235,7 @@ void main() {
       test('creates ceiling plane for sky even when below viewZ', () {
         state.skyFlatNum = 10;
         final sector = Sector(
+          index: 0,
           floorHeight: 0,
           ceilingHeight: 40.toFixed(),
           floorPic: 5,

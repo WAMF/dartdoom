@@ -3,10 +3,13 @@ import 'package:doom_core/src/events/tic_cmd.dart';
 import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
-import 'package:doom_core/src/game/p_mobj.dart' show MobjType, spawnPlayerMissile;
+import 'package:doom_core/src/game/p_map.dart' as map;
+import 'package:doom_core/src/game/p_mobj.dart' as mobj;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
+import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
+import 'package:doom_wad/doom_wad.dart';
 
 abstract final class _WeaponConstants {
   static const int lowerSpeed = 6 * Fixed32.fracUnit;
@@ -470,145 +473,297 @@ void _superShotgunShot(Player player, LevelLocals level) {
 }
 
 void _fireMissile(Player player, LevelLocals level) {
-  final mobj = player.mobj;
-  if (mobj == null) return;
+  final mo = player.mobj;
+  if (mo == null) return;
 
-  spawnPlayerMissile(mobj, MobjType.rocket, level.renderState, level);
+  mobj.spawnPlayerMissile(mo, mobj.MobjType.rocket, level.renderState, level);
 }
 
 void _firePlasma(Player player, LevelLocals level) {
-  final mobj = player.mobj;
-  if (mobj == null) return;
+  final mo = player.mobj;
+  if (mo == null) return;
 
-  spawnPlayerMissile(mobj, MobjType.plasma, level.renderState, level);
+  mobj.spawnPlayerMissile(mo, mobj.MobjType.plasma, level.renderState, level);
 }
 
 void _fireBfg(Player player, LevelLocals level) {
-  final mobj = player.mobj;
-  if (mobj == null) return;
+  final mo = player.mobj;
+  if (mo == null) return;
 
-  spawnPlayerMissile(mobj, MobjType.bfg, level.renderState, level);
+  mobj.spawnPlayerMissile(mo, mobj.MobjType.bfg, level.renderState, level);
 }
 
 Mobj? lineTarget;
-int _aimSlope = 0;
+
+abstract final class _AimConstants {
+  static const int topSlope = 100 * Fixed32.fracUnit ~/ 160;
+  static const int bottomSlope = -100 * Fixed32.fracUnit ~/ 160;
+}
+
+class _AimState {
+  Mobj? shootThing;
+  int shootZ = 0;
+  int attackRange = 0;
+  int topSlope = 0;
+  int bottomSlope = 0;
+  int aimSlope = 0;
+}
+
+final _aimState = _AimState();
+
+class _ShootState {
+  Mobj? shootThing;
+  int shootZ = 0;
+  int attackRange = 0;
+  int aimSlope = 0;
+  int damage = 0;
+}
+
+final _shootState = _ShootState();
 
 int aimLineAttack(Mobj source, int angle, int distance, LevelLocals level) {
   lineTarget = null;
-  _aimSlope = 0;
 
   final fineAngle = (angle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
-  final dx = fineCosine(fineAngle);
-  final dy = fineSine(fineAngle);
+  final x2 = source.x + (distance >> Fixed32.fracBits) * fineCosine(fineAngle);
+  final y2 = source.y + (distance >> Fixed32.fracBits) * fineSine(fineAngle);
 
-  Mobj? bestTarget;
-  var bestDist = distance;
+  _aimState
+    ..shootThing = source
+    ..shootZ = source.z + (source.height >> 1) + 8 * Fixed32.fracUnit
+    ..attackRange = distance
+    ..topSlope = _AimConstants.topSlope
+    ..bottomSlope = _AimConstants.bottomSlope
+    ..aimSlope = 0;
 
-  for (final sector in level.renderState.sectors) {
-    var mobj = sector.thingList;
-    while (mobj != null) {
-      if ((mobj.flags & MobjFlag.shootable) == 0) {
-        mobj = mobj.sNext;
-        continue;
-      }
+  map.pathTraverse(
+    source.x,
+    source.y,
+    x2,
+    y2,
+    map.PathTraverseFlags.addLines | map.PathTraverseFlags.addThings,
+    level,
+    _aimTraverse,
+  );
 
-      if (mobj == source) {
-        mobj = mobj.sNext;
-        continue;
-      }
-
-      final tx = mobj.x - source.x;
-      final ty = mobj.y - source.y;
-
-      final dist = approxDistance(tx, ty);
-      if (dist >= bestDist) {
-        mobj = mobj.sNext;
-        continue;
-      }
-
-      final cross = Fixed32.mul(tx, dy) - Fixed32.mul(ty, dx);
-      final crossAbs = cross < 0 ? -cross : cross;
-      if (crossAbs > mobj.radius + (dist >> 4)) {
-        mobj = mobj.sNext;
-        continue;
-      }
-
-      final dot = Fixed32.mul(tx, dx) + Fixed32.mul(ty, dy);
-      if (dot < 0) {
-        mobj = mobj.sNext;
-        continue;
-      }
-
-      bestTarget = mobj;
-      bestDist = dist;
-
-      mobj = mobj.sNext;
-    }
+  if (lineTarget != null) {
+    return _aimState.aimSlope;
   }
 
-  if (bestTarget != null) {
-    lineTarget = bestTarget;
-    final dz = (bestTarget.z + (bestTarget.height >> 1)) - (source.z + (source.height >> 1));
-    if (bestDist > 0) {
-      _aimSlope = Fixed32.div(dz, bestDist);
-    }
-  }
-
-  return _aimSlope;
+  return 0;
 }
 
-void _lineAttack(Mobj source, int angle, int distance, int slope, int damage, LevelLocals level) {
+bool _aimTraverse(map.Intercept intercept) {
+  if (intercept.isLine) {
+    final line = intercept.line!;
+
+    if ((line.flags & LineFlags.twoSided) == 0) {
+      return false;
+    }
+
+    final opening = map.getLineOpening(line);
+    if (opening.openBottom >= opening.openTop) {
+      return false;
+    }
+
+    final dist = Fixed32.mul(_aimState.attackRange, intercept.frac);
+
+    final front = line.frontSector;
+    final back = line.backSector;
+
+    if (front != null && back != null) {
+      if (front.floorHeight != back.floorHeight) {
+        final slope = Fixed32.div(opening.openBottom - _aimState.shootZ, dist);
+        if (slope > _aimState.bottomSlope) {
+          _aimState.bottomSlope = slope;
+        }
+      }
+
+      if (front.ceilingHeight != back.ceilingHeight) {
+        final slope = Fixed32.div(opening.openTop - _aimState.shootZ, dist);
+        if (slope < _aimState.topSlope) {
+          _aimState.topSlope = slope;
+        }
+      }
+    }
+
+    if (_aimState.topSlope <= _aimState.bottomSlope) {
+      return false;
+    }
+
+    return true;
+  }
+
+  final th = intercept.thing!;
+  if (th == _aimState.shootThing) {
+    return true;
+  }
+
+  if ((th.flags & MobjFlag.shootable) == 0) {
+    return true;
+  }
+
+  final dist = Fixed32.mul(_aimState.attackRange, intercept.frac);
+  final thingTopSlope = Fixed32.div(th.z + th.height - _aimState.shootZ, dist);
+
+  if (thingTopSlope < _aimState.bottomSlope) {
+    return true;
+  }
+
+  final thingBottomSlope = Fixed32.div(th.z - _aimState.shootZ, dist);
+
+  if (thingBottomSlope > _aimState.topSlope) {
+    return true;
+  }
+
+  var adjustedTop = thingTopSlope;
+  var adjustedBottom = thingBottomSlope;
+
+  if (adjustedTop > _aimState.topSlope) {
+    adjustedTop = _aimState.topSlope;
+  }
+
+  if (adjustedBottom < _aimState.bottomSlope) {
+    adjustedBottom = _aimState.bottomSlope;
+  }
+
+  _aimState.aimSlope = (adjustedTop + adjustedBottom) ~/ 2;
+  lineTarget = th;
+
+  return false;
+}
+
+void _lineAttack(
+  Mobj source,
+  int angle,
+  int distance,
+  int slope,
+  int damage,
+  LevelLocals level,
+) {
   final fineAngle = (angle.u32 >> Angle.angleToFineShift) & Angle.fineMask;
-  final dx = fineCosine(fineAngle);
-  final dy = fineSine(fineAngle);
+  final dx = (distance >> Fixed32.fracBits) * fineCosine(fineAngle);
+  final dy = (distance >> Fixed32.fracBits) * fineSine(fineAngle);
+  final x2 = source.x + dx;
+  final y2 = source.y + dy;
 
-  Mobj? hitTarget;
-  var bestDist = distance;
+  _shootState
+    ..shootThing = source
+    ..shootZ = source.z + (source.height >> 1) + 8 * Fixed32.fracUnit
+    ..attackRange = distance
+    ..aimSlope = slope
+    ..damage = damage;
 
-  for (final sector in level.renderState.sectors) {
-    var mobj = sector.thingList;
-    while (mobj != null) {
-      if ((mobj.flags & MobjFlag.shootable) == 0) {
-        mobj = mobj.sNext;
-        continue;
+  map.pathTraverse(
+    source.x,
+    source.y,
+    x2,
+    y2,
+    map.PathTraverseFlags.addLines | map.PathTraverseFlags.addThings,
+    level,
+    (intercept) => _shootTraverse(intercept, level),
+  );
+}
+
+bool _shootTraverse(map.Intercept intercept, LevelLocals level) {
+  if (intercept.isLine) {
+    final line = intercept.line!;
+
+    if (line.special != 0) {
+      spec.shootSpecialLine(_shootState.shootThing!, line, level);
+    }
+
+    if ((line.flags & LineFlags.twoSided) == 0) {
+      return _hitLine(intercept, line, level);
+    }
+
+    final opening = map.getLineOpening(line);
+    final dist = Fixed32.mul(_shootState.attackRange, intercept.frac);
+
+    final front = line.frontSector;
+    final back = line.backSector;
+
+    if (front != null && back != null) {
+      if (front.floorHeight != back.floorHeight) {
+        final slope = Fixed32.div(opening.openBottom - _shootState.shootZ, dist);
+        if (slope > _shootState.aimSlope) {
+          return _hitLine(intercept, line, level);
+        }
       }
 
-      if (mobj == source) {
-        mobj = mobj.sNext;
-        continue;
+      if (front.ceilingHeight != back.ceilingHeight) {
+        final slope = Fixed32.div(opening.openTop - _shootState.shootZ, dist);
+        if (slope < _shootState.aimSlope) {
+          return _hitLine(intercept, line, level);
+        }
       }
+    }
 
-      final tx = mobj.x - source.x;
-      final ty = mobj.y - source.y;
+    return true;
+  }
 
-      final dist = approxDistance(tx, ty);
-      if (dist >= bestDist) {
-        mobj = mobj.sNext;
-        continue;
-      }
+  final th = intercept.thing!;
+  if (th == _shootState.shootThing) {
+    return true;
+  }
 
-      final cross = Fixed32.mul(tx, dy) - Fixed32.mul(ty, dx);
-      final crossAbs = cross < 0 ? -cross : cross;
-      if (crossAbs > mobj.radius + (dist >> 4)) {
-        mobj = mobj.sNext;
-        continue;
-      }
+  if ((th.flags & MobjFlag.shootable) == 0) {
+    return true;
+  }
 
-      final dot = Fixed32.mul(tx, dx) + Fixed32.mul(ty, dy);
-      if (dot < 0) {
-        mobj = mobj.sNext;
-        continue;
-      }
+  final dist = Fixed32.mul(_shootState.attackRange, intercept.frac);
+  final thingTopSlope = Fixed32.div(th.z + th.height - _shootState.shootZ, dist);
 
-      hitTarget = mobj;
-      bestDist = dist;
+  if (thingTopSlope < _shootState.aimSlope) {
+    return true;
+  }
 
-      mobj = mobj.sNext;
+  final thingBottomSlope = Fixed32.div(th.z - _shootState.shootZ, dist);
+
+  if (thingBottomSlope > _shootState.aimSlope) {
+    return true;
+  }
+
+  final frac = intercept.frac - Fixed32.div(10 * Fixed32.fracUnit, _shootState.attackRange);
+  final x = map.trace.x + Fixed32.mul(map.trace.dx, frac);
+  final y = map.trace.y + Fixed32.mul(map.trace.dy, frac);
+  final z = _shootState.shootZ +
+      Fixed32.mul(_shootState.aimSlope, Fixed32.mul(frac, _shootState.attackRange));
+
+  if ((th.flags & MobjFlag.noBlood) != 0) {
+    mobj.spawnPuff(x, y, z, _shootState.attackRange, level.renderState, level);
+  } else {
+    mobj.spawnBlood(x, y, z, _shootState.damage, level.renderState, level);
+  }
+
+  if (_shootState.damage > 0) {
+    spec.damageMobj(th, _shootState.shootThing, _shootState.shootThing, _shootState.damage, level);
+  }
+
+  return false;
+}
+
+bool _hitLine(map.Intercept intercept, Line line, LevelLocals level) {
+  final frac = intercept.frac - Fixed32.div(4 * Fixed32.fracUnit, _shootState.attackRange);
+  final x = map.trace.x + Fixed32.mul(map.trace.dx, frac);
+  final y = map.trace.y + Fixed32.mul(map.trace.dy, frac);
+  final z = _shootState.shootZ +
+      Fixed32.mul(_shootState.aimSlope, Fixed32.mul(frac, _shootState.attackRange));
+
+  final skyFlatNum = level.renderState.skyFlatNum;
+  final front = line.frontSector;
+  if (front != null && front.ceilingPic == skyFlatNum) {
+    if (z > front.ceilingHeight) {
+      return false;
+    }
+
+    final back = line.backSector;
+    if (back != null && back.ceilingPic == skyFlatNum) {
+      return false;
     }
   }
 
-  if (hitTarget != null) {
-    spec.damageMobj(hitTarget, source, source, damage, level);
-  }
+  mobj.spawnPuff(x, y, z, _shootState.attackRange, level.renderState, level);
+  return false;
 }
 

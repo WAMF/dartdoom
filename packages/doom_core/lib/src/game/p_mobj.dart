@@ -218,6 +218,8 @@ abstract final class MobjType {
   static const int arachPlaz = -7;
   static const int tracer = -8;
   static const int fatShot = -9;
+  static const int puff = -10;
+  static const int blood = -11;
 }
 
 const _missileFlags = MobjFlag.noBlockmap |
@@ -407,6 +409,49 @@ const Map<int, MobjInfo> _projectileInfo = {
     raiseState: 0,
   ),
 };
+
+const Map<int, MobjInfo> _effectInfo = {
+  MobjType.puff: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.puff1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: 0,
+    xDeathState: 0,
+    speed: 0,
+    radius: 20 * Fixed32.fracUnit,
+    height: 16 * Fixed32.fracUnit,
+    mass: 100,
+    flags: MobjFlag.noBlockmap | MobjFlag.noGravity,
+    raiseState: 0,
+  ),
+  MobjType.blood: MobjInfo(
+    doomEdNum: -1,
+    spawnState: StateNum.blood1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: 0,
+    xDeathState: 0,
+    speed: 0,
+    radius: 20 * Fixed32.fracUnit,
+    height: 16 * Fixed32.fracUnit,
+    mass: 100,
+    flags: MobjFlag.noBlockmap | MobjFlag.noGravity,
+    raiseState: 0,
+  ),
+};
+
+MobjInfo? getEffectInfo(int mobjType) => _effectInfo[mobjType];
 
 MobjInfo? getProjectileInfo(int mobjType) => _projectileInfo[mobjType];
 
@@ -1010,4 +1055,103 @@ void explodeMissile(Mobj mo, LevelLocals level) {
   if (mo.tics < 1) mo.tics = 1;
 
   mo.flags &= ~MobjFlag.missile;
+}
+
+Mobj? spawnEffect(
+  int x,
+  int y,
+  int z,
+  int mobjType,
+  RenderState state,
+  LevelLocals level,
+) {
+  final info = getEffectInfo(mobjType);
+  if (info == null) return null;
+
+  final mobj = Mobj()
+    ..x = x
+    ..y = y
+    ..type = mobjType
+    ..info = info
+    ..radius = info.radius
+    ..height = info.height
+    ..flags = info.flags
+    ..health = info.spawnHealth
+    ..reactionTime = info.reactionTime;
+
+  final spawnState = info.spawnState;
+  if (spawnState > 0 && spawnState < states.length) {
+    final st = states[spawnState];
+    mobj
+      ..stateNum = spawnState
+      ..tics = st.tics
+      ..sprite = st.sprite
+      ..frame = st.frame;
+  }
+
+  _setMobjPosition(mobj, state, level);
+
+  final ss = mobj.subsector;
+  if (ss == null || ss is! Subsector) return null;
+
+  mobj.floorZ = ss.sector.floorHeight;
+  mobj.ceilingZ = ss.sector.ceilingHeight;
+
+  if (z == _SpawnConstants.onFloorZ) {
+    mobj.z = mobj.floorZ;
+  } else if (z == _SpawnConstants.onCeilingZ) {
+    mobj.z = mobj.ceilingZ - mobj.height;
+  } else {
+    mobj.z = z;
+  }
+
+  return mobj;
+}
+
+Mobj? spawnPuff(
+  int x,
+  int y,
+  int z,
+  int attackRange,
+  RenderState state,
+  LevelLocals level,
+) {
+  final zOffset = (level.random.pRandom() - level.random.pRandom()) << 10;
+  final th = spawnEffect(x, y, z + zOffset, MobjType.puff, state, level);
+  if (th == null) return null;
+
+  th.momZ = Fixed32.fracUnit;
+  th.tics -= level.random.pRandom() & 3;
+  if (th.tics < 1) th.tics = 1;
+
+  if (attackRange == GameConstants.meleeRange) {
+    spec.setMobjStateNum(th, StateNum.puff3, level);
+  }
+
+  return th;
+}
+
+Mobj? spawnBlood(
+  int x,
+  int y,
+  int z,
+  int damage,
+  RenderState state,
+  LevelLocals level,
+) {
+  final zOffset = (level.random.pRandom() - level.random.pRandom()) << 10;
+  final th = spawnEffect(x, y, z + zOffset, MobjType.blood, state, level);
+  if (th == null) return null;
+
+  th.momZ = 2 * Fixed32.fracUnit;
+  th.tics -= level.random.pRandom() & 3;
+  if (th.tics < 1) th.tics = 1;
+
+  if (damage <= 12 && damage >= 9) {
+    spec.setMobjStateNum(th, StateNum.blood2, level);
+  } else if (damage < 9) {
+    spec.setMobjStateNum(th, StateNum.blood3, level);
+  }
+
+  return th;
 }

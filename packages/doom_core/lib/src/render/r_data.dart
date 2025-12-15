@@ -314,8 +314,12 @@ class RenderData {
 
   void initData(RenderState state) {
     _loadColormaps(state);
-    _initLightTables(state);
+    reinitLightTables(state);
     _initSprites(state);
+  }
+
+  void reinitLightTables(RenderState state) {
+    _initLightTables(state);
   }
 
   void _initSprites(RenderState state) {
@@ -458,35 +462,35 @@ class RenderData {
 
     for (var i = 0; i < RenderConstants.lightLevels; i++) {
       final startMap =
-          ((RenderConstants.lightLevels - 1 - i) * 2) * _ColormapConstants.numColormaps ~/ RenderConstants.lightLevels;
+          ((RenderConstants.lightLevels - 1 - i) * 2) * ColormapConstants.numColormaps ~/ RenderConstants.lightLevels;
 
       for (var j = 0; j < RenderConstants.maxLightScale; j++) {
         final scaledWidth = state.viewWidth << state.detailShift;
-        final level = startMap - j * ScreenDimensions.width ~/ scaledWidth ~/ _ColormapConstants.distMap;
-        final clampedLevel = level.clamp(0, _ColormapConstants.numColormaps - 1);
+        final level = startMap - j * ScreenDimensions.width ~/ scaledWidth ~/ ColormapConstants.distMap;
+        final clampedLevel = level.clamp(0, ColormapConstants.numColormaps - 1);
 
         state.scaleLight[i][j] = Uint8List.sublistView(
           _colormaps!,
-          clampedLevel * _ColormapConstants.colormapSize,
-          (clampedLevel + 1) * _ColormapConstants.colormapSize,
+          clampedLevel * ColormapConstants.colormapSize,
+          (clampedLevel + 1) * ColormapConstants.colormapSize,
         );
       }
     }
 
     for (var i = 0; i < RenderConstants.lightLevels; i++) {
       final startMap =
-          ((RenderConstants.lightLevels - 1 - i) * 2) * _ColormapConstants.numColormaps ~/ RenderConstants.lightLevels;
+          ((RenderConstants.lightLevels - 1 - i) * 2) * ColormapConstants.numColormaps ~/ RenderConstants.lightLevels;
 
       for (var j = 0; j < RenderConstants.maxLightZ; j++) {
         var scale = Fixed32.div(ScreenDimensions.width.toFixed() ~/ 2, (j + 1) << RenderConstants.lightZShift);
         scale >>= RenderConstants.lightScaleShift;
-        var level = startMap - scale ~/ _ColormapConstants.distMap;
-        level = level.clamp(0, _ColormapConstants.numColormaps - 1);
+        var level = startMap - scale ~/ ColormapConstants.distMap;
+        level = level.clamp(0, ColormapConstants.numColormaps - 1);
 
         state.zLight[i][j] = Uint8List.sublistView(
           _colormaps!,
-          level * _ColormapConstants.colormapSize,
-          (level + 1) * _ColormapConstants.colormapSize,
+          level * ColormapConstants.colormapSize,
+          (level + 1) * ColormapConstants.colormapSize,
         );
       }
     }
@@ -494,24 +498,51 @@ class RenderData {
 
   Uint8List getColormap(int lightLevel) {
     if (_colormaps == null) {
-      return Uint8List(_ColormapConstants.colormapSize);
+      return Uint8List(ColormapConstants.colormapSize);
     }
 
-    final index = lightLevel.clamp(0, _ColormapConstants.numColormaps - 1);
+    final index = lightLevel.clamp(0, ColormapConstants.numColormaps - 1);
     return Uint8List.sublistView(
       _colormaps!,
-      index * _ColormapConstants.colormapSize,
-      (index + 1) * _ColormapConstants.colormapSize,
+      index * ColormapConstants.colormapSize,
+      (index + 1) * ColormapConstants.colormapSize,
     );
   }
 
   Uint8List? get colormaps => _colormaps;
 }
 
-abstract final class _ColormapConstants {
+abstract final class ColormapConstants {
   static const int colormapSize = 256;
   static const int numColormaps = 32;
   static const int distMap = 2;
+}
+
+abstract final class LightTableHelper {
+  static void initScaleLight(RenderState state) {
+    final colormaps = state.colormaps;
+    if (colormaps == null) return;
+
+    for (var i = 0; i < RenderConstants.lightLevels; i++) {
+      final startMap =
+          ((RenderConstants.lightLevels - 1 - i) * 2) *
+              ColormapConstants.numColormaps ~/
+              RenderConstants.lightLevels;
+
+      for (var j = 0; j < RenderConstants.maxLightScale; j++) {
+        final scaledWidth = state.viewWidth << state.detailShift;
+        final level = startMap -
+            j * ScreenDimensions.width ~/ scaledWidth ~/ ColormapConstants.distMap;
+        final clampedLevel = level.clamp(0, ColormapConstants.numColormaps - 1);
+
+        state.scaleLight[i][j] = Uint8List.sublistView(
+          colormaps,
+          clampedLevel * ColormapConstants.colormapSize,
+          (clampedLevel + 1) * ColormapConstants.colormapSize,
+        );
+      }
+    }
+  }
 }
 
 class _TempSpriteFrame {

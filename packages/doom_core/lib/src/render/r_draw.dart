@@ -273,7 +273,7 @@ class SpanDrawer {
   }
 }
 
-enum DrawerType { column, fuzz, translated, span }
+enum DrawerType { column, columnLow, fuzz, translated, span, spanLow }
 
 class DrawContext {
   final ColumnDrawer column = ColumnDrawer();
@@ -304,16 +304,29 @@ class DrawContext {
     switch (columnFunc) {
       case DrawerType.column:
         column.draw(dest);
+      case DrawerType.columnLow:
+        column.drawLow(dest);
       case DrawerType.fuzz:
         fuzz.draw(dest);
       case DrawerType.translated:
         translated.draw(dest);
       case DrawerType.span:
+      case DrawerType.spanLow:
         break;
     }
   }
 
   void drawSpan(Uint8List dest) {
-    span.draw(dest);
+    switch (spanFunc) {
+      case DrawerType.span:
+        span.draw(dest);
+      case DrawerType.spanLow:
+        span.drawLow(dest);
+      case DrawerType.column:
+      case DrawerType.columnLow:
+      case DrawerType.fuzz:
+      case DrawerType.translated:
+        break;
+    }
   }
 }

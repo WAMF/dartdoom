@@ -12,6 +12,12 @@ abstract final class _MapConstants {
   static const int maxDropOff = 24 * Fixed32.fracUnit;
 }
 
+abstract final class _PathTraverseConstants {
+  static const int blockShift = Fixed32.fracBits + 7;
+  static const int blockToFrac = 7;
+  static const int blockMask = (128 * Fixed32.fracUnit) - 1;
+}
+
 class CollisionContext {
   Mobj? thing;
   int tmX = 0;
@@ -797,11 +803,71 @@ int _lineOpening(Line line) {
   return openTop - openBottom;
 }
 
-class _Intercept {
-  _Intercept(this.line, this.frac);
-  final Line line;
-  final int frac;
+abstract final class PathTraverseFlags {
+  static const int addLines = 1;
+  static const int addThings = 2;
+  static const int earlyOut = 4;
 }
+
+class Intercept {
+  Intercept.line(this.line, this.frac) : thing = null, isLine = true;
+  Intercept.thing(this.thing, this.frac) : line = null, isLine = false;
+
+  final Line? line;
+  final Mobj? thing;
+  final int frac;
+  final bool isLine;
+}
+
+class LineOpeningResult {
+  int openTop = 0;
+  int openBottom = 0;
+  int openRange = 0;
+  int lowFloor = 0;
+}
+
+final _lineOpeningResult = LineOpeningResult();
+
+LineOpeningResult getLineOpening(Line line) {
+  if (line.backSector == null) {
+    _lineOpeningResult.openRange = 0;
+    return _lineOpeningResult;
+  }
+
+  final front = line.frontSector;
+  final back = line.backSector!;
+
+  if (front == null) {
+    _lineOpeningResult.openRange = 0;
+    return _lineOpeningResult;
+  }
+
+  if (front.ceilingHeight < back.ceilingHeight) {
+    _lineOpeningResult.openTop = front.ceilingHeight;
+  } else {
+    _lineOpeningResult.openTop = back.ceilingHeight;
+  }
+
+  if (front.floorHeight > back.floorHeight) {
+    _lineOpeningResult.openBottom = front.floorHeight;
+    _lineOpeningResult.lowFloor = back.floorHeight;
+  } else {
+    _lineOpeningResult.openBottom = back.floorHeight;
+    _lineOpeningResult.lowFloor = front.floorHeight;
+  }
+
+  _lineOpeningResult.openRange = _lineOpeningResult.openTop - _lineOpeningResult.openBottom;
+  return _lineOpeningResult;
+}
+
+class TraceState {
+  int x = 0;
+  int y = 0;
+  int dx = 0;
+  int dy = 0;
+}
+
+final trace = TraceState();
 
 void _pathTraverse(
   int x1,
@@ -811,65 +877,206 @@ void _pathTraverse(
   LevelLocals level,
   bool Function(Line) callback,
 ) {
+  pathTraverse(x1, y1, x2, y2, PathTraverseFlags.addLines, level, (intercept) {
+    if (intercept.isLine && intercept.line != null) {
+      return callback(intercept.line!);
+    }
+    return true;
+  });
+}
+
+void pathTraverse(
+  int x1,
+  int y1,
+  int x2,
+  int y2,
+  int flags,
+  LevelLocals level,
+  bool Function(Intercept) callback,
+) {
   final blockmap = level.blockmap;
   if (blockmap == null) {
-    _pathTraverseFallback(x1, y1, x2, y2, level, callback);
+    _pathTraverseFallbackGeneral(x1, y1, x2, y2, flags, level, callback);
     return;
   }
 
   level.renderState.validCount++;
   final validCount = level.renderState.validCount;
 
-  final dx = x2 - x1;
-  final dy = y2 - y1;
+  final bmapOrgX = blockmap.originX << Fixed32.fracBits;
+  final bmapOrgY = blockmap.originY << Fixed32.fracBits;
 
-  final (bx1, by1) = blockmap.worldToBlock(x1, y1);
-  final (bx2, by2) = blockmap.worldToBlock(x2, y2);
+  var adjX1 = x1;
+  var adjY1 = y1;
+  if (((adjX1 - bmapOrgX) & _PathTraverseConstants.blockMask) == 0) {
+    adjX1 += Fixed32.fracUnit;
+  }
+  if (((adjY1 - bmapOrgY) & _PathTraverseConstants.blockMask) == 0) {
+    adjY1 += Fixed32.fracUnit;
+  }
 
-  final stepX = bx2 > bx1 ? 1 : (bx2 < bx1 ? -1 : 0);
-  final stepY = by2 > by1 ? 1 : (by2 < by1 ? -1 : 0);
+  final dx = x2 - adjX1;
+  final dy = y2 - adjY1;
 
-  var bx = bx1;
-  var by = by1;
+  trace
+    ..x = adjX1
+    ..y = adjY1
+    ..dx = dx
+    ..dy = dy;
 
-  final maxSteps = (bx2 - bx1).abs() + (by2 - by1).abs() + 1;
-  var steps = 0;
+  final localX1 = adjX1 - bmapOrgX;
+  final localY1 = adjY1 - bmapOrgY;
+  final localX2 = x2 - bmapOrgX;
+  final localY2 = y2 - bmapOrgY;
 
-  final intercepts = <_Intercept>[];
+  final xt1 = localX1 >> _PathTraverseConstants.blockShift;
+  final yt1 = localY1 >> _PathTraverseConstants.blockShift;
+  final xt2 = localX2 >> _PathTraverseConstants.blockShift;
+  final yt2 = localY2 >> _PathTraverseConstants.blockShift;
 
-  while (steps < maxSteps) {
-    steps++;
+  int mapXStep;
+  int mapYStep;
+  int partial;
+  int xStep;
+  int yStep;
 
-    if (blockmap.isValidBlock(bx, by)) {
-      for (final lineNum in blockmap.getLinesInBlock(bx, by)) {
-        final line = level.renderState.lines[lineNum];
+  if (xt2 > xt1) {
+    mapXStep = 1;
+    partial = Fixed32.fracUnit -
+        ((localX1 >> _PathTraverseConstants.blockToFrac) &
+            (Fixed32.fracUnit - 1));
+    yStep = Fixed32.div(localY2 - localY1, (localX2 - localX1).abs());
+  } else if (xt2 < xt1) {
+    mapXStep = -1;
+    partial = (localX1 >> _PathTraverseConstants.blockToFrac) &
+        (Fixed32.fracUnit - 1);
+    yStep = Fixed32.div(localY2 - localY1, (localX2 - localX1).abs());
+  } else {
+    mapXStep = 0;
+    partial = Fixed32.fracUnit;
+    yStep = 256 * Fixed32.fracUnit;
+  }
 
-        if (line.validCount == validCount) continue;
-        line.validCount = validCount;
+  var yIntercept = (localY1 >> _PathTraverseConstants.blockToFrac) +
+      Fixed32.mul(partial, yStep);
 
-        final frac = _getLineFrac(line, x1, y1, dx, dy);
-        if (frac < 0 || frac > Fixed32.fracUnit) continue;
+  if (yt2 > yt1) {
+    mapYStep = 1;
+    partial = Fixed32.fracUnit -
+        ((localY1 >> _PathTraverseConstants.blockToFrac) &
+            (Fixed32.fracUnit - 1));
+    xStep = Fixed32.div(localX2 - localX1, (localY2 - localY1).abs());
+  } else if (yt2 < yt1) {
+    mapYStep = -1;
+    partial = (localY1 >> _PathTraverseConstants.blockToFrac) &
+        (Fixed32.fracUnit - 1);
+    xStep = Fixed32.div(localX2 - localX1, (localY2 - localY1).abs());
+  } else {
+    mapYStep = 0;
+    partial = Fixed32.fracUnit;
+    xStep = 256 * Fixed32.fracUnit;
+  }
 
-        intercepts.add(_Intercept(line, frac));
+  var xIntercept = (localX1 >> _PathTraverseConstants.blockToFrac) +
+      Fixed32.mul(partial, xStep);
+
+  var mapX = xt1;
+  var mapY = yt1;
+
+  final intercepts = <Intercept>[];
+
+  for (var count = 0; count < 64; count++) {
+    if (blockmap.isValidBlock(mapX, mapY)) {
+      if ((flags & PathTraverseFlags.addLines) != 0) {
+        for (final lineNum in blockmap.getLinesInBlock(mapX, mapY)) {
+          final line = level.renderState.lines[lineNum];
+
+          if (line.validCount == validCount) continue;
+          line.validCount = validCount;
+
+          final frac = _getLineFrac(line, adjX1, adjY1, dx, dy);
+          if (frac < 0 || frac > Fixed32.fracUnit) continue;
+
+          intercepts.add(Intercept.line(line, frac));
+        }
+      }
+
+      if ((flags & PathTraverseFlags.addThings) != 0) {
+        final blockLinks = level.blockLinks;
+        if (blockLinks != null) {
+          final index = mapY * blockmap.columns + mapX;
+          if (index >= 0 && index < blockLinks.length) {
+            var mobj = blockLinks[index];
+            while (mobj != null) {
+              if (mobj.validCount != validCount) {
+                mobj.validCount = validCount;
+                final frac = _getThingFrac(mobj, adjX1, adjY1, dx, dy);
+                if (frac >= 0 && frac <= Fixed32.fracUnit) {
+                  intercepts.add(Intercept.thing(mobj, frac));
+                }
+              }
+              mobj = mobj.bNext;
+            }
+          }
+        }
       }
     }
 
-    if (bx == bx2 && by == by2) break;
+    if (mapX == xt2 && mapY == yt2) break;
 
-    if (stepX != 0 && bx != bx2) {
-      bx += stepX;
-    } else if (stepY != 0 && by != by2) {
-      by += stepY;
-    } else {
-      break;
+    if ((yIntercept >> Fixed32.fracBits) == mapY) {
+      yIntercept += yStep;
+      mapX += mapXStep;
+    } else if ((xIntercept >> Fixed32.fracBits) == mapX) {
+      xIntercept += xStep;
+      mapY += mapYStep;
     }
   }
 
   intercepts.sort((a, b) => a.frac.compareTo(b.frac));
 
   for (final intercept in intercepts) {
-    if (!callback(intercept.line)) return;
+    if (!callback(intercept)) return;
   }
+}
+
+int _getThingFrac(Mobj thing, int traceX, int traceY, int traceDx, int traceDy) {
+  final tracePositive = (traceDx ^ traceDy) > 0;
+
+  int x1;
+  int y1;
+  int x2;
+  int y2;
+  if (tracePositive) {
+    x1 = thing.x - thing.radius;
+    y1 = thing.y + thing.radius;
+    x2 = thing.x + thing.radius;
+    y2 = thing.y - thing.radius;
+  } else {
+    x1 = thing.x - thing.radius;
+    y1 = thing.y - thing.radius;
+    x2 = thing.x + thing.radius;
+    y2 = thing.y + thing.radius;
+  }
+
+  final s1 = _pointOnTraceSide(x1, y1, traceX, traceY, traceDx, traceDy);
+  final s2 = _pointOnTraceSide(x2, y2, traceX, traceY, traceDx, traceDy);
+
+  if (s1 == s2) return -1;
+
+  final dlDx = x2 - x1;
+  final dlDy = y2 - y1;
+
+  final den = Fixed32.mul(dlDy >> 8, traceDx) - Fixed32.mul(dlDx >> 8, traceDy);
+  if (den == 0) return -1;
+
+  final num = Fixed32.mul((x1 - traceX) >> 8, dlDy) +
+      Fixed32.mul((traceY - y1) >> 8, dlDx);
+
+  final frac = Fixed32.div(num, den);
+  if (frac < 0) return -1;
+
+  return frac;
 }
 
 int _getLineFrac(Line line, int traceX, int traceY, int traceDx, int traceDy) {
@@ -878,32 +1085,54 @@ int _getLineFrac(Line line, int traceX, int traceY, int traceDx, int traceDy) {
 
   if (s1 == s2) return -1;
 
-  return _traceInterceptFrac(traceX, traceY, traceDx, traceDy, line);
+  return traceInterceptFrac(traceX, traceY, traceDx, traceDy, line);
 }
 
-void _pathTraverseFallback(
+void _pathTraverseFallbackGeneral(
   int x1,
   int y1,
   int x2,
   int y2,
+  int flags,
   LevelLocals level,
-  bool Function(Line) callback,
+  bool Function(Intercept) callback,
 ) {
   final dx = x2 - x1;
   final dy = y2 - y1;
 
-  final intercepts = <_Intercept>[];
+  trace
+    ..x = x1
+    ..y = y1
+    ..dx = dx
+    ..dy = dy;
 
-  for (final line in level.renderState.lines) {
-    final frac = _getLineFrac(line, x1, y1, dx, dy);
-    if (frac < 0 || frac > Fixed32.fracUnit) continue;
-    intercepts.add(_Intercept(line, frac));
+  final intercepts = <Intercept>[];
+
+  if ((flags & PathTraverseFlags.addLines) != 0) {
+    for (final line in level.renderState.lines) {
+      final frac = _getLineFrac(line, x1, y1, dx, dy);
+      if (frac < 0 || frac > Fixed32.fracUnit) continue;
+      intercepts.add(Intercept.line(line, frac));
+    }
+  }
+
+  if ((flags & PathTraverseFlags.addThings) != 0) {
+    for (final sector in level.renderState.sectors) {
+      var mobj = sector.thingList;
+      while (mobj != null) {
+        final frac = _getThingFrac(mobj, x1, y1, dx, dy);
+        if (frac >= 0 && frac <= Fixed32.fracUnit) {
+          intercepts.add(Intercept.thing(mobj, frac));
+        }
+        mobj = mobj.sNext;
+      }
+    }
   }
 
   intercepts.sort((a, b) => a.frac.compareTo(b.frac));
 
   for (final intercept in intercepts) {
-    if (!callback(intercept.line)) return;
+    if (!callback(intercept)) return;
   }
 }
 
@@ -931,7 +1160,7 @@ int _pointOnTraceSide(int x, int y, int traceX, int traceY, int traceDx, int tra
   return right < left ? 0 : 1;
 }
 
-int _traceInterceptFrac(int traceX, int traceY, int traceDx, int traceDy, Line line) {
+int traceInterceptFrac(int traceX, int traceY, int traceDx, int traceDy, Line line) {
   final lineX = line.v1.x;
   final lineY = line.v1.y;
   final lineDx = line.dx;
