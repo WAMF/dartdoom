@@ -165,6 +165,10 @@ class Renderer {
   void renderPlayerView(Uint8List frameBuffer, {Player? player}) {
     _frameBuffer = frameBuffer;
 
+    if (player != null) {
+      state.extraLight = player.extraLight;
+    }
+
     _planeRenderer.clearPlanes();
     _segRenderer
       ..clearDrawSegs()
