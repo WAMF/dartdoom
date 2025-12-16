@@ -1051,6 +1051,22 @@ void _executeStateAction(Mobj mobj, StateAction action, LevelLocals level) {
       enemy.aPainAttack(mobj, level);
     case StateAction.painDie:
       enemy.aPainDie(mobj, level);
+    case StateAction.vileChase:
+      enemy.aVileChase(mobj, level, level.random);
+    case StateAction.vileStart:
+      enemy.aVileStart(mobj);
+    case StateAction.vileTarget:
+      enemy.aVileTarget(mobj, level, level.random);
+    case StateAction.vileAttack:
+      enemy.aVileAttack(mobj, level, level.random);
+    case StateAction.startFire:
+      enemy.aStartFire(mobj, level);
+    case StateAction.fire:
+      enemy.aFire(mobj, level);
+    case StateAction.fireCrackle:
+      enemy.aFireCrackle(mobj, level);
+    case StateAction.skelFist:
+      enemy.aSkelFist(mobj, level.random, level);
   }
 }
 

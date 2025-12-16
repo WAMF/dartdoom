@@ -1,8 +1,11 @@
+import 'package:doom_core/src/game/info.dart' show StateNum;
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_inter.dart' as inter;
 import 'package:doom_core/src/game/p_map.dart' as map;
+import 'package:doom_core/src/game/p_maputl.dart' as maputl;
 import 'package:doom_core/src/game/p_mobj.dart'
-    show MobjType, spawnMissile;
+    show MobjType, countSkulls, spawnMissile, spawnMobj, spawnSkull;
 import 'package:doom_core/src/game/p_sight.dart' as sight;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/render/r_defs.dart';
@@ -27,6 +30,16 @@ abstract final class _EnemyConstants {
   static const int skullSpeed = 20 * Fixed32.fracUnit;
   static const int ang90 = 0x40000000;
   static const int ang270 = 0xC0000000;
+  static const int maxSkullCount = 20;
+  static const int skullSpawnZ = 8 * Fixed32.fracUnit;
+}
+
+abstract final class _MonsterType {
+  static const int vile = 64;
+  static const int undead = 66;
+  static const int skull = 3006;
+  static const int spider = 7;
+  static const int cyborg = 16;
 }
 
 const List<int> _opposite = [
@@ -265,7 +278,28 @@ bool checkMissileRange(Mobj actor, DoomRandom random, LevelLocals level) {
 
   dist >>= 16;
 
+  final actorType = actor.type;
+
+  if (actorType == _MonsterType.vile) {
+    if (dist > 14 * 64) return false;
+  }
+
+  if (actorType == _MonsterType.undead) {
+    if (dist < 196) return false;
+    dist >>= 1;
+  }
+
+  if (actorType == _MonsterType.cyborg ||
+      actorType == _MonsterType.spider ||
+      actorType == _MonsterType.skull) {
+    dist >>= 1;
+  }
+
   if (dist > 200) dist = 200;
+
+  if (actorType == _MonsterType.cyborg && dist > 160) {
+    dist = 160;
+  }
 
   return random.pRandom() >= dist;
 }
@@ -817,4 +851,231 @@ void aPainDie(Mobj actor, LevelLocals level) {
 }
 
 void _painShootSkull(Mobj actor, int angle, LevelLocals level) {
+  if (countSkulls(level.renderState) > _EnemyConstants.maxSkullCount) {
+    return;
+  }
+
+  final actorInfo = actor.info;
+  final actorRadius = actorInfo?.radius ?? (31 << 16);
+  const skullRadius = 16 << 16;
+
+  final prestep = 4 * Fixed32.fracUnit + 3 * (actorRadius + skullRadius) ~/ 2;
+
+  final an = angle.u32 >> Angle.angleToFineShift;
+  final x = actor.x + Fixed32.mul(prestep, fineCosine(an));
+  final y = actor.y + Fixed32.mul(prestep, fineSine(an));
+  final z = actor.z + _EnemyConstants.skullSpawnZ;
+
+  final newMobj = spawnSkull(x, y, z, level.renderState, level);
+  if (newMobj == null) return;
+
+  if (!map.tryMove(newMobj, newMobj.x, newMobj.y, level)) {
+    inter.damageMobj(newMobj, actor, actor, 10000, level);
+    return;
+  }
+
+  newMobj.target = actor.target;
+  aSkullAttack(newMobj);
 }
+
+abstract final class _VileConstants {
+  static const int maxRadius = 128 * Fixed32.fracUnit;
+  static const int vileRadius = 20 * Fixed32.fracUnit;
+  static const int fireDist = 24 * Fixed32.fracUnit;
+  static const int vileDamage = 20;
+  static const int radiusDamage = 70;
+  static const int thrustFactor = 1000 * Fixed32.fracUnit;
+}
+
+Mobj? _corpsehit;
+LevelLocals? _pitVileCheckLevel;
+int _viletryx = 0;
+int _viletryy = 0;
+
+bool _pitVileCheck(Mobj thing) {
+  if ((thing.flags & MobjFlag.corpse) == 0) return true;
+  if (thing.tics != -1) return true;
+
+  final info = thing.info;
+  if (info == null || info.raiseState == 0) return true;
+
+  final maxdist = info.radius + _VileConstants.vileRadius;
+
+  if ((thing.x - _viletryx).abs() > maxdist ||
+      (thing.y - _viletryy).abs() > maxdist) {
+    return true;
+  }
+
+  _corpsehit = thing;
+  thing
+    ..momX = 0
+    ..momY = 0;
+
+  final oldHeight = thing.height;
+  thing.height = thing.height << 2;
+  final check = map.checkPosition(thing, thing.x, thing.y, _pitVileCheckLevel!);
+  thing.height = oldHeight;
+
+  if (!check) return true;
+
+  return false;
+}
+
+void aVileChase(Mobj actor, LevelLocals level, DoomRandom random) {
+  if (actor.moveDir != _MoveDir.noDir) {
+    final info = actor.info;
+    final speed = info?.speed ?? 15;
+    _viletryx = actor.x + speed * _xSpeed[actor.moveDir];
+    _viletryy = actor.y + speed * _ySpeed[actor.moveDir];
+    _pitVileCheckLevel = level;
+
+    final bm = level.blockmap;
+    if (bm != null) {
+      final xl = ((_viletryx - bm.originX - _VileConstants.maxRadius * 2) >>
+              _mapBlockShift)
+          .clamp(0, bm.columns - 1);
+      final xh = ((_viletryx - bm.originX + _VileConstants.maxRadius * 2) >>
+              _mapBlockShift)
+          .clamp(0, bm.columns - 1);
+      final yl = ((_viletryy - bm.originY - _VileConstants.maxRadius * 2) >>
+              _mapBlockShift)
+          .clamp(0, bm.rows - 1);
+      final yh = ((_viletryy - bm.originY + _VileConstants.maxRadius * 2) >>
+              _mapBlockShift)
+          .clamp(0, bm.rows - 1);
+
+      for (var bx = xl; bx <= xh; bx++) {
+        for (var by = yl; by <= yh; by++) {
+          if (!_blockThingsIterator(bx, by, _pitVileCheck, level)) {
+            final corpse = _corpsehit;
+            if (corpse != null) {
+              final temp = actor.target;
+              actor.target = corpse;
+              aFaceTarget(actor, random);
+              actor.target = temp;
+
+              spec.setMobjStateNum(actor, StateNum.vileHeal1, level);
+
+              final corpseInfo = corpse.info;
+              if (corpseInfo != null) {
+                spec.setMobjStateNum(corpse, corpseInfo.raiseState, level);
+                corpse
+                  ..height = corpse.height << 2
+                  ..flags = corpseInfo.flags
+                  ..health = corpseInfo.spawnHealth
+                  ..target = null;
+              }
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  aChase(actor, level, random);
+}
+
+void aVileStart(Mobj actor) {}
+
+void aVileTarget(Mobj actor, LevelLocals level, DoomRandom random) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, random);
+
+  final fog = spawnMobj(
+    target.x,
+    target.y,
+    target.z,
+    MobjType.fire,
+    level.renderState,
+    level,
+  );
+
+  if (fog != null) {
+    actor.tracer = fog;
+    fog
+      ..target = actor
+      ..tracer = target;
+    aFire(fog, level);
+  }
+}
+
+void aVileAttack(Mobj actor, LevelLocals level, DoomRandom random) {
+  final target = actor.target;
+  if (target == null) return;
+
+  aFaceTarget(actor, random);
+
+  if (!_checkSight(actor, target, level)) return;
+
+  inter.damageMobj(target, actor, actor, _VileConstants.vileDamage, level);
+
+  final targetInfo = target.info;
+  final mass = targetInfo?.mass ?? 100;
+  target.momZ = _VileConstants.thrustFactor ~/ mass;
+
+  final an = actor.angle.u32 >> Angle.angleToFineShift;
+
+  final fire = actor.tracer;
+  if (fire == null) return;
+
+  fire
+    ..x = target.x - Fixed32.mul(_VileConstants.fireDist, fineCosine(an))
+    ..y = target.y - Fixed32.mul(_VileConstants.fireDist, fineSine(an));
+
+  spec.radiusAttack(fire, actor, _VileConstants.radiusDamage, level);
+}
+
+void aStartFire(Mobj actor, LevelLocals level) {
+  aFire(actor, level);
+}
+
+void aFireCrackle(Mobj actor, LevelLocals level) {
+  aFire(actor, level);
+}
+
+void aFire(Mobj actor, LevelLocals level) {
+  final dest = actor.tracer;
+  if (dest == null) return;
+
+  final vile = actor.target;
+  if (vile == null) return;
+
+  if (!_checkSight(vile, dest, level)) return;
+
+  final an = dest.angle.u32 >> Angle.angleToFineShift;
+
+  maputl.unsetThingPosition(actor);
+  actor
+    ..x = dest.x + Fixed32.mul(_VileConstants.fireDist, fineCosine(an))
+    ..y = dest.y + Fixed32.mul(_VileConstants.fireDist, fineSine(an))
+    ..z = dest.z;
+  maputl.setThingPosition(actor, level.renderState);
+}
+
+bool _blockThingsIterator(
+  int x,
+  int y,
+  bool Function(Mobj) func,
+  LevelLocals level,
+) {
+  final bm = level.blockmap;
+  final links = level.blockLinks;
+  if (bm == null || links == null) return true;
+
+  if (x < 0 || y < 0 || x >= bm.columns || y >= bm.rows) return true;
+
+  final offset = y * bm.columns + x;
+  var mobj = links[offset];
+
+  while (mobj != null) {
+    if (!func(mobj)) return false;
+    mobj = mobj.bNext;
+  }
+
+  return true;
+}
+
+const int _mapBlockShift = 7;

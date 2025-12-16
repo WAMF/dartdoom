@@ -204,6 +204,105 @@ const Map<int, MobjInfo> _monsterInfo = {
     flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
     raiseState: StateNum.bossRaise1,
   ),
+  64: MobjInfo(
+    doomEdNum: 64,
+    spawnState: StateNum.vileStnd,
+    spawnHealth: 700,
+    seeState: StateNum.vileRun1,
+    reactionTime: 8,
+    painState: StateNum.vilePain,
+    painChance: 10,
+    meleeState: 0,
+    missileState: StateNum.vileAtk1,
+    deathState: StateNum.vileDie1,
+    xDeathState: 0,
+    speed: 15,
+    radius: 20 << 16,
+    height: 56 << 16,
+    mass: 500,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: 0,
+  ),
+  MobjType.fire: MobjInfo(
+    doomEdNum: MobjType.fire,
+    spawnState: StateNum.fire1,
+    spawnHealth: 1000,
+    seeState: 0,
+    reactionTime: 8,
+    painState: 0,
+    painChance: 0,
+    meleeState: 0,
+    missileState: 0,
+    deathState: 0,
+    xDeathState: 0,
+    speed: 0,
+    radius: 20 << 16,
+    height: 16 << 16,
+    mass: 100,
+    flags: MobjFlag.noBlockmap | MobjFlag.noGravity,
+    raiseState: 0,
+  ),
+  16: MobjInfo(
+    doomEdNum: 16,
+    spawnState: StateNum.cyberStnd,
+    spawnHealth: 4000,
+    seeState: StateNum.cyberRun1,
+    reactionTime: 8,
+    painState: StateNum.cyberPain,
+    painChance: 20,
+    meleeState: 0,
+    missileState: StateNum.cyberAtk1,
+    deathState: StateNum.cyberDie1,
+    xDeathState: 0,
+    speed: 16,
+    radius: 40 << 16,
+    height: 110 << 16,
+    mass: 1000,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: 0,
+  ),
+  7: MobjInfo(
+    doomEdNum: 7,
+    spawnState: StateNum.spidStnd,
+    spawnHealth: 3000,
+    seeState: StateNum.spidRun1,
+    reactionTime: 8,
+    painState: StateNum.spidPain,
+    painChance: 40,
+    meleeState: 0,
+    missileState: StateNum.spidAtk1,
+    deathState: StateNum.spidDie1,
+    xDeathState: 0,
+    speed: 12,
+    radius: 128 << 16,
+    height: 100 << 16,
+    mass: 1000,
+    flags: MobjFlag.solid | MobjFlag.shootable | MobjFlag.countKill,
+    raiseState: 0,
+  ),
+  71: MobjInfo(
+    doomEdNum: 71,
+    spawnState: StateNum.painStnd,
+    spawnHealth: 400,
+    seeState: StateNum.painRun1,
+    reactionTime: 8,
+    painState: StateNum.painPain,
+    painChance: 128,
+    meleeState: 0,
+    missileState: StateNum.painAtk1,
+    deathState: StateNum.painDie1,
+    xDeathState: 0,
+    speed: 8,
+    radius: 31 << 16,
+    height: 56 << 16,
+    mass: 400,
+    flags: MobjFlag.solid |
+        MobjFlag.shootable |
+        MobjFlag.float |
+        MobjFlag.noGravity |
+        MobjFlag.countKill,
+    raiseState: StateNum.painRaise1,
+  ),
 };
 
 MobjInfo? _getMonsterInfo(int thingType) => _monsterInfo[thingType];
@@ -220,6 +319,10 @@ abstract final class MobjType {
   static const int fatShot = -9;
   static const int puff = -10;
   static const int blood = -11;
+  static const int fire = -12;
+  static const int skull = 3006;
+  static const int vile = 64;
+  static const int pain = 71;
 }
 
 const _missileFlags = MobjFlag.noBlockmap |
@@ -1154,4 +1257,62 @@ Mobj? spawnBlood(
   }
 
   return th;
+}
+
+Mobj? spawnSkull(
+  int x,
+  int y,
+  int z,
+  RenderState state,
+  LevelLocals level,
+) {
+  final info = _getMonsterInfo(MobjType.skull);
+  if (info == null) return null;
+
+  final mobj = Mobj()
+    ..x = x
+    ..y = y
+    ..type = MobjType.skull
+    ..info = info
+    ..radius = info.radius
+    ..height = info.height
+    ..flags = info.flags
+    ..health = info.spawnHealth
+    ..reactionTime = level.skill == Skill.nightmare ? 0 : info.reactionTime;
+
+  final spawnState = info.spawnState;
+  if (spawnState > 0 && spawnState < states.length) {
+    final st = states[spawnState];
+    mobj
+      ..stateNum = spawnState
+      ..tics = st.tics
+      ..sprite = st.sprite
+      ..frame = st.frame;
+  }
+
+  _setMobjPosition(mobj, state, level);
+
+  final ss = mobj.subsector;
+  if (ss == null || ss is! Subsector) return null;
+
+  mobj
+    ..floorZ = ss.sector.floorHeight
+    ..ceilingZ = ss.sector.ceilingHeight
+    ..z = z;
+
+  return mobj;
+}
+
+int countSkulls(RenderState state) {
+  var count = 0;
+  for (final sector in state.sectors) {
+    var thing = sector.thingList;
+    while (thing != null) {
+      if (thing.type == MobjType.skull && thing.health > 0) {
+        count++;
+      }
+      thing = thing.sNext;
+    }
+  }
+  return count;
 }

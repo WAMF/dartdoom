@@ -15,9 +15,9 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 | **Weapon Mechanics** | 75-80% | All 9 weapons functional with ammo system |
 | **Intermission** | 75-80% | Stats display works, limited finale sequences |
 | **Menus/UI** | 70-75% | Core menus work, save/load missing |
-| **Enemy AI** | 60-70% | 16 monster types, basic behaviors only |
+| **Enemy AI** | 85-90% | 19 monster types, infighting, Pain Elemental, Arch-vile resurrection, bosses |
 | **Game Flow** | 60-65% | Progression works, save/load and cheats limited |
-| **Overall** | **~75%** | Highly functional implementation |
+| **Overall** | **~80%** | Highly functional implementation |
 
 ---
 
@@ -98,13 +98,21 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Help screens
 - [x] Title screen
 
-### Enemy AI (60-70%)
-- [x] 16 monster types implemented
+### Enemy AI (85-90%)
+- [x] 19 monster types implemented (including Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental)
 - [x] Player seeking with line-of-sight
 - [x] Chase behavior
 - [x] Melee and ranged attacks
 - [x] Pain and death states
 - [x] 8-directional movement
+- [x] Monster infighting (threshold-based target switching)
+- [x] Lost Soul charging attack (aSkullAttack)
+- [x] Pain Elemental spawning Lost Souls (aPainAttack, aPainDie)
+- [x] Monster-specific missile range checks (Vile, Revenant, Cyberdemon, Spider, Lost Soul)
+- [x] Arch-vile resurrection (aVileChase finds corpses to raise)
+- [x] Arch-vile fire attack (aVileTarget, aVileAttack, aFire)
+- [x] Cyberdemon triple rocket attack (cyberAttack)
+- [x] Spider Mastermind chaingun attack (spidRefire)
 
 ### Game Flow (60-65%)
 - [x] All 5 difficulty levels
@@ -121,12 +129,13 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 ### High Priority
 - [ ] **Automap** - Essential navigation feature
 - [ ] **Additional Cheats** - IDKFA (all keys/weapons/ammo), IDFA (weapons/ammo), IDCLEV (level warp), IDDT (automap reveal), IDBEHOLD (power-ups)
-- [ ] **Monster Infighting** - Monsters should fight each other when hit by friendly fire
-- [ ] **Complex AI Behaviors**:
-  - [ ] Lost Soul charging attack
-  - [ ] Arch-vile resurrection logic
-  - [ ] Pain Elemental spawning Lost Souls
-  - [ ] Cyberdemon/Spider Mastermind specific patterns
+- [x] **Monster Infighting** - Monsters fight each other when hit by friendly fire
+- [x] **Lost Soul charging attack** - aSkullAttack with momentum toward target
+- [x] **Pain Elemental spawning Lost Souls** - aPainAttack and aPainDie spawn skulls
+- [x] **Monster-specific missile range** - Vile, Revenant, Cyberdemon, Spider, Skull adjustments
+- [x] **Complex AI Behaviors**:
+  - [x] Arch-vile resurrection logic (aVileChase)
+  - [x] Cyberdemon/Spider Mastermind boss patterns (states and attacks)
 
 ### Medium Priority
 - [ ] **Save/Load Game** - Game persistence
@@ -173,16 +182,73 @@ Cheat sequences to implement:
 - `idmypos` - Display coordinates
 - `idchoppers` - Chainsaw + invulnerability message
 
-### Monster Infighting
-Reference: `original/linuxdoom-1.10/p_enemy.c`
+### Monster Infighting (Implemented)
+Reference: `original/linuxdoom-1.10/p_inter.c` (lines 904-915)
 
-When a monster is damaged by another monster (not player):
-- Set `target` to the attacker
-- Enter chase/attack state toward attacker
-- Continue until one dies or loses sight
+Implementation in `p_inter.dart` (`damageMobj` function, lines 622-636):
+- When damaged and `threshold == 0` (or monster is Arch-vile), acquire attacker as target
+- Set `threshold` to 100 tics to prevent rapid target switching
+- Transition to `seeState` if in spawn state
+- Arch-viles (type 64) never fight each other
+- Chase behavior in `p_enemy.dart` continues attacking monster targets until they die or become non-shootable
+
+### Pain Elemental Skull Spawning (Implemented)
+Reference: `original/linuxdoom-1.10/p_enemy.c` (lines 1449-1505)
+
+Implementation in `p_enemy.dart` (`_painShootSkull` function):
+- Counts existing skulls on level (max 20 limit)
+- Calculates spawn position with prestep offset from Pain Elemental
+- Spawns Lost Soul at calculated position
+- Validates position with `tryMove` - kills skull if blocked
+- Sets skull target to Pain Elemental's target
+- Immediately launches skull with `aSkullAttack`
+
+### Monster-Specific Missile Range (Implemented)
+Reference: `original/linuxdoom-1.10/p_enemy.c` (lines 197-256)
+
+Implementation in `p_enemy.dart` (`checkMissileRange` function):
+- Arch-vile (64): Max range of 14*64 units
+- Revenant (66): Min range of 196 units, distance halved
+- Cyberdemon (16): Distance halved, max 160 units
+- Spider Mastermind (7): Distance halved
+- Lost Soul (3006): Distance halved
+
+### Arch-vile AI (Implemented)
+Reference: `original/linuxdoom-1.10/p_enemy.c` (lines 1164-1338)
+
+Implementation in `p_enemy.dart`:
+- `aVileChase`: Searches for corpses within range, resurrects them by restoring health/flags/state
+- `aVileTarget`: Spawns fire object at target location, links tracer chain
+- `aVileAttack`: Deals 20 damage, applies vertical thrust, triggers radius attack via fire
+- `aFire`: Keeps fire positioned in front of target during attack
+
+State definitions in `info.dart`:
+- 40 Vile states (stand, run, attack, heal, pain, death)
+- 30 Fire states (animated fire effect)
+
+### Boss Monsters (Implemented)
+Reference: `original/linuxdoom-1.10/info.c` (mobjinfo entries)
+
+Cyberdemon (type 16):
+- 4000 HP, speed 16, 40 unit radius, 110 unit height
+- Triple rocket attack via `cyberAttack` action
+- States: stand, run (8 frames), attack (6 frames), pain, death (10 frames)
+
+Spider Mastermind (type 7):
+- 3000 HP, speed 12, 128 unit radius, 100 unit height
+- Chaingun attack via `sPosAttack` with `spidRefire` loop
+- States: stand, run (12 frames), attack (4 frames), pain, death (11 frames)
+
+Pain Elemental (type 71):
+- 400 HP, floating, 31 unit radius
+- Spawns Lost Souls via `painAttack` and `painDie`
+- States: stand, run (6 frames), attack (4 frames), pain, death (6 frames), raise (6 frames)
 
 ---
 
 ## Version History
 
+- **2025-12-16**: Added Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental - ~80% feature parity
+- **2025-12-16**: Added Pain Elemental skull spawning, monster-specific missile ranges - ~77% feature parity
+- **2025-12-16**: Monster infighting verified as implemented - ~76% feature parity
 - **2024-12-15**: Initial assessment - ~75% feature parity
