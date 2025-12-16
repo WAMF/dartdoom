@@ -11,6 +11,10 @@ abstract final class _BobConstants {
   static const int bobAngleScale = Angle.fineAngles ~/ 20;
 }
 
+abstract final class _DeathConstants {
+  static const int ang5 = Angle.ang90 ~/ 18;
+}
+
 void playerThink(Player player, LevelLocals level) {
   final cmd = player.cmd;
   final mobj = player.mobj;
@@ -45,6 +49,14 @@ void playerThink(Player player, LevelLocals level) {
   }
 
   movePsprites(player, level);
+
+  if (player.damageCount > 0) {
+    player.damageCount--;
+  }
+
+  if (player.bonusCount > 0) {
+    player.bonusCount--;
+  }
 }
 
 void _movePlayer(Player player) {
@@ -147,6 +159,30 @@ void _deathThink(Player player) {
   player.deltaViewHeight = 0;
 
   player.viewZ = mobj.z + player.viewHeight;
+
+  final attacker = player.attacker;
+  if (attacker != null && attacker != mobj) {
+    final angle = pointToAngle(attacker.x - mobj.x, attacker.y - mobj.y);
+    final delta = (angle - mobj.angle).u32;
+
+    if (delta < _DeathConstants.ang5 ||
+        delta > ((-_DeathConstants.ang5).u32)) {
+      mobj.angle = angle;
+      if (player.damageCount > 0) {
+        player.damageCount--;
+      }
+    } else if (delta < Angle.ang180.u32) {
+      mobj.angle = (mobj.angle + _DeathConstants.ang5).u32.s32;
+    } else {
+      mobj.angle = (mobj.angle - _DeathConstants.ang5).u32.s32;
+    }
+  } else if (player.damageCount > 0) {
+    player.damageCount--;
+  }
+
+  if ((player.cmd.buttons & TicCmdButtons.use) != 0) {
+    player.playerState = PlayerState.reborn;
+  }
 }
 
 void useLines(Player player, LevelLocals level) {

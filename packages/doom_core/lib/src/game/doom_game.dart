@@ -309,6 +309,7 @@ class DoomGame {
       level
         ..blockmap = Blockmap.parse(mapData.blockmap!)
         ..initBlockLinks();
+      _computeSectorBlockBoxes(renderState.sectors, level.blockmap!);
     }
 
     level
@@ -633,4 +634,57 @@ class DoomGame {
   void keyUp(int keyCode) {
     input.keyUp(keyCode);
   }
+
+  void _computeSectorBlockBoxes(List<Sector> sectors, Blockmap blockmap) {
+    final originX = blockmap.originX << Fixed32.fracBits;
+    final originY = blockmap.originY << Fixed32.fracBits;
+
+    for (final sector in sectors) {
+      if (sector.lines.isEmpty) continue;
+
+      var minX = 0x7FFFFFFF;
+      var maxX = -0x7FFFFFFF;
+      var minY = 0x7FFFFFFF;
+      var maxY = -0x7FFFFFFF;
+
+      for (final line in sector.lines) {
+        final v1 = line.v1;
+        final v2 = line.v2;
+
+        if (v1.x < minX) minX = v1.x;
+        if (v1.x > maxX) maxX = v1.x;
+        if (v1.y < minY) minY = v1.y;
+        if (v1.y > maxY) maxY = v1.y;
+
+        if (v2.x < minX) minX = v2.x;
+        if (v2.x > maxX) maxX = v2.x;
+        if (v2.y < minY) minY = v2.y;
+        if (v2.y > maxY) maxY = v2.y;
+      }
+
+      var block = (maxY - originY + _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block >= blockmap.rows) block = blockmap.rows - 1;
+      sector.blockBox0 = block;
+
+      block = (minY - originY - _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block < 0) block = 0;
+      sector.blockBox1 = block;
+
+      block = (maxX - originX + _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block >= blockmap.columns) block = blockmap.columns - 1;
+      sector.blockBox3 = block;
+
+      block = (minX - originX - _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block < 0) block = 0;
+      sector.blockBox2 = block;
+    }
+  }
+}
+
+abstract final class _BlockBoxConstants {
+  static const int maxRadius = 32 << Fixed32.fracBits;
 }
