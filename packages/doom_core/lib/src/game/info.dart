@@ -60,6 +60,14 @@ abstract final class SpriteNum {
   static const int arm2 = 56;
   static const int bar1 = 57;
   static const int bexp = 58;
+  static const int gor1 = 96;
+  static const int pol3 = 100;
+  static const int pol6 = 102;
+  static const int ceye = 118;
+  static const int fsku = 119;
+  static const int col5 = 120;
+  static const int tlmp = 136;
+  static const int tlp2 = 137;
 }
 
 abstract final class StateNum {
@@ -495,6 +503,32 @@ abstract final class StateNum {
   static const int painRaise4 = 405;
   static const int painRaise5 = 406;
   static const int painRaise6 = 407;
+
+  static const int bloodyTwitch = 408;
+  static const int bloodyTwitch2 = 409;
+  static const int bloodyTwitch3 = 410;
+  static const int bloodyTwitch4 = 411;
+  static const int headCandles = 412;
+  static const int headCandles2 = 413;
+  static const int liveStick = 414;
+  static const int liveStick2 = 415;
+  static const int evilEye = 416;
+  static const int evilEye2 = 417;
+  static const int evilEye3 = 418;
+  static const int evilEye4 = 419;
+  static const int floatSkull = 420;
+  static const int floatSkull2 = 421;
+  static const int floatSkull3 = 422;
+  static const int heartCol = 423;
+  static const int heartCol2 = 424;
+  static const int techLamp = 425;
+  static const int techLamp2 = 426;
+  static const int techLamp3 = 427;
+  static const int techLamp4 = 428;
+  static const int tech2Lamp = 429;
+  static const int tech2Lamp2 = 430;
+  static const int tech2Lamp3 = 431;
+  static const int tech2Lamp4 = 432;
 }
 
 enum StateAction {
@@ -988,4 +1022,31 @@ const List<MobjState> states = [
   MobjState(SpriteNum.pain, 9, 8, StateAction.none, StateNum.painRaise5),
   MobjState(SpriteNum.pain, 8, 8, StateAction.none, StateNum.painRaise6),
   MobjState(SpriteNum.pain, 7, 8, StateAction.none, StateNum.painRun1),
+
+  MobjState(SpriteNum.gor1, 0, 10, StateAction.none, StateNum.bloodyTwitch2),
+  MobjState(SpriteNum.gor1, 1, 15, StateAction.none, StateNum.bloodyTwitch3),
+  MobjState(SpriteNum.gor1, 2, 8, StateAction.none, StateNum.bloodyTwitch4),
+  MobjState(SpriteNum.gor1, 1, 6, StateAction.none, StateNum.bloodyTwitch),
+  MobjState(SpriteNum.pol3, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.headCandles2),
+  MobjState(SpriteNum.pol3, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.headCandles),
+  MobjState(SpriteNum.pol6, 0, 6, StateAction.none, StateNum.liveStick2),
+  MobjState(SpriteNum.pol6, 1, 8, StateAction.none, StateNum.liveStick),
+
+  MobjState(SpriteNum.ceye, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye2),
+  MobjState(SpriteNum.ceye, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye3),
+  MobjState(SpriteNum.ceye, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye4),
+  MobjState(SpriteNum.ceye, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye),
+  MobjState(SpriteNum.fsku, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.floatSkull2),
+  MobjState(SpriteNum.fsku, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.floatSkull3),
+  MobjState(SpriteNum.fsku, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.floatSkull),
+  MobjState(SpriteNum.col5, 0, 14, StateAction.none, StateNum.heartCol2),
+  MobjState(SpriteNum.col5, 1, 14, StateAction.none, StateNum.heartCol),
+  MobjState(SpriteNum.tlmp, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp2),
+  MobjState(SpriteNum.tlmp, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp3),
+  MobjState(SpriteNum.tlmp, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp4),
+  MobjState(SpriteNum.tlmp, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp),
+  MobjState(SpriteNum.tlp2, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp2),
+  MobjState(SpriteNum.tlp2, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp3),
+  MobjState(SpriteNum.tlp2, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp4),
+  MobjState(SpriteNum.tlp2, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp),
 ];

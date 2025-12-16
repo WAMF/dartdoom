@@ -290,12 +290,12 @@ const Map<int, ThingDef> thingDefs = {
   12: ThingDef(sprite: SpriteNum.play, frame: 18, radius: 20 * _FU.unit, height: 16 * _FU.unit),
   15: ThingDef(sprite: SpriteNum.play, frame: 13, radius: 20 * _FU.unit, height: 16 * _FU.unit),
 
-  18: ThingDef(sprite: SpriteNum.poss, frame: 12, radius: 20 * _FU.unit, height: 16 * _FU.unit),
-  19: ThingDef(sprite: SpriteNum.spos, frame: 12, radius: 20 * _FU.unit, height: 16 * _FU.unit),
+  18: ThingDef(sprite: SpriteNum.poss, frame: 11, radius: 20 * _FU.unit, height: 16 * _FU.unit),
+  19: ThingDef(sprite: SpriteNum.spos, frame: 11, radius: 20 * _FU.unit, height: 16 * _FU.unit),
   20: ThingDef(sprite: SpriteNum.troo, frame: 12, radius: 20 * _FU.unit, height: 16 * _FU.unit),
   21: ThingDef(sprite: SpriteNum.sarg, frame: 13, radius: 30 * _FU.unit, height: 16 * _FU.unit),
-  22: ThingDef(sprite: SpriteNum.head, frame: 12, radius: 31 * _FU.unit, height: 16 * _FU.unit),
-  23: ThingDef(sprite: SpriteNum.skul, frame: 11, radius: 16 * _FU.unit, height: 16 * _FU.unit),
+  22: ThingDef(sprite: SpriteNum.head, frame: 11, radius: 31 * _FU.unit, height: 16 * _FU.unit),
+  23: ThingDef(sprite: SpriteNum.skul, frame: 10, radius: 16 * _FU.unit, height: 16 * _FU.unit),
 
   49: ThingDef(sprite: SpriteNum.gor1, frame: 32768, radius: 16 * _FU.unit, height: 68 * _FU.unit, flags: MobjFlag.solid | MobjFlag.spawnCeiling | MobjFlag.noGravity),
   63: ThingDef(sprite: SpriteNum.gor1, frame: 32768, radius: 16 * _FU.unit, height: 68 * _FU.unit, flags: MobjFlag.spawnCeiling | MobjFlag.noGravity),
