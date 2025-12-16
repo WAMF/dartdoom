@@ -15,6 +15,34 @@ abstract final class _DeathConstants {
   static const int ang5 = Angle.ang90 ~/ 18;
 }
 
+const List<WeaponType> _weaponKeyMap = [
+  WeaponType.fist,
+  WeaponType.pistol,
+  WeaponType.shotgun,
+  WeaponType.chaingun,
+  WeaponType.missile,
+  WeaponType.plasma,
+  WeaponType.bfg,
+];
+
+WeaponType _processWeaponChange(Player player, TicCmd cmd) {
+  final weaponIndex = TicCmdButtons.weaponFromButtons(cmd.buttons);
+  if (weaponIndex < 0 || weaponIndex >= _weaponKeyMap.length) {
+    return WeaponType.noChange;
+  }
+
+  var newWeapon = _weaponKeyMap[weaponIndex];
+
+  if (newWeapon == WeaponType.fist &&
+      player.weaponOwned[WeaponType.chainsaw.index] &&
+      !(player.readyWeapon == WeaponType.chainsaw &&
+          player.powers[PowerType.strength.index] > 0)) {
+    newWeapon = WeaponType.chainsaw;
+  }
+
+  return newWeapon;
+}
+
 void playerThink(Player player, LevelLocals level) {
   final cmd = player.cmd;
   final mobj = player.mobj;
@@ -38,6 +66,15 @@ void playerThink(Player player, LevelLocals level) {
   _calcBob(player);
 
   _calcHeight(player, level.levelTime);
+
+  if ((cmd.buttons & TicCmdButtons.change) != 0) {
+    final newWeapon = _processWeaponChange(player, cmd);
+    if (newWeapon != WeaponType.noChange &&
+        newWeapon != player.readyWeapon &&
+        player.weaponOwned[newWeapon.index]) {
+      player.pendingWeapon = newWeapon;
+    }
+  }
 
   if ((cmd.buttons & TicCmdButtons.use) != 0) {
     if (!player.useDown) {
