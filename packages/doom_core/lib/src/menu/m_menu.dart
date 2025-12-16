@@ -10,6 +10,7 @@ import 'package:doom_wad/doom_wad.dart';
 
 typedef NewGameCallback = void Function(Skill skill, int episode, int map);
 typedef QuitGameCallback = void Function();
+typedef MessageCallback = void Function(int response);
 
 class MenuSystem {
   MenuSystem(this._wadManager, this._screenBuffers);
@@ -37,6 +38,12 @@ class MenuSystem {
   late MenuDef _newGameDef;
   late MenuDef _readDef1;
   late MenuDef _readDef2;
+
+  bool _messageToPrint = false;
+  String _messageString = '';
+  bool _messageNeedsInput = false;
+  MessageCallback? _messageRoutine;
+  int _messageLastMenuActive = 0;
 
   NewGameCallback? onNewGame;
   QuitGameCallback? onQuitGame;
@@ -298,8 +305,26 @@ class MenuSystem {
   }
 
   void _quitDoom(int choice) {
+    _startMessage(
+      _QuitMessages.messages[choice % _QuitMessages.messages.length],
+      _quitResponse,
+      needsInput: true,
+    );
+  }
+
+  void _quitResponse(int response) {
+    if (response != DoomKey.keyY) return;
     onQuitGame?.call();
     clearMenus();
+  }
+
+  void _startMessage(String message, MessageCallback routine, {bool needsInput = false}) {
+    _messageLastMenuActive = _menuActive ? 1 : 0;
+    _messageString = message;
+    _messageRoutine = routine;
+    _messageNeedsInput = needsInput;
+    _messageToPrint = true;
+    _menuActive = true;
   }
 
   void _setupNextMenu(MenuDef menu) {
@@ -311,6 +336,24 @@ class MenuSystem {
     if (event.type != DoomEventType.keyDown) return false;
 
     final ch = event.data1;
+
+    if (_messageToPrint) {
+      if (_messageNeedsInput &&
+          ch != DoomKey.keyY &&
+          ch != DoomKey.keyN &&
+          ch != DoomKey.escape) {
+        return false;
+      }
+
+      _messageToPrint = false;
+      if (_messageNeedsInput) {
+        _menuActive = _messageLastMenuActive != 0;
+      }
+
+      _messageRoutine?.call(ch);
+      _menuActive = false;
+      return true;
+    }
 
     if (!_menuActive) {
       if (ch == DoomKey.escape) {
@@ -433,6 +476,12 @@ class MenuSystem {
   void drawer() {
     if (!_menuActive) return;
 
+    if (_messageToPrint) {
+      final y = (ScreenConstants.height - _stringHeight(_messageString)) ~/ 2;
+      _writeText(0, y, _messageString, centered: true);
+      return;
+    }
+
     final menu = _currentMenu;
     if (menu == null) return;
 
@@ -461,6 +510,72 @@ class MenuSystem {
         skullPatch,
       );
     }
+  }
+
+  void _writeText(int x, int y, String text, {bool centered = false}) {
+    if (_font.isEmpty) return;
+
+    var cx = x;
+    var cy = y;
+
+    for (var i = 0; i < text.length; i++) {
+      final c = text.codeUnitAt(i);
+
+      if (c == 10) {
+        cx = x;
+        cy += _FontConstants.lineHeight;
+        continue;
+      }
+
+      if (centered && (i == 0 || text.codeUnitAt(i - 1) == 10)) {
+        final lineEnd = text.indexOf('\n', i);
+        final line = lineEnd >= 0 ? text.substring(i, lineEnd) : text.substring(i);
+        cx = (ScreenConstants.width - _stringWidth(line)) ~/ 2;
+      }
+
+      if (c < HuConstants.fontStart || c > HuConstants.fontEnd) {
+        cx += _FontConstants.spaceWidth;
+        continue;
+      }
+
+      final fontIndex = c - HuConstants.fontStart;
+      if (fontIndex >= 0 && fontIndex < _font.length) {
+        final patch = _font[fontIndex];
+        VVideo.drawPatchDirect(_screen, cx, cy, patch);
+        cx += patch.width;
+      }
+    }
+  }
+
+  int _stringWidth(String text) {
+    if (_font.isEmpty) return 0;
+
+    var width = 0;
+    for (var i = 0; i < text.length; i++) {
+      final c = text.codeUnitAt(i);
+      if (c == 10) break;
+
+      if (c < HuConstants.fontStart || c > HuConstants.fontEnd) {
+        width += _FontConstants.spaceWidth;
+        continue;
+      }
+
+      final fontIndex = c - HuConstants.fontStart;
+      if (fontIndex >= 0 && fontIndex < _font.length) {
+        width += _font[fontIndex].width;
+      }
+    }
+    return width;
+  }
+
+  int _stringHeight(String text) {
+    var height = _FontConstants.lineHeight;
+    for (var i = 0; i < text.length; i++) {
+      if (text.codeUnitAt(i) == 10) {
+        height += _FontConstants.lineHeight;
+      }
+    }
+    return height;
   }
 
   bool _isFullscreenMenu(MenuDef menu) {
@@ -527,4 +642,19 @@ class MenuSystem {
 
 abstract final class _FontConstants {
   static const int fontSize = 63;
+  static const int lineHeight = 12;
+  static const int spaceWidth = 4;
+}
+
+abstract final class _QuitMessages {
+  static const List<String> messages = [
+    'are you sure you want to\nquit this great game?',
+    "please don't leave, there's more\ndemons to toast!",
+    "let's beat it -- this is turning\ninto a bloodbath!",
+    "i wouldn't leave if i were you.\ndos is much worse.",
+    "you're trying to say you like dos\nbetter than me, right?",
+    "don't leave yet -- there's a\ndemon around that corner!",
+    "ya know, next time you come in here\ni'm gonna toast ya.",
+    'go ahead and leave. see if i care.',
+  ];
 }

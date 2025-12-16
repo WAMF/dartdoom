@@ -1,5 +1,4 @@
 import 'package:doom_core/src/game/level_locals.dart';
-import 'package:doom_core/src/game/p_map.dart' as map;
 import 'package:doom_core/src/game/specials/move_plane.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -109,10 +108,8 @@ void ceilingThink(
         false,
         1,
         ceiling.direction,
+        level: level,
       );
-
-      // Update things in sector after ceiling moves
-      map.changeSector(ceiling.sector, ceiling.crush, level);
 
       if (res == MoveResult.pastDest) {
         switch (ceiling.type) {
@@ -138,10 +135,8 @@ void ceilingThink(
         ceiling.crush,
         1,
         ceiling.direction,
+        level: level,
       );
-
-      // Update things in sector after ceiling moves
-      map.changeSector(ceiling.sector, ceiling.crush, level);
 
       if (res == MoveResult.pastDest) {
         switch (ceiling.type) {

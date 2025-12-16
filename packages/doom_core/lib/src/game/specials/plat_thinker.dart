@@ -1,5 +1,4 @@
 import 'package:doom_core/src/game/level_locals.dart';
-import 'package:doom_core/src/game/p_map.dart' as map;
 import 'package:doom_core/src/game/specials/move_plane.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -106,10 +105,8 @@ void platThink(PlatThinker plat, LevelLocals level) {
         plat.crush,
         0,
         1,
+        level: level,
       );
-
-      // Update things in sector after platform moves
-      map.changeSector(plat.sector, false, level);
 
       if (res == MoveResult.crushed && !plat.crush) {
         plat.count = plat.wait;
@@ -138,10 +135,8 @@ void platThink(PlatThinker plat, LevelLocals level) {
         false,
         0,
         -1,
+        level: level,
       );
-
-      // Update things in sector after platform moves
-      map.changeSector(plat.sector, false, level);
 
       if (res == MoveResult.pastDest) {
         plat.count = plat.wait;

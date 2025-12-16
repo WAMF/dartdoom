@@ -595,7 +595,7 @@ class SpriteRenderer {
 
     if (lump >= _state.spriteWidth.length) return;
 
-    final screenCenterX = 160 * Fixed32.fracUnit;
+    const screenCenterX = 160 * Fixed32.fracUnit;
     var tx = psp.sx - screenCenterX;
     tx -= _state.spriteOffset[lump];
 

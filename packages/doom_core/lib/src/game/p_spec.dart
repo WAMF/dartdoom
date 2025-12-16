@@ -535,7 +535,7 @@ void evVerticalDoor(Line line, Mobj thing, LevelLocals level) {
 
   level.thinkers.add(door);
   sector.specialData = door;
-  door.function = (_) => doorThink(door);
+  door.function = (_) => doorThink(door, level);
 
   switch (line.special) {
     case _LineSpecial.manualDoor:

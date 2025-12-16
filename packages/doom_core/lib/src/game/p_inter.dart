@@ -3,6 +3,7 @@ import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/info.dart' hide SpriteNum;
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_pspr.dart' as pspr;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -662,6 +663,7 @@ void killMobj(Mobj? source, Mobj target, LevelLocals level) {
     final player = target.player! as Player;
     target.flags &= ~MobjFlag.solid;
     player.playerState = PlayerState.dead;
+    pspr.lowerWeapon(player);
   }
 
   final info = target.info;

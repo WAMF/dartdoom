@@ -20,7 +20,7 @@ void playerThink(Player player, LevelLocals level) {
   final mobj = player.mobj;
 
   if (player.playerState == PlayerState.dead) {
-    _deathThink(player);
+    _deathThink(player, level);
     return;
   }
 
@@ -144,7 +144,9 @@ void _calcHeight(Player player, int levelTime) {
   }
 }
 
-void _deathThink(Player player) {
+void _deathThink(Player player, LevelLocals level) {
+  movePsprites(player, level);
+
   final mobj = player.mobj;
   if (mobj == null) return;
 

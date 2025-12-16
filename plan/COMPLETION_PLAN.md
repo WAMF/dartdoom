@@ -8,16 +8,16 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 
 | Category | Parity | Notes |
 |----------|--------|-------|
-| **Rendering** | 85-90% | Complete BSP, walls, floors/ceilings, sprites, sky, lighting, animated textures |
-| **Map Features** | 85-90% | Doors, lifts, crushers, teleporters, switches, locked doors, sector specials |
+| **Rendering** | 85-90% | Complete BSP, walls, floors/ceilings, sprites, sky parallax, lighting, animated textures |
+| **Map Features** | 85-90% | Doors, lifts, crushers with proper crushing detection, teleporters, switches, locked doors, sector specials |
 | **Status Bar/HUD** | 85-90% | Health, armor, ammo, weapons, keys, face animations |
 | **Game Logic** | 80-85% | Physics, collision, damage, item pickups, power-ups |
 | **Weapon Mechanics** | 75-80% | All 9 weapons functional with ammo system |
 | **Intermission** | 75-80% | Stats display works, limited finale sequences |
-| **Menus/UI** | 70-75% | Core menus work, save/load missing |
+| **Menus/UI** | 75-80% | Core menus work, quit confirmation, screen wipe, save/load missing |
 | **Enemy AI** | 85-90% | 19 monster types, infighting, Pain Elemental, Arch-vile resurrection, bosses |
 | **Game Flow** | 60-65% | Progression works, save/load and cheats limited |
-| **Overall** | **~80%** | Highly functional implementation |
+| **Overall** | **~81%** | Highly functional implementation |
 
 ---
 
@@ -91,12 +91,14 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Episode-specific backgrounds
 - [x] Level completion indicators
 
-### Menus/UI (70-75%)
+### Menus/UI (75-80%)
 - [x] Main menu with navigation
 - [x] Episode selection
 - [x] Skill selection (all 5 levels)
 - [x] Help screens
 - [x] Title screen
+- [x] Quit confirmation dialog with random messages
+- [x] Screen wipe transitions (melt effect)
 
 ### Enemy AI (85-90%)
 - [x] 19 monster types implemented (including Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental)
@@ -145,11 +147,11 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [ ] **Advanced Weapon Effects** - Muzzle flash, better projectile visuals
 
 ### Low Priority
-- [ ] **Wind/Push Sectors** - Sector force effects
-- [ ] **Conveyor Belts** - Moving floor textures
-- [ ] **Parallax Sky** - Sky parallax with view angle
-- [ ] **Screen Wipe Transitions** - Smooth level transitions
-- [ ] **Quit Confirmation Dialog**
+- [x] **Wind/Push Sectors** - Not in vanilla DOOM (BOOM feature)
+- [x] **Conveyor Belts** - Not in vanilla DOOM (BOOM feature)
+- [x] **Parallax Sky** - Sky scrolls with view angle (implemented in r_sky.dart)
+- [x] **Screen Wipe Transitions** - Melt effect between game states (implemented in f_wipe.dart)
+- [x] **Quit Confirmation Dialog** - Shows random quit message, requires Y/N confirmation
 
 ---
 
@@ -248,6 +250,7 @@ Pain Elemental (type 71):
 
 ## Version History
 
+- **2025-12-16**: Added quit confirmation dialog, fixed door crushing bug (movePlane now calls changeSector for proper crush detection), verified sky parallax and screen wipe already implemented - ~81% feature parity
 - **2025-12-16**: Added Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental - ~80% feature parity
 - **2025-12-16**: Added Pain Elemental skull spawning, monster-specific missile ranges - ~77% feature parity
 - **2025-12-16**: Monster infighting verified as implemented - ~76% feature parity

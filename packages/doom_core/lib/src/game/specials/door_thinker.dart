@@ -39,7 +39,7 @@ class DoorThinker extends Thinker {
   int topCountdown = 0;
 }
 
-void doorThink(DoorThinker door) {
+void doorThink(DoorThinker door, LevelLocals level) {
   switch (door.direction) {
     case DoorDirection.waiting:
       door.topCountdown--;
@@ -73,6 +73,7 @@ void doorThink(DoorThinker door) {
         false,
         1,
         door.direction,
+        level: level,
       );
 
       if (res == MoveResult.pastDest) {
@@ -107,6 +108,7 @@ void doorThink(DoorThinker door) {
         false,
         1,
         door.direction,
+        level: level,
       );
 
       if (res == MoveResult.pastDest) {
@@ -143,7 +145,7 @@ DoorThinker? evDoDoor(Line line, DoorType type, LevelLocals level) {
 
     level.thinkers.add(door);
     sector.specialData = door;
-    door.function = (_) => doorThink(door);
+    door.function = (_) => doorThink(door, level);
 
     switch (type) {
       case DoorType.blazeClose:
@@ -233,7 +235,7 @@ void spawnDoorCloseIn30(Sector sector, LevelLocals level) {
   sector
     ..specialData = door
     ..special = 0;
-  door.function = (_) => doorThink(door);
+  door.function = (_) => doorThink(door, level);
 }
 
 void spawnDoorRaiseIn5Mins(Sector sector, LevelLocals level) {
@@ -249,5 +251,5 @@ void spawnDoorRaiseIn5Mins(Sector sector, LevelLocals level) {
   sector
     ..specialData = door
     ..special = 0;
-  door.function = (_) => doorThink(door);
+  door.function = (_) => doorThink(door, level);
 }
