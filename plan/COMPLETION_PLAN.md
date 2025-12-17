@@ -13,11 +13,11 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 | **Status Bar/HUD** | 85-90% | Health, armor, ammo, weapons, keys, face animations |
 | **Game Logic** | 80-85% | Physics, collision, damage, item pickups, power-ups |
 | **Weapon Mechanics** | 85-90% | All 9 weapons functional with ammo system, weapon switching keys, muzzle flash lighting |
-| **Intermission** | 75-80% | Stats display works, limited finale sequences |
+| **Intermission** | 85-90% | Stats, level titles, commercial mode support, animations |
 | **Menus/UI** | 80-85% | Core menus, quit confirmation, screen wipe, DOOM 2 support, drag-drop WAD loading |
 | **Enemy AI** | 85-90% | 19 monster types, infighting, Pain Elemental, Arch-vile resurrection, bosses |
 | **Game Flow** | 65-70% | Progression works, DOOM 2 level support, quit-to-start, save/load and cheats limited |
-| **Overall** | **~83%** | Highly functional implementation |
+| **Overall** | **~85%** | Highly functional implementation |
 
 ---
 
@@ -44,12 +44,13 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Locked doors (blue/red/yellow card and skull keys)
 - [x] Locked door messages
 - [x] Lifts/platforms (raise, lower, perpetual, wait-on-reach)
+- [x] Items move with lifts (blockmap linking for dropped items)
 - [x] Ceiling crushers with damage
 - [x] Teleporters with FOG effects
 - [x] Switches (46 texture pairs)
 - [x] Stairs (8-step and turbo 16-step)
 - [x] Sector specials:
-  - [x] Secret sectors (type 9)
+  - [x] Secret sectors (type 9) with totalSecrets counting
   - [x] Damage floors (5/10/20 hp per tic)
   - [x] End-level damage (type 11)
   - [x] Light specials (flicker, blink, oscillate, fire)
@@ -88,12 +89,19 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Muzzle flash lighting effects per weapon
 - [x] Weapon lowering on player death
 
-### Intermission (75-80%)
+### Intermission (85-90%)
 - [x] End-level intermission display
-- [x] Kill/item/secret percentages
+- [x] Kill/item/secret percentages (fixed stat counting)
 - [x] Time spent counter
-- [x] Episode-specific backgrounds
+- [x] Episode-specific backgrounds (WIMAP0-2)
 - [x] Level completion indicators
+- [x] Level name display (WILV/CWILV patches)
+- [x] "Finished" and "Entering" title screens
+- [x] Commercial mode support (DOOM 2 CWILV00-31)
+- [x] Animated backgrounds for episodes 1-3
+- [x] "You Are Here" pointer with splat markers
+- [x] Proper Y position calculation for level titles
+- [x] Auto-progression from stats to next level screen
 
 ### Menus/UI (80-85%)
 - [x] Main menu with navigation
@@ -260,6 +268,7 @@ Pain Elemental (type 71):
 
 ## Version History
 
+- **2025-12-17**: Fixed intermission stats (totalKills/Items/Secrets counting), level title display, commercial mode CWILV patches, dropped items moving with lifts, tic randomization for spawned things - ~85% feature parity
 - **2025-12-17**: Added drag-drop WAD loading, quit-to-start functionality, DOOM 2 game mode detection and menu support, muzzle flash lighting, weapon switching keys, teleport fog fixes, palette effects - ~83% feature parity
 - **2025-12-16**: Added quit confirmation dialog, fixed door crushing bug (movePlane now calls changeSector for proper crush detection), verified sky parallax and screen wipe already implemented - ~81% feature parity
 - **2025-12-16**: Added Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental - ~80% feature parity
