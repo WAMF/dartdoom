@@ -529,11 +529,12 @@ class MenuSystem {
   void _writeText(int x, int y, String text, {bool centered = false}) {
     if (_font.isEmpty) return;
 
+    final upperText = text.toUpperCase();
     var cx = x;
     var cy = y;
 
-    for (var i = 0; i < text.length; i++) {
-      final c = text.codeUnitAt(i);
+    for (var i = 0; i < upperText.length; i++) {
+      final c = upperText.codeUnitAt(i);
 
       if (c == 10) {
         cx = x;
@@ -541,9 +542,9 @@ class MenuSystem {
         continue;
       }
 
-      if (centered && (i == 0 || text.codeUnitAt(i - 1) == 10)) {
-        final lineEnd = text.indexOf('\n', i);
-        final line = lineEnd >= 0 ? text.substring(i, lineEnd) : text.substring(i);
+      if (centered && (i == 0 || upperText.codeUnitAt(i - 1) == 10)) {
+        final lineEnd = upperText.indexOf('\n', i);
+        final line = lineEnd >= 0 ? upperText.substring(i, lineEnd) : upperText.substring(i);
         cx = (ScreenConstants.width - _stringWidth(line)) ~/ 2;
       }
 

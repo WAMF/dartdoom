@@ -61,6 +61,7 @@ abstract final class SpriteNum {
   static const int bar1 = 57;
   static const int bexp = 58;
   static const int gor1 = 96;
+  static const int pol5 = 98;
   static const int pol3 = 100;
   static const int pol6 = 102;
   static const int ceye = 118;
@@ -529,6 +530,8 @@ abstract final class StateNum {
   static const int tech2Lamp2 = 430;
   static const int tech2Lamp3 = 431;
   static const int tech2Lamp4 = 432;
+
+  static const int sGibs = 433;
 }
 
 enum StateAction {
@@ -1049,4 +1052,6 @@ const List<MobjState> states = [
   MobjState(SpriteNum.tlp2, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp3),
   MobjState(SpriteNum.tlp2, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp4),
   MobjState(SpriteNum.tlp2, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp),
+
+  MobjState(SpriteNum.pol5, 0, -1, StateAction.none, StateNum.sNull),
 ];

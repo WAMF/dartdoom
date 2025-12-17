@@ -286,8 +286,8 @@ const Map<int, ThingDef> thingDefs = {
 
   24: ThingDef(sprite: SpriteNum.pol5, frame: 0, radius: 16 * _FU.unit, height: 16 * _FU.unit),
 
-  10: ThingDef(sprite: SpriteNum.play, frame: 13, radius: 20 * _FU.unit, height: 16 * _FU.unit),
-  12: ThingDef(sprite: SpriteNum.play, frame: 18, radius: 20 * _FU.unit, height: 16 * _FU.unit),
+  10: ThingDef(sprite: SpriteNum.play, frame: 22, radius: 20 * _FU.unit, height: 16 * _FU.unit),
+  12: ThingDef(sprite: SpriteNum.play, frame: 22, radius: 20 * _FU.unit, height: 16 * _FU.unit),
   15: ThingDef(sprite: SpriteNum.play, frame: 13, radius: 20 * _FU.unit, height: 16 * _FU.unit),
 
   18: ThingDef(sprite: SpriteNum.poss, frame: 11, radius: 20 * _FU.unit, height: 16 * _FU.unit),

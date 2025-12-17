@@ -1,3 +1,4 @@
+import 'package:doom_core/src/game/info.dart';
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
 import 'package:doom_core/src/game/p_inter.dart' as inter;
@@ -1234,12 +1235,8 @@ bool changeSector(Sector sector, bool crunch, LevelLocals level) {
       while (thing != null) {
         final next = thing.bNext;
 
-        // Only process things in this sector
-        final ss = thing.subsector;
-        if (ss is Subsector && ss.sector == sector) {
-          if (!_pitChangeSector(thing, crunch, level)) {
-            noFit = true;
-          }
+        if (!_pitChangeSector(thing, crunch, level)) {
+          noFit = true;
         }
 
         thing = next;
@@ -1261,10 +1258,11 @@ bool _pitChangeSector(Mobj thing, bool crunch, LevelLocals level) {
 
   // Crunch dead bodies to giblets
   if (thing.health <= 0) {
-    // Set to giblets state if available
-    // thing.flags &= ~MobjFlag.solid;
-    thing.height = 0;
-    thing.radius = 0;
+    spec.setMobjState(thing, StateNum.sGibs, level);
+    thing
+      ..flags = thing.flags & ~MobjFlag.solid
+      ..height = 0
+      ..radius = 0;
     return true;
   }
 
