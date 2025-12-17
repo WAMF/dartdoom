@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:desktop_drop/desktop_drop.dart';
@@ -74,8 +73,8 @@ class _DoomScreenState extends State<DoomScreen> {
     }
 
     try {
-      final bytes = await File(file.path).readAsBytes();
-      _setWadData(Uint8List.fromList(bytes));
+      final bytes = await file.readAsBytes();
+      _setWadData(bytes);
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load WAD: $e';
