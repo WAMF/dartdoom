@@ -738,6 +738,27 @@ void _setThingPosition(Mobj mobj, LevelLocals level) {
     }
     sector.thingList = mobj;
   }
+
+  if ((mobj.flags & MobjFlag.noBlockmap) == 0) {
+    final blockmap = level.blockmap;
+    final blockLinks = level.blockLinks;
+    if (blockmap != null && blockLinks != null) {
+      final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
+      if (blockmap.isValidBlock(blockX, blockY)) {
+        final index = blockY * blockmap.columns + blockX;
+        mobj.bPrev = null;
+        mobj.bNext = blockLinks[index];
+        if (blockLinks[index] != null) {
+          blockLinks[index]!.bPrev = mobj;
+        }
+        blockLinks[index] = mobj;
+      } else {
+        mobj
+          ..bNext = null
+          ..bPrev = null;
+      }
+    }
+  }
 }
 
 Subsector? _pointInSubsector(int x, int y, RenderState state) {
