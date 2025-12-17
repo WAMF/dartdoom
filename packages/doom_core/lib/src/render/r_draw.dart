@@ -67,6 +67,7 @@ class ColumnDrawer {
   int yh = 0;
   int iscale = 0;
   int textureMid = 0;
+  int centerY = ScreenDimensions.centerY;
   Uint8List? source;
   Uint8List? colormap;
   Int32List? yLookup;
@@ -83,7 +84,7 @@ class ColumnDrawer {
     var destIndex = yLookup![yl] + columnOfs![x];
 
     final fracStep = iscale;
-    var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
+    var frac = textureMid + (yl - centerY) * fracStep;
 
     final srcLen = src.length;
 
@@ -109,7 +110,7 @@ class ColumnDrawer {
     var destIndex = yLookup![yl] + columnOfs![x2];
 
     final fracStep = iscale;
-    var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
+    var frac = textureMid + (yl - centerY) * fracStep;
     final srcLen = src.length;
 
     do {
@@ -129,6 +130,7 @@ class FuzzColumnDrawer {
   int x = 0;
   int yl = 0;
   int yh = 0;
+  int viewHeight = ScreenDimensions.viewHeight;
   Uint8List? colormap;
   Int32List? yLookup;
   Int32List? columnOfs;
@@ -146,8 +148,8 @@ class FuzzColumnDrawer {
       count--;
     }
 
-    if (yh == ScreenDimensions.height - 1) {
-      yh = ScreenDimensions.height - 2;
+    if (yh == viewHeight - 1) {
+      yh = viewHeight - 2;
       count--;
     }
 
@@ -170,6 +172,7 @@ class TranslatedColumnDrawer {
   int yh = 0;
   int iscale = 0;
   int textureMid = 0;
+  int centerY = ScreenDimensions.centerY;
   Uint8List? source;
   Uint8List? colormap;
   Uint8List? translation;
@@ -188,7 +191,7 @@ class TranslatedColumnDrawer {
     var destIndex = yLookup![yl] + columnOfs![x];
 
     final fracStep = iscale;
-    var frac = textureMid + (yl - ScreenDimensions.centerY) * fracStep;
+    var frac = textureMid + (yl - centerY) * fracStep;
 
     final srcLen = src.length;
 
@@ -285,16 +288,19 @@ class DrawContext {
   DrawerType baseColumnFunc = DrawerType.column;
   DrawerType spanFunc = DrawerType.span;
 
-  void setLookups(Int32List yLookup, Int32List columnOfs) {
+  void setLookups(Int32List yLookup, Int32List columnOfs, int centerY, int viewHeight) {
     column
       ..yLookup = yLookup
-      ..columnOfs = columnOfs;
+      ..columnOfs = columnOfs
+      ..centerY = centerY;
     fuzz
       ..yLookup = yLookup
-      ..columnOfs = columnOfs;
+      ..columnOfs = columnOfs
+      ..viewHeight = viewHeight;
     translated
       ..yLookup = yLookup
-      ..columnOfs = columnOfs;
+      ..columnOfs = columnOfs
+      ..centerY = centerY;
     span
       ..yLookup = yLookup
       ..columnOfs = columnOfs;

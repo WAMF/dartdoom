@@ -3,6 +3,8 @@ import 'dart:typed_data';
 abstract final class ScreenConstants {
   static const int width = 320;
   static const int height = 200;
+  static const int statusBarHeight = 32;
+  static const int viewHeight = height - statusBarHeight;
   static const int pixelCount = width * height;
   static const int rgbaSize = pixelCount * 4;
 }

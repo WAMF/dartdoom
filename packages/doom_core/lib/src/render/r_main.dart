@@ -34,7 +34,7 @@ class Renderer {
   void init() {
     _initBuffer();
     _initTables();
-    drawContext.setLookups(state.yLookup, state.columnOfs);
+    drawContext.setLookups(state.yLookup, state.columnOfs, state.centerY, state.viewHeight);
 
     _skyRenderer = SkyRenderer(state, drawContext)
       ..init()
@@ -459,7 +459,7 @@ class Renderer {
 
     _initBuffer();
     _initTables();
-    drawContext.setLookups(state.yLookup, state.columnOfs);
+    drawContext.setLookups(state.yLookup, state.columnOfs, state.centerY, state.viewHeight);
 
     _segRenderer.initClipArrays(state.viewWidth);
     _spriteRenderer.initClipArrays(state.viewWidth);
