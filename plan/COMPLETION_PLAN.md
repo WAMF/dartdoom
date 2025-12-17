@@ -8,22 +8,22 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 
 | Category | Parity | Notes |
 |----------|--------|-------|
-| **Rendering** | 85-90% | Complete BSP, walls, floors/ceilings, sprites, sky parallax, lighting, animated textures |
+| **Rendering** | 90-95% | BSP, walls, floors/ceilings, sprites, sky parallax, lighting, animated textures, muzzle flash |
 | **Map Features** | 85-90% | Doors, lifts, crushers with proper crushing detection, teleporters, switches, locked doors, sector specials |
 | **Status Bar/HUD** | 85-90% | Health, armor, ammo, weapons, keys, face animations |
 | **Game Logic** | 80-85% | Physics, collision, damage, item pickups, power-ups |
-| **Weapon Mechanics** | 75-80% | All 9 weapons functional with ammo system |
+| **Weapon Mechanics** | 85-90% | All 9 weapons functional with ammo system, weapon switching keys, muzzle flash lighting |
 | **Intermission** | 75-80% | Stats display works, limited finale sequences |
-| **Menus/UI** | 75-80% | Core menus work, quit confirmation, screen wipe, save/load missing |
+| **Menus/UI** | 80-85% | Core menus, quit confirmation, screen wipe, DOOM 2 support, drag-drop WAD loading |
 | **Enemy AI** | 85-90% | 19 monster types, infighting, Pain Elemental, Arch-vile resurrection, bosses |
-| **Game Flow** | 60-65% | Progression works, save/load and cheats limited |
-| **Overall** | **~81%** | Highly functional implementation |
+| **Game Flow** | 65-70% | Progression works, DOOM 2 level support, quit-to-start, save/load and cheats limited |
+| **Overall** | **~83%** | Highly functional implementation |
 
 ---
 
 ## Completed Features
 
-### Rendering (85-90%)
+### Rendering (90-95%)
 - [x] BSP traversal with proper subsector rendering
 - [x] Wall rendering (solid, two-sided, upper/lower/middle textures)
 - [x] Masked texture support (transparent walls)
@@ -31,10 +31,11 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Flat texture rendering with proper scaling
 - [x] Sprite projection with distance scaling
 - [x] Vissprite sorting and z-ordering
-- [x] Sky rendering (SKY1 texture mapping)
+- [x] Sky rendering (SKY1 texture mapping) with parallax scrolling
 - [x] Dynamic colormaps based on distance and sector light
 - [x] Animated textures and flats
 - [x] Scrolling textures (line special 48)
+- [x] Muzzle flash lighting effect when firing weapons
 
 ### Map Features (85-90%)
 - [x] Manual and automatic doors
@@ -76,13 +77,16 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Power-ups (invulnerability, strength, invisibility, ironFeet, infrared, allMap)
 - [x] Key card system
 
-### Weapon Mechanics (75-80%)
+### Weapon Mechanics (85-90%)
 - [x] All 9 weapons: Fist, Pistol, Shotgun, Chaingun, Missile, Plasma, BFG, Chainsaw, Super Shotgun
 - [x] 4 ammo types with max limits
 - [x] Weapon sprites and animations
 - [x] Weapon lower/raise animation
 - [x] Hitscan and projectile attacks
 - [x] Weapon switching and priority
+- [x] Weapon switching keys (1-7 number keys)
+- [x] Muzzle flash lighting effects per weapon
+- [x] Weapon lowering on player death
 
 ### Intermission (75-80%)
 - [x] End-level intermission display
@@ -91,14 +95,17 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Episode-specific backgrounds
 - [x] Level completion indicators
 
-### Menus/UI (75-80%)
+### Menus/UI (80-85%)
 - [x] Main menu with navigation
-- [x] Episode selection
+- [x] Episode selection (DOOM 1)
 - [x] Skill selection (all 5 levels)
 - [x] Help screens
 - [x] Title screen
 - [x] Quit confirmation dialog with random messages
 - [x] Screen wipe transitions (melt effect)
+- [x] DOOM 2 game mode detection and menu support
+- [x] Drag-drop WAD loading
+- [x] Quit-to-start functionality (return to title screen)
 
 ### Enemy AI (85-90%)
 - [x] 19 monster types implemented (including Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental)
@@ -116,13 +123,16 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 - [x] Cyberdemon triple rocket attack (cyberAttack)
 - [x] Spider Mastermind chaingun attack (spidRefire)
 
-### Game Flow (60-65%)
+### Game Flow (65-70%)
 - [x] All 5 difficulty levels
 - [x] Episode/map progression
 - [x] Level loading from WAD
 - [x] Player spawning and respawning
-- [x] God mode cheat
-- [x] No-clip cheat
+- [x] God mode cheat (IDDQD)
+- [x] No-clip cheat (IDCLIP)
+- [x] DOOM 2 level format (MAP01-MAP32)
+- [x] Proper teleport fog positioning
+- [x] Palette effects (damage red, pickup bonus, radiation suit green)
 
 ---
 
@@ -142,16 +152,16 @@ Assessment of feature parity with original linuxdoom-1.10 C code (excluding soun
 ### Medium Priority
 - [ ] **Save/Load Game** - Game persistence
 - [ ] **Options Menu** - Settings and configuration UI
-- [ ] **End-Game Sequences** - Finale text screens and victory sequence
+- [ ] **End-Game Sequences** - Finale text screens, cast sequence, and victory sequence
 - [ ] **Demo Recording/Playback** - Record and playback demos
-- [ ] **Advanced Weapon Effects** - Muzzle flash, better projectile visuals
 
-### Low Priority
+### Low Priority (Not Planned / Already Done)
 - [x] **Wind/Push Sectors** - Not in vanilla DOOM (BOOM feature)
 - [x] **Conveyor Belts** - Not in vanilla DOOM (BOOM feature)
 - [x] **Parallax Sky** - Sky scrolls with view angle (implemented in r_sky.dart)
 - [x] **Screen Wipe Transitions** - Melt effect between game states (implemented in f_wipe.dart)
 - [x] **Quit Confirmation Dialog** - Shows random quit message, requires Y/N confirmation
+- [x] **Muzzle Flash Lighting** - Implemented per-weapon flash intensity
 
 ---
 
@@ -250,6 +260,7 @@ Pain Elemental (type 71):
 
 ## Version History
 
+- **2025-12-17**: Added drag-drop WAD loading, quit-to-start functionality, DOOM 2 game mode detection and menu support, muzzle flash lighting, weapon switching keys, teleport fog fixes, palette effects - ~83% feature parity
 - **2025-12-16**: Added quit confirmation dialog, fixed door crushing bug (movePlane now calls changeSector for proper crush detection), verified sky parallax and screen wipe already implemented - ~81% feature parity
 - **2025-12-16**: Added Arch-vile, Cyberdemon, Spider Mastermind, Pain Elemental - ~80% feature parity
 - **2025-12-16**: Added Pain Elemental skull spawning, monster-specific missile ranges - ~77% feature parity

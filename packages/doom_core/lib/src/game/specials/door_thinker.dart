@@ -1,5 +1,6 @@
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/specials/move_plane.dart';
+import 'package:doom_core/src/game/specials/sector_utils.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
@@ -195,10 +196,6 @@ List<Sector> _findSectorsFromTag(int tag, LevelLocals level) {
   return result;
 }
 
-abstract final class _LineFlags {
-  static const int twoSided = 0x04;
-}
-
 int findLowestCeilingSurrounding(Sector sector) {
   var height = 0x7FFFFFFF;
 
@@ -213,15 +210,6 @@ int findLowestCeilingSurrounding(Sector sector) {
   }
 
   return height;
-}
-
-Sector? getNextSector(Line line, Sector sector) {
-  if ((line.flags & _LineFlags.twoSided) == 0) return null;
-
-  if (line.frontSector == sector) {
-    return line.backSector;
-  }
-  return line.frontSector;
 }
 
 void spawnDoorCloseIn30(Sector sector, LevelLocals level) {

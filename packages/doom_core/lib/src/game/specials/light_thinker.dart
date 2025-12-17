@@ -1,4 +1,5 @@
 import 'package:doom_core/src/game/level_locals.dart';
+import 'package:doom_core/src/game/specials/sector_utils.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
@@ -216,7 +217,7 @@ void evTurnTagLightsOff(Line line, LevelLocals level) {
     if (sector.tag == line.tag) {
       var minLight = sector.lightLevel;
       for (final secLine in sector.lines) {
-        final neighbor = _getNextSector(secLine, sector);
+        final neighbor = getNextSector(secLine, sector);
         if (neighbor != null && neighbor.lightLevel < minLight) {
           minLight = neighbor.lightLevel;
         }
@@ -232,7 +233,7 @@ void evLightTurnOn(Line line, int bright, LevelLocals level) {
       var targetBright = bright;
       if (targetBright == 0) {
         for (final secLine in sector.lines) {
-          final neighbor = _getNextSector(secLine, sector);
+          final neighbor = getNextSector(secLine, sector);
           if (neighbor != null && neighbor.lightLevel > targetBright) {
             targetBright = neighbor.lightLevel;
           }
@@ -257,24 +258,11 @@ int _findMinSurroundingLight(Sector sector) {
   var light = sector.lightLevel;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null && other.lightLevel < light) {
       light = other.lightLevel;
     }
   }
 
   return light;
-}
-
-Sector? _getNextSector(Line line, Sector sector) {
-  if ((line.flags & _LineFlags.twoSided) == 0) return null;
-
-  if (line.frontSector == sector) {
-    return line.backSector;
-  }
-  return line.frontSector;
-}
-
-abstract final class _LineFlags {
-  static const int twoSided = 0x04;
 }
