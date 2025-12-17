@@ -318,8 +318,9 @@ class MenuSystem {
   }
 
   void _quitDoom(int choice) {
+    final message = _QuitMessages.messages[choice % _QuitMessages.messages.length];
     _startMessage(
-      _QuitMessages.messages[choice % _QuitMessages.messages.length],
+      '$message\n\n${_QuitMessages.pressYToQuit}',
       _quitResponse,
       needsInput: true,
     );
@@ -660,14 +661,16 @@ abstract final class _FontConstants {
 }
 
 abstract final class _QuitMessages {
+  static const String pressYToQuit = '(PRESS Y TO QUIT)';
+
   static const List<String> messages = [
-    'are you sure you want to\nquit this great game?',
-    "please don't leave, there's more\ndemons to toast!",
-    "let's beat it -- this is turning\ninto a bloodbath!",
-    "i wouldn't leave if i were you.\ndos is much worse.",
-    "you're trying to say you like dos\nbetter than me, right?",
-    "don't leave yet -- there's a\ndemon around that corner!",
-    "ya know, next time you come in here\ni'm gonna toast ya.",
-    'go ahead and leave. see if i care.',
+    'ARE YOU SURE YOU WANT TO\nQUIT THIS GREAT GAME?',
+    "PLEASE DON'T LEAVE, THERE'S MORE\nDEMONS TO TOAST!",
+    "LET'S BEAT IT -- THIS IS TURNING\nINTO A BLOODBATH!",
+    "I WOULDN'T LEAVE IF I WERE YOU.\nDOS IS MUCH WORSE.",
+    "YOU'RE TRYING TO SAY YOU LIKE DOS\nBETTER THAN ME, RIGHT?",
+    "DON'T LEAVE YET -- THERE'S A\nDEMON AROUND THAT CORNER!",
+    "YA KNOW, NEXT TIME YOU COME IN HERE\nI'M GONNA TOAST YA.",
+    'GO AHEAD AND LEAVE. SEE IF I CARE.',
   ];
 }

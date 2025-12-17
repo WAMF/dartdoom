@@ -26,6 +26,8 @@ import 'package:doom_core/src/video/v_video.dart';
 import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 
+typedef VoidCallback = void Function();
+
 abstract final class _PlayerStartType {
   static const int player1 = 1;
 }
@@ -78,6 +80,10 @@ class DoomGame {
   bool _forceWipe = false;
   final DoomRandom _menuRandom = DoomRandom();
 
+  VoidCallback? onQuit;
+  bool _shouldQuit = false;
+
+  bool get shouldQuit => _shouldQuit;
   RenderState? get renderState => _renderState;
   Renderer? get renderer => _renderer;
   LevelLocals? get level => _level;
@@ -217,6 +223,11 @@ class DoomGame {
   }
 
   void _quitToTitle() {
+    if (_gameState == GameState.demoScreen) {
+      _shouldQuit = true;
+      return;
+    }
+
     _forceWipe = true;
     _level = null;
     _renderer = null;

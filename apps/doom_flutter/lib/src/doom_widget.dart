@@ -2,12 +2,9 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:doom_core/doom_core.dart';
+import 'package:doom_flutter/src/key_mapping.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-abstract final class _GameConstants {
-  static const int ticRateMs = 1000 ~/ 35;
-}
 
 class DoomWidget extends StatefulWidget {
   const DoomWidget({
@@ -15,11 +12,13 @@ class DoomWidget extends StatefulWidget {
     this.scale = 3,
     this.wadBytes,
     this.mapName = 'E1M1',
+    this.onQuit,
   });
 
   final int scale;
   final Uint8List? wadBytes;
   final String mapName;
+  final VoidCallback? onQuit;
 
   @override
   State<DoomWidget> createState() => _DoomWidgetState();
@@ -37,13 +36,18 @@ class _DoomWidgetState extends State<DoomWidget> {
   void initState() {
     super.initState();
     _initializeGame();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   void _initializeGame() {
     final wadBytes = widget.wadBytes;
     if (wadBytes == null) return;
 
-    _game = DoomGame()..init(wadBytes);
+    _game = DoomGame()
+      ..init(wadBytes)
+      ..onQuit = widget.onQuit;
 
     _rgbaBuffer = Uint8List(ScreenDimensions.width * ScreenDimensions.height * 4);
 
@@ -69,7 +73,7 @@ class _DoomWidgetState extends State<DoomWidget> {
 
   void _startGameLoop() {
     _gameLoopTimer = Timer.periodic(
-      const Duration(milliseconds: _GameConstants.ticRateMs),
+      const Duration(milliseconds: GameConstants.msPerTicInt),
       (_) => _runTic(),
     );
   }
@@ -83,6 +87,12 @@ class _DoomWidgetState extends State<DoomWidget> {
     if (!_initialized || _game == null) return;
 
     _game!.runTic();
+
+    if (_game!.shouldQuit) {
+      widget.onQuit?.call();
+      return;
+    }
+
     _game!.renderWithPalette(_rgbaBuffer!);
     _convertToImage(_rgbaBuffer!);
   }
@@ -129,35 +139,8 @@ class _DoomWidgetState extends State<DoomWidget> {
     return KeyEventResult.ignored;
   }
 
-  int? _logicalKeyToCode(LogicalKeyboardKey key) {
-    return switch (key) {
-      LogicalKeyboardKey.arrowUp => DoomKey.upArrow,
-      LogicalKeyboardKey.arrowDown => DoomKey.downArrow,
-      LogicalKeyboardKey.arrowLeft => DoomKey.leftArrow,
-      LogicalKeyboardKey.arrowRight => DoomKey.rightArrow,
-      LogicalKeyboardKey.keyW => 119,
-      LogicalKeyboardKey.keyS => 115,
-      LogicalKeyboardKey.keyA => 97,
-      LogicalKeyboardKey.keyD => 100,
-      LogicalKeyboardKey.space => 32,
-      LogicalKeyboardKey.shiftLeft => DoomKey.rshift,
-      LogicalKeyboardKey.shiftRight => DoomKey.rshift,
-      LogicalKeyboardKey.controlLeft => DoomKey.rctrl,
-      LogicalKeyboardKey.controlRight => DoomKey.rctrl,
-      LogicalKeyboardKey.altLeft => DoomKey.lalt,
-      LogicalKeyboardKey.altRight => DoomKey.ralt,
-      LogicalKeyboardKey.escape => DoomKey.escape,
-      LogicalKeyboardKey.enter => DoomKey.enter,
-      LogicalKeyboardKey.digit1 => 49,
-      LogicalKeyboardKey.digit2 => 50,
-      LogicalKeyboardKey.digit3 => 51,
-      LogicalKeyboardKey.digit4 => 52,
-      LogicalKeyboardKey.digit5 => 53,
-      LogicalKeyboardKey.digit6 => 54,
-      LogicalKeyboardKey.digit7 => 55,
-      _ => null,
-    };
-  }
+  int? _logicalKeyToCode(LogicalKeyboardKey key) =>
+      KeyMapping.toDoomKey(key);
 
   @override
   Widget build(BuildContext context) {
