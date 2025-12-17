@@ -102,6 +102,7 @@ class Intermission {
   int _episode = 0;
   int _lastMap = 0;
   int _nextMap = 0;
+  bool _commercial = false;
 
   int _killCount = 0;
   int _maxKills = 1;
@@ -152,10 +153,12 @@ class Intermission {
     required int secrets,
     required int maxSecrets,
     required int levelTime,
+    bool commercial = false,
   }) {
     _episode = episode;
     _lastMap = lastMap;
     _nextMap = nextMap;
+    _commercial = commercial;
     _killCount = kills;
     _maxKills = maxKills > 0 ? maxKills : 1;
     _itemCount = items;

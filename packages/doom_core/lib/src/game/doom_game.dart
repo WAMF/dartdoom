@@ -54,6 +54,8 @@ class DoomGame {
   final int _consoleplayer = 0;
   bool _hudNeedsRefresh = true;
 
+  GameMode _gameMode = GameMode.indetermined;
+
   GameState _gameState = GameState.demoScreen;
   GameAction _gameAction = GameAction.nothing;
 
@@ -92,7 +94,9 @@ class DoomGame {
     _textureManager = TextureManager(_wadManager)..init();
     _ticker = GameTicker();
 
-    _menuSystem = MenuSystem(_wadManager, _screenBuffers)
+    _gameMode = _identifyVersion();
+
+    _menuSystem = MenuSystem(_wadManager, _screenBuffers, _gameMode)
       ..init()
       ..onNewGame = _deferedInitNew
       ..onQuitGame = _quitToTitle;
@@ -108,6 +112,26 @@ class DoomGame {
     _paletteConverter.loadPalettes(playPal);
 
     _startTitle();
+  }
+
+  GameMode _identifyVersion() {
+    if (_wadManager.checkNumForName('MAP01') >= 0) {
+      return GameMode.commercial;
+    }
+
+    if (_wadManager.checkNumForName('E4M1') >= 0) {
+      return GameMode.retail;
+    }
+
+    if (_wadManager.checkNumForName('E3M1') >= 0) {
+      return GameMode.registered;
+    }
+
+    if (_wadManager.checkNumForName('E1M1') >= 0) {
+      return GameMode.shareware;
+    }
+
+    return GameMode.indetermined;
   }
 
   void _startTitle() {
@@ -231,6 +255,9 @@ class DoomGame {
   }
 
   String _buildMapName(int episode, int map) {
+    if (_gameMode == GameMode.commercial) {
+      return 'MAP${map.toString().padLeft(2, '0')}';
+    }
     return 'E${episode}M$map';
   }
 
@@ -240,6 +267,47 @@ class DoomGame {
 
     _secretExit = level.secretExit;
 
+    if (_gameMode == GameMode.commercial) {
+      _doCompletedCommercial();
+    } else {
+      _doCompletedEpisodic();
+    }
+
+    _intermission.start(
+      episode: _episode,
+      lastMap: _map,
+      nextMap: _nextMap,
+      kills: level.players[_consoleplayer].killCount,
+      maxKills: level.totalKills,
+      items: level.players[_consoleplayer].itemCount,
+      maxItems: level.totalItems,
+      secrets: level.players[_consoleplayer].secretCount,
+      maxSecrets: level.totalSecrets,
+      levelTime: level.levelTime,
+      commercial: _gameMode == GameMode.commercial,
+    );
+    _gameState = GameState.intermission;
+    _gameAction = GameAction.nothing;
+  }
+
+  void _doCompletedCommercial() {
+    if (_map == 30) {
+      _gameAction = GameAction.victory;
+      return;
+    }
+
+    if (_secretExit) {
+      _nextMap = _map == 15 ? 31 : 32;
+    } else if (_map == 31) {
+      _nextMap = 16;
+    } else if (_map == 32) {
+      _nextMap = 16;
+    } else {
+      _nextMap = _map + 1;
+    }
+  }
+
+  void _doCompletedEpisodic() {
     if (_map == 8) {
       _gameAction = GameAction.victory;
       return;
@@ -258,21 +326,6 @@ class DoomGame {
     } else {
       _nextMap = _map + 1;
     }
-
-    _intermission.start(
-      episode: _episode,
-      lastMap: _map,
-      nextMap: _nextMap,
-      kills: level.players[_consoleplayer].killCount,
-      maxKills: level.totalKills,
-      items: level.players[_consoleplayer].itemCount,
-      maxItems: level.totalItems,
-      secrets: level.players[_consoleplayer].secretCount,
-      maxSecrets: level.totalSecrets,
-      levelTime: level.levelTime,
-    );
-    _gameState = GameState.intermission;
-    _gameAction = GameAction.nothing;
   }
 
   void _worldDone() {

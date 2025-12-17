@@ -13,10 +13,11 @@ typedef QuitGameCallback = void Function();
 typedef MessageCallback = void Function(int response);
 
 class MenuSystem {
-  MenuSystem(this._wadManager, this._screenBuffers);
+  MenuSystem(this._wadManager, this._screenBuffers, this._gameMode);
 
   final WadManager _wadManager;
   final ScreenBuffers _screenBuffers;
+  final GameMode _gameMode;
 
   late List<Patch> _font;
   late Patch _skull1;
@@ -235,7 +236,7 @@ class MenuSystem {
           alphaKey: 110,
         ),
       ],
-      prevMenu: _episodeDef,
+      prevMenu: _gameMode == GameMode.commercial ? _mainDef : _episodeDef,
       x: 48,
       y: 63,
       lastOn: SkillIndices.hurtMePlenty,
@@ -272,17 +273,29 @@ class MenuSystem {
   }
 
   void _newGame(int choice) {
-    _setupNextMenu(_episodeDef);
+    if (_gameMode == GameMode.commercial) {
+      _setupNextMenu(_newGameDef);
+    } else {
+      _setupNextMenu(_episodeDef);
+    }
   }
 
   void _episode(int choice) {
+    if (_gameMode == GameMode.shareware && choice != 0) {
+      _startMessage(
+        'please register to use\nthis episode.',
+        null,
+      );
+      return;
+    }
     _selectedEpisode = choice + 1;
     _setupNextMenu(_newGameDef);
   }
 
   void _chooseSkill(int choice) {
     final skill = Skill.values[choice];
-    onNewGame?.call(skill, _selectedEpisode, 1);
+    final episode = _gameMode == GameMode.commercial ? 1 : _selectedEpisode;
+    onNewGame?.call(skill, episode, 1);
     clearMenus();
   }
 
@@ -318,7 +331,7 @@ class MenuSystem {
     clearMenus();
   }
 
-  void _startMessage(String message, MessageCallback routine, {bool needsInput = false}) {
+  void _startMessage(String message, MessageCallback? routine, {bool needsInput = false}) {
     _messageLastMenuActive = _menuActive ? 1 : 0;
     _messageString = message;
     _messageRoutine = routine;
