@@ -1280,6 +1280,9 @@ void spawnSpecials(LevelLocals level) {
       case _SectorSpecial.lightFlicker:
         spawnFireFlicker(sector, level, random);
 
+      case _SectorSpecial.secret:
+        level.totalSecrets++;
+
       case _SectorSpecial.doorClose30:
         spawnDoorCloseIn30(sector, level);
 

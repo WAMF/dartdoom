@@ -775,6 +775,18 @@ class ThingSpawner {
     final mobj = _spawnMobj(x, y, z, def, thing.type);
     if (mobj == null) return;
 
+    if (mobj.tics > 0) {
+      mobj.tics = 1 + (_level.random.pRandom() % mobj.tics);
+    }
+
+    if ((mobj.flags & MobjFlag.countKill) != 0) {
+      _level.totalKills++;
+    }
+
+    if ((mobj.flags & MobjFlag.countItem) != 0) {
+      _level.totalItems++;
+    }
+
     mobj.angle = _bamAngle(thing.angle);
     mobj.spawnX = thing.x;
     mobj.spawnY = thing.y;
