@@ -1,8 +1,10 @@
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/specials/move_plane.dart';
+import 'package:doom_core/src/game/specials/sector_utils.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
+import 'package:doom_wad/doom_wad.dart';
 
 abstract final class FloorConstants {
   static const int floorSpeed = Fixed32.fracUnit;
@@ -55,6 +57,7 @@ void floorThink(FloorThinker floor, LevelLocals level) {
     floor.crush,
     0,
     floor.direction,
+    level: level,
   );
 
   if (res == MoveResult.pastDest) {
@@ -180,7 +183,7 @@ bool evDoFloor(Line line, FloorType floorType, LevelLocals level) {
           ..speed = FloorConstants.floorSpeed;
         var minSize = 0x7FFFFFFF;
         for (final secLine in sector.lines) {
-          if (_isTwoSided(secLine)) {
+          if ((secLine.flags & LineFlags.twoSided) != 0) {
             final side0 = secLine.sideNum[0] >= 0
                 ? level.renderState.sides[secLine.sideNum[0]]
                 : null;
@@ -213,8 +216,8 @@ bool evDoFloor(Line line, FloorType floorType, LevelLocals level) {
           ..floorDestHeight = _findLowestFloorSurrounding(sector)
           ..texture = sector.floorPic;
         for (final secLine in sector.lines) {
-          if (_isTwoSided(secLine)) {
-            final otherSector = _getNextSector(secLine, sector);
+          if ((secLine.flags & LineFlags.twoSided) != 0) {
+            final otherSector = getNextSector(secLine, sector);
             if (otherSector != null &&
                 otherSector.floorHeight == floor.floorDestHeight) {
               floor
@@ -272,7 +275,7 @@ bool evBuildStairs(Line line, StairType type, LevelLocals level) {
     while (ok) {
       ok = false;
       for (final secLine in sector.lines) {
-        if (!_isTwoSided(secLine)) continue;
+        if ((secLine.flags & LineFlags.twoSided) == 0) continue;
 
         final frontSector = secLine.frontSector;
         if (frontSector != sector) continue;
@@ -318,7 +321,7 @@ int _findLowestFloorSurrounding(Sector sector) {
   var floor = sector.floorHeight;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null && other.floorHeight < floor) {
       floor = other.floorHeight;
     }
@@ -331,7 +334,7 @@ int _findHighestFloorSurrounding(Sector sector) {
   var floor = -500 * Fixed32.fracUnit;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null && other.floorHeight > floor) {
       floor = other.floorHeight;
     }
@@ -344,7 +347,7 @@ int _findLowestCeilingSurrounding(Sector sector) {
   var height = 0x7FFFFFFF;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null && other.ceilingHeight < height) {
       height = other.ceilingHeight;
     }
@@ -358,7 +361,7 @@ int _findNextHighestFloor(Sector sector) {
   var height = 0x7FFFFFFF;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null &&
         other.floorHeight > currentFloor &&
         other.floorHeight < height) {
@@ -373,29 +376,12 @@ int _findNextHighestFloor(Sector sector) {
   return height;
 }
 
-bool _isTwoSided(Line line) {
-  return (line.flags & _LineFlags.twoSided) != 0;
-}
-
-Sector? _getNextSector(Line line, Sector sector) {
-  if (!_isTwoSided(line)) return null;
-
-  if (line.frontSector == sector) {
-    return line.backSector;
-  }
-  return line.frontSector;
-}
-
 int _getTextureHeight(int textureNum, LevelLocals level) {
   final textureHeight = level.renderState.textureHeight;
   if (textureNum < 0 || textureNum >= textureHeight.length) {
     return 0;
   }
   return textureHeight[textureNum];
-}
-
-abstract final class _LineFlags {
-  static const int twoSided = 0x04;
 }
 
 abstract final class _DonutSpeed {
@@ -414,12 +400,12 @@ bool evDoDonut(Line line, LevelLocals level) {
     result = true;
 
     if (s1.lines.isEmpty) continue;
-    final s2 = _getNextSector(s1.lines[0], s1);
+    final s2 = getNextSector(s1.lines[0], s1);
     if (s2 == null) continue;
 
     Sector? s3;
     for (final s2Line in s2.lines) {
-      if (!_isTwoSided(s2Line)) continue;
+      if ((s2Line.flags & LineFlags.twoSided) == 0) continue;
       if (s2Line.backSector == s1) continue;
       s3 = s2Line.backSector;
       break;

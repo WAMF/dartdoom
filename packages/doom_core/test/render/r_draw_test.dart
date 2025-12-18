@@ -172,8 +172,8 @@ void main() {
     test('clamps yh when at bottom edge', () {
       drawer
         ..x = 10
-        ..yl = ScreenDimensions.height - 5
-        ..yh = ScreenDimensions.height - 1
+        ..yl = ScreenDimensions.viewHeight - 5
+        ..yh = ScreenDimensions.viewHeight - 1
         ..colormap = Uint8List(256 * 34);
 
       dest.fillRange(0, dest.length, 100);
@@ -344,20 +344,23 @@ void main() {
     });
 
     test('setLookups configures all drawers', () {
-      context.setLookups(yLookup, columnOfs);
+      context.setLookups(yLookup, columnOfs, ScreenDimensions.centerY, ScreenDimensions.viewHeight);
 
       expect(context.column.yLookup, yLookup);
       expect(context.column.columnOfs, columnOfs);
+      expect(context.column.centerY, ScreenDimensions.centerY);
       expect(context.fuzz.yLookup, yLookup);
       expect(context.fuzz.columnOfs, columnOfs);
+      expect(context.fuzz.viewHeight, ScreenDimensions.viewHeight);
       expect(context.translated.yLookup, yLookup);
       expect(context.translated.columnOfs, columnOfs);
+      expect(context.translated.centerY, ScreenDimensions.centerY);
       expect(context.span.yLookup, yLookup);
       expect(context.span.columnOfs, columnOfs);
     });
 
     test('drawColumn uses columnFunc to select drawer', () {
-      context.setLookups(yLookup, columnOfs);
+      context.setLookups(yLookup, columnOfs, ScreenDimensions.centerY, ScreenDimensions.viewHeight);
       final dest = Uint8List(ScreenDimensions.width * ScreenDimensions.height);
 
       context.column
@@ -374,7 +377,7 @@ void main() {
     });
 
     test('drawColumn does nothing for span type', () {
-      context.setLookups(yLookup, columnOfs);
+      context.setLookups(yLookup, columnOfs, ScreenDimensions.centerY, ScreenDimensions.viewHeight);
       final dest = Uint8List(ScreenDimensions.width * ScreenDimensions.height);
       final destCopy = Uint8List.fromList(dest);
 
@@ -385,7 +388,7 @@ void main() {
     });
 
     test('drawSpan draws span', () {
-      context.setLookups(yLookup, columnOfs);
+      context.setLookups(yLookup, columnOfs, ScreenDimensions.centerY, ScreenDimensions.viewHeight);
       final dest = Uint8List(ScreenDimensions.width * ScreenDimensions.height);
 
       context.span

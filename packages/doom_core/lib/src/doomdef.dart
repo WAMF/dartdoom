@@ -1,6 +1,7 @@
 abstract final class GameConstants {
   static const int ticRate = 35;
   static const double msPerTic = 1000.0 / ticRate;
+  static const int msPerTicInt = 1000 ~/ ticRate;
 
   static const int maxPlayers = 4;
   static const int maxHealth = 100;

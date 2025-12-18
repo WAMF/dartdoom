@@ -11,7 +11,13 @@ extension FixedOps on int {
   static const int fracBits = _FixedConstants.fracBits;
   static const int fracUnit = _FixedConstants.fracUnit;
 
-  int fixedMul(int other) => (this * other) >> _FixedConstants.fracBits;
+  int fixedMul(int other) {
+    assert(
+      s32.abs() < 0x7FFF0000 || other.s32.abs() < 0x10000,
+      'fixedMul overflow risk: $s32 * ${other.s32}',
+    );
+    return (s32 * other.s32) >> _FixedConstants.fracBits;
+  }
 
   int fixedDiv(int other) {
     if ((abs() >> 14) >= other.abs()) {
@@ -43,7 +49,15 @@ abstract final class Fixed32 {
   static const int maxInt = _FixedConstants.maxInt;
   static const int minInt = _FixedConstants.minInt;
 
-  static int mul(int a, int b) => (a * b) >> fracBits;
+  static int mul(int a, int b) {
+    final sa = a.s32;
+    final sb = b.s32;
+    assert(
+      sa.abs() < 0x7FFF0000 || sb.abs() < 0x10000,
+      'Fixed32.mul overflow risk: $sa * $sb',
+    );
+    return (sa * sb) >> fracBits;
+  }
 
   static int div(int a, int b) {
     if ((a.abs() >> 14) >= b.abs()) {

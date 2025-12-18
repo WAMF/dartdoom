@@ -3,6 +3,7 @@ import 'package:doom_core/src/game/game_info.dart';
 import 'package:doom_core/src/game/info.dart' hide SpriteNum;
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/mobj.dart';
+import 'package:doom_core/src/game/p_pspr.dart' as pspr;
 import 'package:doom_core/src/game/p_spec.dart' as spec;
 import 'package:doom_core/src/game/player.dart';
 import 'package:doom_core/src/render/r_defs.dart';
@@ -662,6 +663,7 @@ void killMobj(Mobj? source, Mobj target, LevelLocals level) {
     final player = target.player! as Player;
     target.flags &= ~MobjFlag.solid;
     player.playerState = PlayerState.dead;
+    pspr.lowerWeapon(player);
   }
 
   final info = target.info;
@@ -735,6 +737,27 @@ void _setThingPosition(Mobj mobj, LevelLocals level) {
       sector.thingList!.sPrev = mobj;
     }
     sector.thingList = mobj;
+  }
+
+  if ((mobj.flags & MobjFlag.noBlockmap) == 0) {
+    final blockmap = level.blockmap;
+    final blockLinks = level.blockLinks;
+    if (blockmap != null && blockLinks != null) {
+      final (blockX, blockY) = blockmap.worldToBlock(mobj.x, mobj.y);
+      if (blockmap.isValidBlock(blockX, blockY)) {
+        final index = blockY * blockmap.columns + blockX;
+        mobj.bPrev = null;
+        mobj.bNext = blockLinks[index];
+        if (blockLinks[index] != null) {
+          blockLinks[index]!.bPrev = mobj;
+        }
+        blockLinks[index] = mobj;
+      } else {
+        mobj
+          ..bNext = null
+          ..bPrev = null;
+      }
+    }
   }
 }
 

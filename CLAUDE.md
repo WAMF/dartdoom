@@ -116,3 +116,7 @@ This helps verify correctness and debug discrepancies.
    1. Check the original C code for `*FRACUNIT` or `<<FRACBITS`
    2. Trace each variable back to its source to know its unit
    3. Use `Fixed32.mul`/`Fixed32.div` only when BOTH operands are fixed-point
+
+## Project Preferences
+
+- **No Claude Code advertising in commits**: Do not add "Generated with Claude Code", co-author lines, or similar footers to commit messages.

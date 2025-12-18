@@ -7,8 +7,9 @@ import 'package:doom_wad/doom_wad.dart';
 abstract final class ScreenDimensions {
   static const int width = FrameBuffer.width;
   static const int height = FrameBuffer.height;
+  static const int viewHeight = ScreenConstants.viewHeight;
   static const int centerX = width ~/ 2;
-  static const int centerY = height ~/ 2;
+  static const int centerY = viewHeight ~/ 2;
 }
 
 class RenderState {
@@ -60,7 +61,7 @@ class RenderState {
   Uint8List? fixedColormap;
 
   int viewWidth = ScreenDimensions.width;
-  int viewHeight = ScreenDimensions.height;
+  int viewHeight = ScreenDimensions.viewHeight;
   int scaledViewWidth = ScreenDimensions.width;
   int viewWindowX = 0;
   int viewWindowY = 0;

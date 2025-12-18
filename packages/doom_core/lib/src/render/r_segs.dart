@@ -209,32 +209,37 @@ class SegRenderer {
       }
       _rwMidTextureMid += side.rowOffset;
     } else {
-      if (_frontSector!.ceilingHeight > _backSector!.ceilingHeight) {
-        _topTexture = _state.textureTranslation[side.topTexture];
-
-        if ((_curLinedef!.flags & LineFlags.dontPegTop) != 0) {
-          _rwTopTextureMid = _frontSector!.ceilingHeight - _state.viewZ;
-        } else {
-          final vtop = _backSector!.ceilingHeight + _getTextureHeight(_topTexture);
-          _rwTopTextureMid = vtop - _state.viewZ;
-        }
-        _rwTopTextureMid += side.rowOffset;
-      }
-
-      if (_frontSector!.floorHeight < _backSector!.floorHeight) {
-        _bottomTexture = _state.textureTranslation[side.bottomTexture];
-
-        if ((_curLinedef!.flags & LineFlags.dontPegBottom) != 0) {
-          _rwBottomTextureMid = _frontSector!.ceilingHeight - _state.viewZ;
-        } else {
-          _rwBottomTextureMid = _backSector!.floorHeight - _state.viewZ;
-        }
-        _rwBottomTextureMid += side.rowOffset;
-      }
-
       if (side.midTexture != 0) {
         _maskedTexture = true;
       }
+    }
+  }
+
+  void _setupTwoSidedTextures(int worldTop, int worldHigh, int worldLow) {
+    final side = _curSide!;
+    final worldBottom = _frontSector!.floorHeight - _state.viewZ;
+
+    if (worldHigh < worldTop) {
+      _topTexture = _state.textureTranslation[side.topTexture];
+
+      if ((_curLinedef!.flags & LineFlags.dontPegTop) != 0) {
+        _rwTopTextureMid = worldTop;
+      } else {
+        final vtop = _backSector!.ceilingHeight + _getTextureHeight(_topTexture);
+        _rwTopTextureMid = vtop - _state.viewZ;
+      }
+      _rwTopTextureMid += side.rowOffset;
+    }
+
+    if (worldLow > worldBottom) {
+      _bottomTexture = _state.textureTranslation[side.bottomTexture];
+
+      if ((_curLinedef!.flags & LineFlags.dontPegBottom) != 0) {
+        _rwBottomTextureMid = worldTop;
+      } else {
+        _rwBottomTextureMid = worldLow;
+      }
+      _rwBottomTextureMid += side.rowOffset;
     }
   }
 
@@ -260,6 +265,8 @@ class SegRenderer {
           _backSector!.ceilingPic == _state.skyFlatNum) {
         worldTop = worldHigh;
       }
+
+      _setupTwoSidedTextures(worldTop, worldHigh, worldLow);
 
       if (worldLow != worldBottom ||
           _backSector!.floorPic != _frontSector!.floorPic ||

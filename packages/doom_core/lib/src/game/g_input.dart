@@ -15,6 +15,19 @@ abstract final class GameKey {
   static const int use = 32;
   static const int run = DoomKey.rshift;
   static const int strafe = DoomKey.ralt;
+
+  static const int weapon1 = 49;
+  static const int weapon2 = 50;
+  static const int weapon3 = 51;
+  static const int weapon4 = 52;
+  static const int weapon5 = 53;
+  static const int weapon6 = 54;
+  static const int weapon7 = 55;
+}
+
+abstract final class _WeaponKeyConstants {
+  static const int numWeaponKeys = 7;
+  static const int firstWeaponKey = GameKey.weapon1;
 }
 
 abstract final class _TurnConstants {
@@ -96,6 +109,14 @@ class InputHandler {
     }
     if (isPressed(GameKey.use)) {
       cmd.buttons |= TicCmdButtons.use;
+    }
+
+    for (var i = 0; i < _WeaponKeyConstants.numWeaponKeys; i++) {
+      if (isPressed(_WeaponKeyConstants.firstWeaponKey + i)) {
+        cmd.buttons |= TicCmdButtons.change;
+        cmd.buttons |= TicCmdButtons.weaponMask(i);
+        break;
+      }
     }
 
     cmd.forwardMove = cmd.forwardMove.clamp(-50, 50);

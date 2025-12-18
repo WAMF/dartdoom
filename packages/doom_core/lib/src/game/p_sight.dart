@@ -11,8 +11,17 @@ class _Divline {
   int y = 0;
   int dx = 0;
   int dy = 0;
+
+  void set(int x, int y, int dx, int dy) {
+    this.x = x;
+    this.y = y;
+    this.dx = dx;
+    this.dy = dy;
+  }
 }
 
+/// Pre-allocated context to avoid heap allocations during sight checks.
+/// Mirrors C's global variables: sightzstart, topslope, bottomslope, strace, t2x, t2y
 class _SightContext {
   int sightZStart = 0;
   int topSlope = 0;
@@ -21,7 +30,15 @@ class _SightContext {
   int t2y = 0;
   final _Divline strace = _Divline();
   int validCount = 0;
+
+  /// Reusable divline for line crossing checks in _crossSubsector.
+  /// Mirrors C's stack-allocated 'divl' variable.
+  final _Divline divl = _Divline();
 }
+
+/// Single pre-allocated context reused for all sight checks.
+/// This matches the C code's use of global variables.
+final _SightContext _ctx = _SightContext();
 
 int _divlineSide(int x, int y, _Divline node) {
   if (node.dx == 0) {
@@ -82,11 +99,9 @@ int _interceptVector2(_Divline v2, _Divline v1) {
   return Fixed32.div(num, den);
 }
 
-bool _crossSubsector(
-  int num,
-  RenderState state,
-  _SightContext ctx,
-) {
+/// Check if sight trace crosses a subsector successfully.
+/// Uses global _ctx to avoid allocations (matches C's use of globals).
+bool _crossSubsector(int num, RenderState state) {
   if (num < 0 || num >= state.subsectors.length) {
     return true;
   }
@@ -103,25 +118,23 @@ bool _crossSubsector(
     final seg = segs[segIndex];
     final line = seg.linedef;
 
-    if (line.validCount == ctx.validCount) continue;
-    line.validCount = ctx.validCount;
+    if (line.validCount == _ctx.validCount) continue;
+    line.validCount = _ctx.validCount;
 
     final v1 = line.v1;
     final v2 = line.v2;
 
-    var s1 = _divlineSide(v1.x, v1.y, ctx.strace);
-    var s2 = _divlineSide(v2.x, v2.y, ctx.strace);
+    var s1 = _divlineSide(v1.x, v1.y, _ctx.strace);
+    var s2 = _divlineSide(v2.x, v2.y, _ctx.strace);
 
     if (s1 == s2) continue;
 
-    final divl = _Divline()
-      ..x = v1.x
-      ..y = v1.y
-      ..dx = v2.x - v1.x
-      ..dy = v2.y - v1.y;
+    // Reuse pre-allocated divl instead of creating new object (matches C's stack variable)
+    final divl = _ctx.divl;
+    divl.set(v1.x, v1.y, v2.x - v1.x, v2.y - v1.y);
 
-    s1 = _divlineSide(ctx.strace.x, ctx.strace.y, divl);
-    s2 = _divlineSide(ctx.t2x, ctx.t2y, divl);
+    s1 = _divlineSide(_ctx.strace.x, _ctx.strace.y, divl);
+    s2 = _divlineSide(_ctx.t2x, _ctx.t2y, divl);
 
     if (s1 == s2) continue;
 
@@ -152,23 +165,23 @@ bool _crossSubsector(
       return false;
     }
 
-    final frac = _interceptVector2(ctx.strace, divl);
+    final frac = _interceptVector2(_ctx.strace, divl);
 
     if (front.floorHeight != back.floorHeight) {
-      final slope = Fixed32.div(openbottom - ctx.sightZStart, frac);
-      if (slope > ctx.bottomSlope) {
-        ctx.bottomSlope = slope;
+      final slope = Fixed32.div(openbottom - _ctx.sightZStart, frac);
+      if (slope > _ctx.bottomSlope) {
+        _ctx.bottomSlope = slope;
       }
     }
 
     if (front.ceilingHeight != back.ceilingHeight) {
-      final slope = Fixed32.div(opentop - ctx.sightZStart, frac);
-      if (slope < ctx.topSlope) {
-        ctx.topSlope = slope;
+      final slope = Fixed32.div(opentop - _ctx.sightZStart, frac);
+      if (slope < _ctx.topSlope) {
+        _ctx.topSlope = slope;
       }
     }
 
-    if (ctx.topSlope <= ctx.bottomSlope) {
+    if (_ctx.topSlope <= _ctx.bottomSlope) {
       return false;
     }
   }
@@ -176,16 +189,14 @@ bool _crossSubsector(
   return true;
 }
 
-bool _crossBSPNode(
-  int bspnum,
-  RenderState state,
-  _SightContext ctx,
-) {
+/// Recursive BSP traversal for sight checking.
+/// Uses global _ctx to avoid passing context through call stack (matches C).
+bool _crossBSPNode(int bspnum, RenderState state) {
   if (BspConstants.isSubsector(bspnum)) {
     if (bspnum == -1) {
-      return _crossSubsector(0, state, ctx);
+      return _crossSubsector(0, state);
     }
-    return _crossSubsector(BspConstants.getIndex(bspnum), state, ctx);
+    return _crossSubsector(BspConstants.getIndex(bspnum), state);
   }
 
   if (bspnum < 0 || bspnum >= state.nodes.length) {
@@ -194,18 +205,18 @@ bool _crossBSPNode(
 
   final bsp = state.nodes[bspnum];
 
-  var side = _nodeDivlineSide(ctx.strace.x, ctx.strace.y, bsp);
+  var side = _nodeDivlineSide(_ctx.strace.x, _ctx.strace.y, bsp);
   if (side == 2) side = 0;
 
-  if (!_crossBSPNode(bsp.children[side], state, ctx)) {
+  if (!_crossBSPNode(bsp.children[side], state)) {
     return false;
   }
 
-  if (side == _nodeDivlineSide(ctx.t2x, ctx.t2y, bsp)) {
+  if (side == _nodeDivlineSide(_ctx.t2x, _ctx.t2y, bsp)) {
     return true;
   }
 
-  return _crossBSPNode(bsp.children[side ^ 1], state, ctx);
+  return _crossBSPNode(bsp.children[side ^ 1], state);
 }
 
 bool checkSight(
@@ -233,23 +244,21 @@ bool checkSight(
     }
   }
 
-  final ctx = _SightContext()
+  // Reuse pre-allocated context (matches C's global variables)
+  final sightZStart = t1.z + t1.height - (t1.height >> 2);
+  _ctx
     ..validCount = state.validCount++
-    ..sightZStart = t1.z + t1.height - (t1.height >> 2)
-    ..topSlope = (t2.z + t2.height) - (t1.z + t1.height - (t1.height >> 2))
-    ..bottomSlope = t2.z - (t1.z + t1.height - (t1.height >> 2))
+    ..sightZStart = sightZStart
+    ..topSlope = (t2.z + t2.height) - sightZStart
+    ..bottomSlope = t2.z - sightZStart
     ..t2x = t2.x
     ..t2y = t2.y;
 
-  ctx.strace
-    ..x = t1.x
-    ..y = t1.y
-    ..dx = t2.x - t1.x
-    ..dy = t2.y - t1.y;
+  _ctx.strace.set(t1.x, t1.y, t2.x - t1.x, t2.y - t1.y);
 
   if (state.nodes.isEmpty) {
     return true;
   }
 
-  return _crossBSPNode(state.nodes.length - 1, state, ctx);
+  return _crossBSPNode(state.nodes.length - 1, state);
 }

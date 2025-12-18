@@ -32,7 +32,7 @@ void main() {
         ..skyFlatNum = -1;
 
       state.initBuffer();
-      drawContext.setLookups(state.yLookup, state.columnOfs);
+      drawContext.setLookups(state.yLookup, state.columnOfs, state.centerY, state.viewHeight);
 
       for (var i = 0; i < RenderConstants.lightLevels; i++) {
         for (var j = 0; j < RenderConstants.maxLightZ; j++) {

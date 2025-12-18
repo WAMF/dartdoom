@@ -34,7 +34,7 @@ class Renderer {
   void init() {
     _initBuffer();
     _initTables();
-    drawContext.setLookups(state.yLookup, state.columnOfs);
+    drawContext.setLookups(state.yLookup, state.columnOfs, state.centerY, state.viewHeight);
 
     _skyRenderer = SkyRenderer(state, drawContext)
       ..init()
@@ -164,6 +164,10 @@ class Renderer {
 
   void renderPlayerView(Uint8List frameBuffer, {Player? player}) {
     _frameBuffer = frameBuffer;
+
+    if (player != null) {
+      state.extraLight = player.extraLight;
+    }
 
     _planeRenderer.clearPlanes();
     _segRenderer
@@ -455,7 +459,7 @@ class Renderer {
 
     _initBuffer();
     _initTables();
-    drawContext.setLookups(state.yLookup, state.columnOfs);
+    drawContext.setLookups(state.yLookup, state.columnOfs, state.centerY, state.viewHeight);
 
     _segRenderer.initClipArrays(state.viewWidth);
     _spriteRenderer.initClipArrays(state.viewWidth);

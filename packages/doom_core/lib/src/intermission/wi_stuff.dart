@@ -102,6 +102,7 @@ class Intermission {
   int _episode = 0;
   int _lastMap = 0;
   int _nextMap = 0;
+  bool _commercial = false;
 
   int _killCount = 0;
   int _maxKills = 1;
@@ -138,6 +139,8 @@ class Intermission {
   final List<_AnimState> _anims = [];
 
   bool _dataLoaded = false;
+  int _loadedEpisode = -1;
+  bool _loadedCommercial = false;
 
   void Function()? onWorldDone;
 
@@ -152,10 +155,12 @@ class Intermission {
     required int secrets,
     required int maxSecrets,
     required int levelTime,
+    bool commercial = false,
   }) {
     _episode = episode;
     _lastMap = lastMap;
     _nextMap = nextMap;
+    _commercial = commercial;
     _killCount = kills;
     _maxKills = maxKills > 0 ? maxKills : 1;
     _itemCount = items;
@@ -173,16 +178,19 @@ class Intermission {
   }
 
   void _loadData() {
-    if (_dataLoaded) return;
+    if (_dataLoaded && _loadedEpisode == _episode && _loadedCommercial == _commercial) {
+      return;
+    }
 
-    final bgName = 'WIMAP${_episode - 1}';
-    final bgLump = _wadManager.checkNumForName(bgName);
-    if (bgLump >= 0) {
-      _background = Patch.parse(_wadManager.cacheLumpNum(bgLump));
+    if (_commercial) {
+      _background = _loadPatch('INTERPIC');
     } else {
-      final interpic = _wadManager.checkNumForName('INTERPIC');
-      if (interpic >= 0) {
-        _background = Patch.parse(_wadManager.cacheLumpNum(interpic));
+      final bgName = 'WIMAP${_episode - 1}';
+      final bgLump = _wadManager.checkNumForName(bgName);
+      if (bgLump >= 0) {
+        _background = Patch.parse(_wadManager.cacheLumpNum(bgLump));
+      } else {
+        _background = _loadPatch('INTERPIC');
       }
     }
 
@@ -203,19 +211,29 @@ class Intermission {
     _itemsPatch = _loadPatch('WIOSTI');
     _timePatch = _loadPatch('WITIME');
     _sucks = _loadPatch('WISUCKS');
-    _splat = _loadPatch('WISPLAT');
-    _yah[0] = _loadPatch('WIURH0');
-    _yah[1] = _loadPatch('WIURH1');
 
     _lnames.clear();
-    for (var i = 0; i < 9; i++) {
-      final name = 'WILV${_episode - 1}$i';
-      _lnames.add(_loadPatch(name));
+    if (_commercial) {
+      for (var i = 0; i < 32; i++) {
+        final name = 'CWILV${i.toString().padLeft(2, '0')}';
+        _lnames.add(_loadPatch(name));
+      }
+    } else {
+      _splat = _loadPatch('WISPLAT');
+      _yah[0] = _loadPatch('WIURH0');
+      _yah[1] = _loadPatch('WIURH1');
+
+      for (var i = 0; i < 9; i++) {
+        final name = 'WILV${_episode - 1}$i';
+        _lnames.add(_loadPatch(name));
+      }
+
+      _loadAnimations();
     }
 
-    _loadAnimations();
-
     _dataLoaded = true;
+    _loadedEpisode = _episode;
+    _loadedCommercial = _commercial;
   }
 
   void _loadAnimations() {
@@ -257,6 +275,7 @@ class Intermission {
     _cntSecrets = -1;
     _cntTime = -1;
     _cntPause = _IntermissionConstants.ticRate;
+    _initAnimatedBack();
   }
 
   void _initShowNextLoc() {
@@ -514,29 +533,31 @@ class Intermission {
 
   void _drawLevelFinished(Uint8List screen) {
     final lname = _lastMap > 0 && _lastMap <= _lnames.length ? _lnames[_lastMap - 1] : null;
+    var y = _IntermissionConstants.titleY;
     if (lname != null) {
       final x = (ScreenConstants.width - lname.width) ~/ 2;
-      VVideo.drawPatchDirect(screen, x, _IntermissionConstants.titleY, lname);
+      VVideo.drawPatchDirect(screen, x, y, lname);
+      y += (5 * lname.height) ~/ 4;
     }
 
     final fin = _finished;
     if (fin != null) {
-      final y = _IntermissionConstants.titleY + (lname?.height ?? 0) + 5;
       final x = (ScreenConstants.width - fin.width) ~/ 2;
       VVideo.drawPatchDirect(screen, x, y, fin);
     }
   }
 
   void _drawEnteringLevel(Uint8List screen) {
+    var y = _IntermissionConstants.titleY;
     final ent = _entering;
     if (ent != null) {
       final x = (ScreenConstants.width - ent.width) ~/ 2;
-      VVideo.drawPatchDirect(screen, x, _IntermissionConstants.titleY, ent);
+      VVideo.drawPatchDirect(screen, x, y, ent);
     }
 
     final lname = _nextMap > 0 && _nextMap <= _lnames.length ? _lnames[_nextMap - 1] : null;
     if (lname != null) {
-      final y = _IntermissionConstants.titleY + (ent?.height ?? 0) + 5;
+      y += (5 * lname.height) ~/ 4;
       final x = (ScreenConstants.width - lname.width) ~/ 2;
       VVideo.drawPatchDirect(screen, x, y, lname);
     }
@@ -545,13 +566,16 @@ class Intermission {
   void _drawShowNextLoc(Uint8List screen) {
     _drawAnimatedBack(screen);
 
-    if (_episode <= 3) {
+    if (!_commercial && _episode <= 3) {
       _drawSplats(screen);
       if (_snlPointerOn) {
         _drawYouAreHere(screen);
       }
     }
-    _drawEnteringLevel(screen);
+
+    if (!_commercial || _nextMap != 30) {
+      _drawEnteringLevel(screen);
+    }
   }
 
   void _drawNoState(Uint8List screen) {

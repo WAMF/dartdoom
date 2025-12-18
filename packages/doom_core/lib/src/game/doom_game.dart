@@ -26,6 +26,8 @@ import 'package:doom_core/src/video/v_video.dart';
 import 'package:doom_math/doom_math.dart';
 import 'package:doom_wad/doom_wad.dart';
 
+typedef VoidCallback = void Function();
+
 abstract final class _PlayerStartType {
   static const int player1 = 1;
 }
@@ -54,6 +56,8 @@ class DoomGame {
   final int _consoleplayer = 0;
   bool _hudNeedsRefresh = true;
 
+  GameMode _gameMode = GameMode.indetermined;
+
   GameState _gameState = GameState.demoScreen;
   GameAction _gameAction = GameAction.nothing;
 
@@ -76,6 +80,10 @@ class DoomGame {
   bool _forceWipe = false;
   final DoomRandom _menuRandom = DoomRandom();
 
+  VoidCallback? onQuit;
+  bool _shouldQuit = false;
+
+  bool get shouldQuit => _shouldQuit;
   RenderState? get renderState => _renderState;
   Renderer? get renderer => _renderer;
   LevelLocals? get level => _level;
@@ -92,7 +100,9 @@ class DoomGame {
     _textureManager = TextureManager(_wadManager)..init();
     _ticker = GameTicker();
 
-    _menuSystem = MenuSystem(_wadManager, _screenBuffers)
+    _gameMode = _identifyVersion();
+
+    _menuSystem = MenuSystem(_wadManager, _screenBuffers, _gameMode)
       ..init()
       ..onNewGame = _deferedInitNew
       ..onQuitGame = _quitToTitle;
@@ -108,6 +118,26 @@ class DoomGame {
     _paletteConverter.loadPalettes(playPal);
 
     _startTitle();
+  }
+
+  GameMode _identifyVersion() {
+    if (_wadManager.checkNumForName('MAP01') >= 0) {
+      return GameMode.commercial;
+    }
+
+    if (_wadManager.checkNumForName('E4M1') >= 0) {
+      return GameMode.retail;
+    }
+
+    if (_wadManager.checkNumForName('E3M1') >= 0) {
+      return GameMode.registered;
+    }
+
+    if (_wadManager.checkNumForName('E1M1') >= 0) {
+      return GameMode.shareware;
+    }
+
+    return GameMode.indetermined;
   }
 
   void _startTitle() {
@@ -193,6 +223,11 @@ class DoomGame {
   }
 
   void _quitToTitle() {
+    if (_gameState == GameState.demoScreen) {
+      _shouldQuit = true;
+      return;
+    }
+
     _forceWipe = true;
     _level = null;
     _renderer = null;
@@ -231,6 +266,9 @@ class DoomGame {
   }
 
   String _buildMapName(int episode, int map) {
+    if (_gameMode == GameMode.commercial) {
+      return 'MAP${map.toString().padLeft(2, '0')}';
+    }
     return 'E${episode}M$map';
   }
 
@@ -240,6 +278,47 @@ class DoomGame {
 
     _secretExit = level.secretExit;
 
+    if (_gameMode == GameMode.commercial) {
+      _doCompletedCommercial();
+    } else {
+      _doCompletedEpisodic();
+    }
+
+    _intermission.start(
+      episode: _episode,
+      lastMap: _map,
+      nextMap: _nextMap,
+      kills: level.players[_consoleplayer].killCount,
+      maxKills: level.totalKills,
+      items: level.players[_consoleplayer].itemCount,
+      maxItems: level.totalItems,
+      secrets: level.players[_consoleplayer].secretCount,
+      maxSecrets: level.totalSecrets,
+      levelTime: level.levelTime,
+      commercial: _gameMode == GameMode.commercial,
+    );
+    _gameState = GameState.intermission;
+    _gameAction = GameAction.nothing;
+  }
+
+  void _doCompletedCommercial() {
+    if (_map == 30) {
+      _gameAction = GameAction.victory;
+      return;
+    }
+
+    if (_secretExit) {
+      _nextMap = _map == 15 ? 31 : 32;
+    } else if (_map == 31) {
+      _nextMap = 16;
+    } else if (_map == 32) {
+      _nextMap = 16;
+    } else {
+      _nextMap = _map + 1;
+    }
+  }
+
+  void _doCompletedEpisodic() {
     if (_map == 8) {
       _gameAction = GameAction.victory;
       return;
@@ -258,21 +337,6 @@ class DoomGame {
     } else {
       _nextMap = _map + 1;
     }
-
-    _intermission.start(
-      episode: _episode,
-      lastMap: _map,
-      nextMap: _nextMap,
-      kills: level.players[_consoleplayer].killCount,
-      maxKills: level.totalKills,
-      items: level.players[_consoleplayer].itemCount,
-      maxItems: level.totalItems,
-      secrets: level.players[_consoleplayer].secretCount,
-      maxSecrets: level.totalSecrets,
-      levelTime: level.levelTime,
-    );
-    _gameState = GameState.intermission;
-    _gameAction = GameAction.nothing;
   }
 
   void _worldDone() {
@@ -309,6 +373,7 @@ class DoomGame {
       level
         ..blockmap = Blockmap.parse(mapData.blockmap!)
         ..initBlockLinks();
+      _computeSectorBlockBoxes(renderState.sectors, level.blockmap!);
     }
 
     level
@@ -633,4 +698,57 @@ class DoomGame {
   void keyUp(int keyCode) {
     input.keyUp(keyCode);
   }
+
+  void _computeSectorBlockBoxes(List<Sector> sectors, Blockmap blockmap) {
+    final originX = blockmap.originX << Fixed32.fracBits;
+    final originY = blockmap.originY << Fixed32.fracBits;
+
+    for (final sector in sectors) {
+      if (sector.lines.isEmpty) continue;
+
+      var minX = 0x7FFFFFFF;
+      var maxX = -0x7FFFFFFF;
+      var minY = 0x7FFFFFFF;
+      var maxY = -0x7FFFFFFF;
+
+      for (final line in sector.lines) {
+        final v1 = line.v1;
+        final v2 = line.v2;
+
+        if (v1.x < minX) minX = v1.x;
+        if (v1.x > maxX) maxX = v1.x;
+        if (v1.y < minY) minY = v1.y;
+        if (v1.y > maxY) maxY = v1.y;
+
+        if (v2.x < minX) minX = v2.x;
+        if (v2.x > maxX) maxX = v2.x;
+        if (v2.y < minY) minY = v2.y;
+        if (v2.y > maxY) maxY = v2.y;
+      }
+
+      var block = (maxY - originY + _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block >= blockmap.rows) block = blockmap.rows - 1;
+      sector.blockBox0 = block;
+
+      block = (minY - originY - _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block < 0) block = 0;
+      sector.blockBox1 = block;
+
+      block = (maxX - originX + _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block >= blockmap.columns) block = blockmap.columns - 1;
+      sector.blockBox3 = block;
+
+      block = (minX - originX - _BlockBoxConstants.maxRadius) >>
+          (Fixed32.fracBits + BlockmapConstants.blockShift);
+      if (block < 0) block = 0;
+      sector.blockBox2 = block;
+    }
+  }
+}
+
+abstract final class _BlockBoxConstants {
+  static const int maxRadius = 32 << Fixed32.fracBits;
 }

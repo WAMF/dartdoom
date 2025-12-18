@@ -46,6 +46,12 @@ class LevelLocals {
   int teleportDestZ = 0;
   int teleportTic = -1;
 
+  // Blood spray effect from crushing (set by changeSector)
+  int bloodSprayX = 0;
+  int bloodSprayY = 0;
+  int bloodSprayZ = 0;
+  int bloodSprayTic = -1;
+
   bool floatOk = false;
   int tmFloorZ = 0;
 

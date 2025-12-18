@@ -18,10 +18,18 @@ abstract final class _WeaponConstants {
   static const int weaponTop = 32 * Fixed32.fracUnit;
   static const int numPsprites = 2;
   static const int psWeapon = 0;
-  // ignore: unused_field
-  static const int psFlash = 1;
   static const int bfgCells = 40;
   static const int bulletRange = 16 * 64 * Fixed32.fracUnit;
+}
+
+abstract final class _MuzzleFlashConstants {
+  static const int pistolFlash = 1;
+  static const int shotgunFlash = 2;
+  static const int chainsawFlash = 1;
+  static const int chaingunFlash = 2;
+  static const int rocketFlash = 2;
+  static const int plasmaFlash = 1;
+  static const int bfgFlash = 2;
 }
 
 const List<int> _weaponSprites = [
@@ -163,6 +171,10 @@ void movePsprites(Player player, LevelLocals level) {
 }
 
 void _weaponReady(Player player, PspriteDef psp, LevelLocals level) {
+  if (player.extraLight > 0) {
+    player.extraLight = 0;
+  }
+
   if (player.pendingWeapon != WeaponType.noChange || player.health == 0) {
     lowerWeapon(player);
     return;
@@ -308,28 +320,36 @@ void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
         _punchAttack(player, level);
       case WeaponType.chainsaw:
         _sawAttack(player, level);
+        player.extraLight = _MuzzleFlashConstants.chainsawFlash;
       case WeaponType.pistol:
         _calcBulletSlope(player, level);
         _gunShot(player, level, player.refire == 0);
+        player.extraLight = _MuzzleFlashConstants.pistolFlash;
       case WeaponType.chaingun:
         _calcBulletSlope(player, level);
         _gunShot(player, level, player.refire == 0);
+        player.extraLight = _MuzzleFlashConstants.chaingunFlash;
       case WeaponType.shotgun:
         _calcBulletSlope(player, level);
         for (var i = 0; i < 7; i++) {
           _gunShot(player, level, false);
         }
+        player.extraLight = _MuzzleFlashConstants.shotgunFlash;
       case WeaponType.superShotgun:
         _calcBulletSlope(player, level);
         for (var i = 0; i < 20; i++) {
           _superShotgunShot(player, level);
         }
+        player.extraLight = _MuzzleFlashConstants.shotgunFlash;
       case WeaponType.missile:
         _fireMissile(player, level);
+        player.extraLight = _MuzzleFlashConstants.rocketFlash;
       case WeaponType.plasma:
         _firePlasma(player, level);
+        player.extraLight = _MuzzleFlashConstants.plasmaFlash;
       case WeaponType.bfg:
         _fireBfg(player, level);
+        player.extraLight = _MuzzleFlashConstants.bfgFlash;
       case WeaponType.numWeapons:
       case WeaponType.noChange:
         break;
@@ -346,6 +366,7 @@ void _weaponAttack(Player player, PspriteDef psp, LevelLocals level) {
         ..psprState = PsprState.ready
         ..frame = 0
         ..attackFrameIndex = 0;
+      player.extraLight = 0;
       return;
     }
     final nextFrame = frames[psp.attackFrameIndex];

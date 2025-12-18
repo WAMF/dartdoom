@@ -11,12 +11,44 @@ abstract final class _BobConstants {
   static const int bobAngleScale = Angle.fineAngles ~/ 20;
 }
 
+abstract final class _DeathConstants {
+  static const int ang5 = Angle.ang90 ~/ 18;
+}
+
+const List<WeaponType> _weaponKeyMap = [
+  WeaponType.fist,
+  WeaponType.pistol,
+  WeaponType.shotgun,
+  WeaponType.chaingun,
+  WeaponType.missile,
+  WeaponType.plasma,
+  WeaponType.bfg,
+];
+
+WeaponType _processWeaponChange(Player player, TicCmd cmd) {
+  final weaponIndex = TicCmdButtons.weaponFromButtons(cmd.buttons);
+  if (weaponIndex < 0 || weaponIndex >= _weaponKeyMap.length) {
+    return WeaponType.noChange;
+  }
+
+  var newWeapon = _weaponKeyMap[weaponIndex];
+
+  if (newWeapon == WeaponType.fist &&
+      player.weaponOwned[WeaponType.chainsaw.index] &&
+      !(player.readyWeapon == WeaponType.chainsaw &&
+          player.powers[PowerType.strength.index] > 0)) {
+    newWeapon = WeaponType.chainsaw;
+  }
+
+  return newWeapon;
+}
+
 void playerThink(Player player, LevelLocals level) {
   final cmd = player.cmd;
   final mobj = player.mobj;
 
   if (player.playerState == PlayerState.dead) {
-    _deathThink(player);
+    _deathThink(player, level);
     return;
   }
 
@@ -35,6 +67,15 @@ void playerThink(Player player, LevelLocals level) {
 
   _calcHeight(player, level.levelTime);
 
+  if ((cmd.buttons & TicCmdButtons.change) != 0) {
+    final newWeapon = _processWeaponChange(player, cmd);
+    if (newWeapon != WeaponType.noChange &&
+        newWeapon != player.readyWeapon &&
+        player.weaponOwned[newWeapon.index]) {
+      player.pendingWeapon = newWeapon;
+    }
+  }
+
   if ((cmd.buttons & TicCmdButtons.use) != 0) {
     if (!player.useDown) {
       useLines(player, level);
@@ -45,6 +86,14 @@ void playerThink(Player player, LevelLocals level) {
   }
 
   movePsprites(player, level);
+
+  if (player.damageCount > 0) {
+    player.damageCount--;
+  }
+
+  if (player.bonusCount > 0) {
+    player.bonusCount--;
+  }
 }
 
 void _movePlayer(Player player) {
@@ -132,7 +181,9 @@ void _calcHeight(Player player, int levelTime) {
   }
 }
 
-void _deathThink(Player player) {
+void _deathThink(Player player, LevelLocals level) {
+  movePsprites(player, level);
+
   final mobj = player.mobj;
   if (mobj == null) return;
 
@@ -147,6 +198,30 @@ void _deathThink(Player player) {
   player.deltaViewHeight = 0;
 
   player.viewZ = mobj.z + player.viewHeight;
+
+  final attacker = player.attacker;
+  if (attacker != null && attacker != mobj) {
+    final angle = pointToAngle(attacker.x - mobj.x, attacker.y - mobj.y);
+    final delta = (angle - mobj.angle).u32;
+
+    if (delta < _DeathConstants.ang5 ||
+        delta > ((-_DeathConstants.ang5).u32)) {
+      mobj.angle = angle;
+      if (player.damageCount > 0) {
+        player.damageCount--;
+      }
+    } else if (delta < Angle.ang180.u32) {
+      mobj.angle = (mobj.angle + _DeathConstants.ang5).u32.s32;
+    } else {
+      mobj.angle = (mobj.angle - _DeathConstants.ang5).u32.s32;
+    }
+  } else if (player.damageCount > 0) {
+    player.damageCount--;
+  }
+
+  if ((player.cmd.buttons & TicCmdButtons.use) != 0) {
+    player.playerState = PlayerState.reborn;
+  }
 }
 
 void useLines(Player player, LevelLocals level) {

@@ -55,4 +55,6 @@ abstract final class DoomKey {
   static const int pageDown = 0x80 + 0x51;
   static const int insert = 0x80 + 0x52;
   static const int delete = 0x80 + 0x53;
+  static const int keyY = 121;
+  static const int keyN = 110;
 }

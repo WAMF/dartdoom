@@ -1,5 +1,6 @@
 import 'package:doom_core/src/game/level_locals.dart';
 import 'package:doom_core/src/game/specials/move_plane.dart';
+import 'package:doom_core/src/game/specials/sector_utils.dart';
 import 'package:doom_core/src/game/thinker.dart';
 import 'package:doom_core/src/render/r_defs.dart';
 import 'package:doom_math/doom_math.dart';
@@ -91,7 +92,11 @@ class ActiveCeilings {
   }
 }
 
-void ceilingThink(CeilingThinker ceiling, ActiveCeilings activeCeilings) {
+void ceilingThink(
+  CeilingThinker ceiling,
+  ActiveCeilings activeCeilings,
+  LevelLocals level,
+) {
   switch (ceiling.direction) {
     case CeilingDirection.stasis:
       break;
@@ -104,6 +109,7 @@ void ceilingThink(CeilingThinker ceiling, ActiveCeilings activeCeilings) {
         false,
         1,
         ceiling.direction,
+        level: level,
       );
 
       if (res == MoveResult.pastDest) {
@@ -130,6 +136,7 @@ void ceilingThink(CeilingThinker ceiling, ActiveCeilings activeCeilings) {
         ceiling.crush,
         1,
         ceiling.direction,
+        level: level,
       );
 
       if (res == MoveResult.pastDest) {
@@ -197,7 +204,7 @@ bool evDoCeiling(
     level.thinkers.add(ceiling);
     sector.specialData = ceiling;
     ceiling.function =
-        (_) => ceilingThink(ceiling, activeCeilings);
+        (_) => ceilingThink(ceiling, activeCeilings, level);
 
     switch (type) {
       case CeilingType.fastCrushAndRaise:
@@ -263,24 +270,11 @@ int _findHighestCeilingSurrounding(Sector sector) {
   var height = -500 * Fixed32.fracUnit;
 
   for (final line in sector.lines) {
-    final other = _getNextSector(line, sector);
+    final other = getNextSector(line, sector);
     if (other != null && other.ceilingHeight > height) {
       height = other.ceilingHeight;
     }
   }
 
   return height;
-}
-
-Sector? _getNextSector(Line line, Sector sector) {
-  if ((line.flags & _LineFlags.twoSided) == 0) return null;
-
-  if (line.frontSector == sector) {
-    return line.backSector;
-  }
-  return line.frontSector;
-}
-
-abstract final class _LineFlags {
-  static const int twoSided = 0x04;
 }

@@ -60,6 +60,15 @@ abstract final class SpriteNum {
   static const int arm2 = 56;
   static const int bar1 = 57;
   static const int bexp = 58;
+  static const int gor1 = 96;
+  static const int pol5 = 98;
+  static const int pol3 = 100;
+  static const int pol6 = 102;
+  static const int ceye = 118;
+  static const int fsku = 119;
+  static const int col5 = 120;
+  static const int tlmp = 136;
+  static const int tlp2 = 137;
 }
 
 abstract final class StateNum {
@@ -337,6 +346,192 @@ abstract final class StateNum {
   static const int puff2 = 252;
   static const int puff3 = 253;
   static const int puff4 = 254;
+
+  static const int vileStnd = 255;
+  static const int vileStnd2 = 256;
+  static const int vileRun1 = 257;
+  static const int vileRun2 = 258;
+  static const int vileRun3 = 259;
+  static const int vileRun4 = 260;
+  static const int vileRun5 = 261;
+  static const int vileRun6 = 262;
+  static const int vileRun7 = 263;
+  static const int vileRun8 = 264;
+  static const int vileRun9 = 265;
+  static const int vileRun10 = 266;
+  static const int vileRun11 = 267;
+  static const int vileRun12 = 268;
+  static const int vileAtk1 = 269;
+  static const int vileAtk2 = 270;
+  static const int vileAtk3 = 271;
+  static const int vileAtk4 = 272;
+  static const int vileAtk5 = 273;
+  static const int vileAtk6 = 274;
+  static const int vileAtk7 = 275;
+  static const int vileAtk8 = 276;
+  static const int vileAtk9 = 277;
+  static const int vileAtk10 = 278;
+  static const int vileAtk11 = 279;
+  static const int vileHeal1 = 280;
+  static const int vileHeal2 = 281;
+  static const int vileHeal3 = 282;
+  static const int vilePain = 283;
+  static const int vilePain2 = 284;
+  static const int vileDie1 = 285;
+  static const int vileDie2 = 286;
+  static const int vileDie3 = 287;
+  static const int vileDie4 = 288;
+  static const int vileDie5 = 289;
+  static const int vileDie6 = 290;
+  static const int vileDie7 = 291;
+  static const int vileDie8 = 292;
+  static const int vileDie9 = 293;
+  static const int vileDie10 = 294;
+
+  static const int fire1 = 295;
+  static const int fire2 = 296;
+  static const int fire3 = 297;
+  static const int fire4 = 298;
+  static const int fire5 = 299;
+  static const int fire6 = 300;
+  static const int fire7 = 301;
+  static const int fire8 = 302;
+  static const int fire9 = 303;
+  static const int fire10 = 304;
+  static const int fire11 = 305;
+  static const int fire12 = 306;
+  static const int fire13 = 307;
+  static const int fire14 = 308;
+  static const int fire15 = 309;
+  static const int fire16 = 310;
+  static const int fire17 = 311;
+  static const int fire18 = 312;
+  static const int fire19 = 313;
+  static const int fire20 = 314;
+  static const int fire21 = 315;
+  static const int fire22 = 316;
+  static const int fire23 = 317;
+  static const int fire24 = 318;
+  static const int fire25 = 319;
+  static const int fire26 = 320;
+  static const int fire27 = 321;
+  static const int fire28 = 322;
+  static const int fire29 = 323;
+  static const int fire30 = 324;
+
+  static const int cyberStnd = 325;
+  static const int cyberStnd2 = 326;
+  static const int cyberRun1 = 327;
+  static const int cyberRun2 = 328;
+  static const int cyberRun3 = 329;
+  static const int cyberRun4 = 330;
+  static const int cyberRun5 = 331;
+  static const int cyberRun6 = 332;
+  static const int cyberRun7 = 333;
+  static const int cyberRun8 = 334;
+  static const int cyberAtk1 = 335;
+  static const int cyberAtk2 = 336;
+  static const int cyberAtk3 = 337;
+  static const int cyberAtk4 = 338;
+  static const int cyberAtk5 = 339;
+  static const int cyberAtk6 = 340;
+  static const int cyberPain = 341;
+  static const int cyberDie1 = 342;
+  static const int cyberDie2 = 343;
+  static const int cyberDie3 = 344;
+  static const int cyberDie4 = 345;
+  static const int cyberDie5 = 346;
+  static const int cyberDie6 = 347;
+  static const int cyberDie7 = 348;
+  static const int cyberDie8 = 349;
+  static const int cyberDie9 = 350;
+  static const int cyberDie10 = 351;
+
+  static const int spidStnd = 352;
+  static const int spidStnd2 = 353;
+  static const int spidRun1 = 354;
+  static const int spidRun2 = 355;
+  static const int spidRun3 = 356;
+  static const int spidRun4 = 357;
+  static const int spidRun5 = 358;
+  static const int spidRun6 = 359;
+  static const int spidRun7 = 360;
+  static const int spidRun8 = 361;
+  static const int spidRun9 = 362;
+  static const int spidRun10 = 363;
+  static const int spidRun11 = 364;
+  static const int spidRun12 = 365;
+  static const int spidAtk1 = 366;
+  static const int spidAtk2 = 367;
+  static const int spidAtk3 = 368;
+  static const int spidAtk4 = 369;
+  static const int spidPain = 370;
+  static const int spidPain2 = 371;
+  static const int spidDie1 = 372;
+  static const int spidDie2 = 373;
+  static const int spidDie3 = 374;
+  static const int spidDie4 = 375;
+  static const int spidDie5 = 376;
+  static const int spidDie6 = 377;
+  static const int spidDie7 = 378;
+  static const int spidDie8 = 379;
+  static const int spidDie9 = 380;
+  static const int spidDie10 = 381;
+  static const int spidDie11 = 382;
+
+  static const int painStnd = 383;
+  static const int painRun1 = 384;
+  static const int painRun2 = 385;
+  static const int painRun3 = 386;
+  static const int painRun4 = 387;
+  static const int painRun5 = 388;
+  static const int painRun6 = 389;
+  static const int painAtk1 = 390;
+  static const int painAtk2 = 391;
+  static const int painAtk3 = 392;
+  static const int painAtk4 = 393;
+  static const int painPain = 394;
+  static const int painPain2 = 395;
+  static const int painDie1 = 396;
+  static const int painDie2 = 397;
+  static const int painDie3 = 398;
+  static const int painDie4 = 399;
+  static const int painDie5 = 400;
+  static const int painDie6 = 401;
+  static const int painRaise1 = 402;
+  static const int painRaise2 = 403;
+  static const int painRaise3 = 404;
+  static const int painRaise4 = 405;
+  static const int painRaise5 = 406;
+  static const int painRaise6 = 407;
+
+  static const int bloodyTwitch = 408;
+  static const int bloodyTwitch2 = 409;
+  static const int bloodyTwitch3 = 410;
+  static const int bloodyTwitch4 = 411;
+  static const int headCandles = 412;
+  static const int headCandles2 = 413;
+  static const int liveStick = 414;
+  static const int liveStick2 = 415;
+  static const int evilEye = 416;
+  static const int evilEye2 = 417;
+  static const int evilEye3 = 418;
+  static const int evilEye4 = 419;
+  static const int floatSkull = 420;
+  static const int floatSkull2 = 421;
+  static const int floatSkull3 = 422;
+  static const int heartCol = 423;
+  static const int heartCol2 = 424;
+  static const int techLamp = 425;
+  static const int techLamp2 = 426;
+  static const int techLamp3 = 427;
+  static const int techLamp4 = 428;
+  static const int tech2Lamp = 429;
+  static const int tech2Lamp2 = 430;
+  static const int tech2Lamp3 = 431;
+  static const int tech2Lamp4 = 432;
+
+  static const int sGibs = 433;
 }
 
 enum StateAction {
@@ -371,6 +566,14 @@ enum StateAction {
   skelWhoosh,
   painAttack,
   painDie,
+  vileChase,
+  vileStart,
+  vileTarget,
+  vileAttack,
+  startFire,
+  fire,
+  fireCrackle,
+  skelFist,
 }
 
 class MobjState {
@@ -664,4 +867,191 @@ const List<MobjState> states = [
   MobjState(SpriteNum.puff, 1, 4, StateAction.none, StateNum.puff3),
   MobjState(SpriteNum.puff, 2, 4, StateAction.none, StateNum.puff4),
   MobjState(SpriteNum.puff, 3, 4, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.vile, 0, 10, StateAction.look, StateNum.vileStnd2),
+  MobjState(SpriteNum.vile, 1, 10, StateAction.look, StateNum.vileStnd),
+  MobjState(SpriteNum.vile, 0, 2, StateAction.vileChase, StateNum.vileRun2),
+  MobjState(SpriteNum.vile, 0, 2, StateAction.vileChase, StateNum.vileRun3),
+  MobjState(SpriteNum.vile, 1, 2, StateAction.vileChase, StateNum.vileRun4),
+  MobjState(SpriteNum.vile, 1, 2, StateAction.vileChase, StateNum.vileRun5),
+  MobjState(SpriteNum.vile, 2, 2, StateAction.vileChase, StateNum.vileRun6),
+  MobjState(SpriteNum.vile, 2, 2, StateAction.vileChase, StateNum.vileRun7),
+  MobjState(SpriteNum.vile, 3, 2, StateAction.vileChase, StateNum.vileRun8),
+  MobjState(SpriteNum.vile, 3, 2, StateAction.vileChase, StateNum.vileRun9),
+  MobjState(SpriteNum.vile, 4, 2, StateAction.vileChase, StateNum.vileRun10),
+  MobjState(SpriteNum.vile, 4, 2, StateAction.vileChase, StateNum.vileRun11),
+  MobjState(SpriteNum.vile, 5, 2, StateAction.vileChase, StateNum.vileRun12),
+  MobjState(SpriteNum.vile, 5, 2, StateAction.vileChase, StateNum.vileRun1),
+  MobjState(SpriteNum.vile, 6 | FrameFlag.fullBright, 0, StateAction.vileStart, StateNum.vileAtk2),
+  MobjState(SpriteNum.vile, 6 | FrameFlag.fullBright, 10, StateAction.faceTarget, StateNum.vileAtk3),
+  MobjState(SpriteNum.vile, 7 | FrameFlag.fullBright, 8, StateAction.vileTarget, StateNum.vileAtk4),
+  MobjState(SpriteNum.vile, 8 | FrameFlag.fullBright, 8, StateAction.faceTarget, StateNum.vileAtk5),
+  MobjState(SpriteNum.vile, 9 | FrameFlag.fullBright, 8, StateAction.faceTarget, StateNum.vileAtk6),
+  MobjState(SpriteNum.vile, 10 | FrameFlag.fullBright, 8, StateAction.faceTarget, StateNum.vileAtk7),
+  MobjState(SpriteNum.vile, 11 | FrameFlag.fullBright, 8, StateAction.faceTarget, StateNum.vileAtk8),
+  MobjState(SpriteNum.vile, 12 | FrameFlag.fullBright, 8, StateAction.faceTarget, StateNum.vileAtk9),
+  MobjState(SpriteNum.vile, 13 | FrameFlag.fullBright, 8, StateAction.faceTarget, StateNum.vileAtk10),
+  MobjState(SpriteNum.vile, 14 | FrameFlag.fullBright, 8, StateAction.vileAttack, StateNum.vileAtk11),
+  MobjState(SpriteNum.vile, 15 | FrameFlag.fullBright, 20, StateAction.none, StateNum.vileRun1),
+  MobjState(SpriteNum.vile, 26 | FrameFlag.fullBright, 10, StateAction.none, StateNum.vileHeal2),
+  MobjState(SpriteNum.vile, 27 | FrameFlag.fullBright, 10, StateAction.none, StateNum.vileHeal3),
+  MobjState(SpriteNum.vile, 28 | FrameFlag.fullBright, 10, StateAction.none, StateNum.vileRun1),
+  MobjState(SpriteNum.vile, 16, 5, StateAction.none, StateNum.vilePain2),
+  MobjState(SpriteNum.vile, 16, 5, StateAction.pain, StateNum.vileRun1),
+  MobjState(SpriteNum.vile, 16, 7, StateAction.none, StateNum.vileDie2),
+  MobjState(SpriteNum.vile, 17, 7, StateAction.scream, StateNum.vileDie3),
+  MobjState(SpriteNum.vile, 18, 7, StateAction.fall, StateNum.vileDie4),
+  MobjState(SpriteNum.vile, 19, 7, StateAction.none, StateNum.vileDie5),
+  MobjState(SpriteNum.vile, 20, 7, StateAction.none, StateNum.vileDie6),
+  MobjState(SpriteNum.vile, 21, 7, StateAction.none, StateNum.vileDie7),
+  MobjState(SpriteNum.vile, 22, 7, StateAction.none, StateNum.vileDie8),
+  MobjState(SpriteNum.vile, 23, 5, StateAction.none, StateNum.vileDie9),
+  MobjState(SpriteNum.vile, 24, 5, StateAction.none, StateNum.vileDie10),
+  MobjState(SpriteNum.vile, 25, -1, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.fire, 0 | FrameFlag.fullBright, 2, StateAction.startFire, StateNum.fire2),
+  MobjState(SpriteNum.fire, 1 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire3),
+  MobjState(SpriteNum.fire, 0 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire4),
+  MobjState(SpriteNum.fire, 1 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire5),
+  MobjState(SpriteNum.fire, 2 | FrameFlag.fullBright, 2, StateAction.fireCrackle, StateNum.fire6),
+  MobjState(SpriteNum.fire, 1 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire7),
+  MobjState(SpriteNum.fire, 2 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire8),
+  MobjState(SpriteNum.fire, 1 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire9),
+  MobjState(SpriteNum.fire, 2 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire10),
+  MobjState(SpriteNum.fire, 3 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire11),
+  MobjState(SpriteNum.fire, 2 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire12),
+  MobjState(SpriteNum.fire, 3 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire13),
+  MobjState(SpriteNum.fire, 2 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire14),
+  MobjState(SpriteNum.fire, 3 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire15),
+  MobjState(SpriteNum.fire, 4 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire16),
+  MobjState(SpriteNum.fire, 3 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire17),
+  MobjState(SpriteNum.fire, 4 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire18),
+  MobjState(SpriteNum.fire, 3 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire19),
+  MobjState(SpriteNum.fire, 4 | FrameFlag.fullBright, 2, StateAction.fireCrackle, StateNum.fire20),
+  MobjState(SpriteNum.fire, 5 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire21),
+  MobjState(SpriteNum.fire, 4 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire22),
+  MobjState(SpriteNum.fire, 5 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire23),
+  MobjState(SpriteNum.fire, 4 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire24),
+  MobjState(SpriteNum.fire, 5 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire25),
+  MobjState(SpriteNum.fire, 6 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire26),
+  MobjState(SpriteNum.fire, 7 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire27),
+  MobjState(SpriteNum.fire, 6 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire28),
+  MobjState(SpriteNum.fire, 7 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire29),
+  MobjState(SpriteNum.fire, 6 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.fire30),
+  MobjState(SpriteNum.fire, 7 | FrameFlag.fullBright, 2, StateAction.fire, StateNum.sNull),
+
+  MobjState(SpriteNum.cybr, 0, 10, StateAction.look, StateNum.cyberStnd2),
+  MobjState(SpriteNum.cybr, 1, 10, StateAction.look, StateNum.cyberStnd),
+  MobjState(SpriteNum.cybr, 0, 3, StateAction.none, StateNum.cyberRun2),
+  MobjState(SpriteNum.cybr, 0, 3, StateAction.chase, StateNum.cyberRun3),
+  MobjState(SpriteNum.cybr, 1, 3, StateAction.chase, StateNum.cyberRun4),
+  MobjState(SpriteNum.cybr, 1, 3, StateAction.chase, StateNum.cyberRun5),
+  MobjState(SpriteNum.cybr, 2, 3, StateAction.chase, StateNum.cyberRun6),
+  MobjState(SpriteNum.cybr, 2, 3, StateAction.chase, StateNum.cyberRun7),
+  MobjState(SpriteNum.cybr, 3, 3, StateAction.none, StateNum.cyberRun8),
+  MobjState(SpriteNum.cybr, 3, 3, StateAction.chase, StateNum.cyberRun1),
+  MobjState(SpriteNum.cybr, 4, 6, StateAction.faceTarget, StateNum.cyberAtk2),
+  MobjState(SpriteNum.cybr, 5, 12, StateAction.cyberAttack, StateNum.cyberAtk3),
+  MobjState(SpriteNum.cybr, 4, 12, StateAction.faceTarget, StateNum.cyberAtk4),
+  MobjState(SpriteNum.cybr, 5, 12, StateAction.cyberAttack, StateNum.cyberAtk5),
+  MobjState(SpriteNum.cybr, 4, 12, StateAction.faceTarget, StateNum.cyberAtk6),
+  MobjState(SpriteNum.cybr, 5, 12, StateAction.cyberAttack, StateNum.cyberRun1),
+  MobjState(SpriteNum.cybr, 6, 10, StateAction.pain, StateNum.cyberRun1),
+  MobjState(SpriteNum.cybr, 7, 10, StateAction.none, StateNum.cyberDie2),
+  MobjState(SpriteNum.cybr, 8, 10, StateAction.scream, StateNum.cyberDie3),
+  MobjState(SpriteNum.cybr, 9, 10, StateAction.none, StateNum.cyberDie4),
+  MobjState(SpriteNum.cybr, 10, 10, StateAction.none, StateNum.cyberDie5),
+  MobjState(SpriteNum.cybr, 11, 10, StateAction.none, StateNum.cyberDie6),
+  MobjState(SpriteNum.cybr, 12, 10, StateAction.fall, StateNum.cyberDie7),
+  MobjState(SpriteNum.cybr, 13, 10, StateAction.none, StateNum.cyberDie8),
+  MobjState(SpriteNum.cybr, 14, 10, StateAction.none, StateNum.cyberDie9),
+  MobjState(SpriteNum.cybr, 15, 30, StateAction.none, StateNum.cyberDie10),
+  MobjState(SpriteNum.cybr, 15, -1, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.spid, 0, 10, StateAction.look, StateNum.spidStnd2),
+  MobjState(SpriteNum.spid, 1, 10, StateAction.look, StateNum.spidStnd),
+  MobjState(SpriteNum.spid, 0, 3, StateAction.none, StateNum.spidRun2),
+  MobjState(SpriteNum.spid, 0, 3, StateAction.chase, StateNum.spidRun3),
+  MobjState(SpriteNum.spid, 1, 3, StateAction.chase, StateNum.spidRun4),
+  MobjState(SpriteNum.spid, 1, 3, StateAction.chase, StateNum.spidRun5),
+  MobjState(SpriteNum.spid, 2, 3, StateAction.none, StateNum.spidRun6),
+  MobjState(SpriteNum.spid, 2, 3, StateAction.chase, StateNum.spidRun7),
+  MobjState(SpriteNum.spid, 3, 3, StateAction.chase, StateNum.spidRun8),
+  MobjState(SpriteNum.spid, 3, 3, StateAction.chase, StateNum.spidRun9),
+  MobjState(SpriteNum.spid, 4, 3, StateAction.none, StateNum.spidRun10),
+  MobjState(SpriteNum.spid, 4, 3, StateAction.chase, StateNum.spidRun11),
+  MobjState(SpriteNum.spid, 5, 3, StateAction.chase, StateNum.spidRun12),
+  MobjState(SpriteNum.spid, 5, 3, StateAction.chase, StateNum.spidRun1),
+  MobjState(SpriteNum.spid, 0 | FrameFlag.fullBright, 20, StateAction.faceTarget, StateNum.spidAtk2),
+  MobjState(SpriteNum.spid, 6 | FrameFlag.fullBright, 4, StateAction.sPosAttack, StateNum.spidAtk3),
+  MobjState(SpriteNum.spid, 7 | FrameFlag.fullBright, 4, StateAction.sPosAttack, StateNum.spidAtk4),
+  MobjState(SpriteNum.spid, 7 | FrameFlag.fullBright, 1, StateAction.spidRefire, StateNum.spidAtk2),
+  MobjState(SpriteNum.spid, 8, 3, StateAction.none, StateNum.spidPain2),
+  MobjState(SpriteNum.spid, 8, 3, StateAction.pain, StateNum.spidRun1),
+  MobjState(SpriteNum.spid, 9, 20, StateAction.scream, StateNum.spidDie2),
+  MobjState(SpriteNum.spid, 10, 10, StateAction.fall, StateNum.spidDie3),
+  MobjState(SpriteNum.spid, 11, 10, StateAction.none, StateNum.spidDie4),
+  MobjState(SpriteNum.spid, 12, 10, StateAction.none, StateNum.spidDie5),
+  MobjState(SpriteNum.spid, 13, 10, StateAction.none, StateNum.spidDie6),
+  MobjState(SpriteNum.spid, 14, 10, StateAction.none, StateNum.spidDie7),
+  MobjState(SpriteNum.spid, 15, 10, StateAction.none, StateNum.spidDie8),
+  MobjState(SpriteNum.spid, 16, 10, StateAction.none, StateNum.spidDie9),
+  MobjState(SpriteNum.spid, 17, 10, StateAction.none, StateNum.spidDie10),
+  MobjState(SpriteNum.spid, 18, 30, StateAction.none, StateNum.spidDie11),
+  MobjState(SpriteNum.spid, 18, -1, StateAction.none, StateNum.sNull),
+
+  MobjState(SpriteNum.pain, 0, 10, StateAction.look, StateNum.painStnd),
+  MobjState(SpriteNum.pain, 0, 3, StateAction.chase, StateNum.painRun2),
+  MobjState(SpriteNum.pain, 0, 3, StateAction.chase, StateNum.painRun3),
+  MobjState(SpriteNum.pain, 1, 3, StateAction.chase, StateNum.painRun4),
+  MobjState(SpriteNum.pain, 1, 3, StateAction.chase, StateNum.painRun5),
+  MobjState(SpriteNum.pain, 2, 3, StateAction.chase, StateNum.painRun6),
+  MobjState(SpriteNum.pain, 2, 3, StateAction.chase, StateNum.painRun1),
+  MobjState(SpriteNum.pain, 3, 5, StateAction.faceTarget, StateNum.painAtk2),
+  MobjState(SpriteNum.pain, 4, 5, StateAction.faceTarget, StateNum.painAtk3),
+  MobjState(SpriteNum.pain, 5 | FrameFlag.fullBright, 5, StateAction.faceTarget, StateNum.painAtk4),
+  MobjState(SpriteNum.pain, 5 | FrameFlag.fullBright, 0, StateAction.painAttack, StateNum.painRun1),
+  MobjState(SpriteNum.pain, 6, 6, StateAction.none, StateNum.painPain2),
+  MobjState(SpriteNum.pain, 6, 6, StateAction.pain, StateNum.painRun1),
+  MobjState(SpriteNum.pain, 7 | FrameFlag.fullBright, 8, StateAction.none, StateNum.painDie2),
+  MobjState(SpriteNum.pain, 8 | FrameFlag.fullBright, 8, StateAction.scream, StateNum.painDie3),
+  MobjState(SpriteNum.pain, 9 | FrameFlag.fullBright, 8, StateAction.none, StateNum.painDie4),
+  MobjState(SpriteNum.pain, 10 | FrameFlag.fullBright, 8, StateAction.none, StateNum.painDie5),
+  MobjState(SpriteNum.pain, 11 | FrameFlag.fullBright, 8, StateAction.painDie, StateNum.painDie6),
+  MobjState(SpriteNum.pain, 12 | FrameFlag.fullBright, 8, StateAction.none, StateNum.sNull),
+  MobjState(SpriteNum.pain, 12, 8, StateAction.none, StateNum.painRaise2),
+  MobjState(SpriteNum.pain, 11, 8, StateAction.none, StateNum.painRaise3),
+  MobjState(SpriteNum.pain, 10, 8, StateAction.none, StateNum.painRaise4),
+  MobjState(SpriteNum.pain, 9, 8, StateAction.none, StateNum.painRaise5),
+  MobjState(SpriteNum.pain, 8, 8, StateAction.none, StateNum.painRaise6),
+  MobjState(SpriteNum.pain, 7, 8, StateAction.none, StateNum.painRun1),
+
+  MobjState(SpriteNum.gor1, 0, 10, StateAction.none, StateNum.bloodyTwitch2),
+  MobjState(SpriteNum.gor1, 1, 15, StateAction.none, StateNum.bloodyTwitch3),
+  MobjState(SpriteNum.gor1, 2, 8, StateAction.none, StateNum.bloodyTwitch4),
+  MobjState(SpriteNum.gor1, 1, 6, StateAction.none, StateNum.bloodyTwitch),
+  MobjState(SpriteNum.pol3, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.headCandles2),
+  MobjState(SpriteNum.pol3, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.headCandles),
+  MobjState(SpriteNum.pol6, 0, 6, StateAction.none, StateNum.liveStick2),
+  MobjState(SpriteNum.pol6, 1, 8, StateAction.none, StateNum.liveStick),
+
+  MobjState(SpriteNum.ceye, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye2),
+  MobjState(SpriteNum.ceye, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye3),
+  MobjState(SpriteNum.ceye, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye4),
+  MobjState(SpriteNum.ceye, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.evilEye),
+  MobjState(SpriteNum.fsku, 0 | FrameFlag.fullBright, 6, StateAction.none, StateNum.floatSkull2),
+  MobjState(SpriteNum.fsku, 1 | FrameFlag.fullBright, 6, StateAction.none, StateNum.floatSkull3),
+  MobjState(SpriteNum.fsku, 2 | FrameFlag.fullBright, 6, StateAction.none, StateNum.floatSkull),
+  MobjState(SpriteNum.col5, 0, 14, StateAction.none, StateNum.heartCol2),
+  MobjState(SpriteNum.col5, 1, 14, StateAction.none, StateNum.heartCol),
+  MobjState(SpriteNum.tlmp, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp2),
+  MobjState(SpriteNum.tlmp, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp3),
+  MobjState(SpriteNum.tlmp, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp4),
+  MobjState(SpriteNum.tlmp, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.techLamp),
+  MobjState(SpriteNum.tlp2, 0 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp2),
+  MobjState(SpriteNum.tlp2, 1 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp3),
+  MobjState(SpriteNum.tlp2, 2 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp4),
+  MobjState(SpriteNum.tlp2, 3 | FrameFlag.fullBright, 4, StateAction.none, StateNum.tech2Lamp),
+
+  MobjState(SpriteNum.pol5, 0, -1, StateAction.none, StateNum.sNull),
 ];

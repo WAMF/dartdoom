@@ -10,12 +10,14 @@ import 'package:doom_wad/doom_wad.dart';
 
 typedef NewGameCallback = void Function(Skill skill, int episode, int map);
 typedef QuitGameCallback = void Function();
+typedef MessageCallback = void Function(int response);
 
 class MenuSystem {
-  MenuSystem(this._wadManager, this._screenBuffers);
+  MenuSystem(this._wadManager, this._screenBuffers, this._gameMode);
 
   final WadManager _wadManager;
   final ScreenBuffers _screenBuffers;
+  final GameMode _gameMode;
 
   late List<Patch> _font;
   late Patch _skull1;
@@ -37,6 +39,12 @@ class MenuSystem {
   late MenuDef _newGameDef;
   late MenuDef _readDef1;
   late MenuDef _readDef2;
+
+  bool _messageToPrint = false;
+  String _messageString = '';
+  bool _messageNeedsInput = false;
+  MessageCallback? _messageRoutine;
+  int _messageLastMenuActive = 0;
 
   NewGameCallback? onNewGame;
   QuitGameCallback? onQuitGame;
@@ -228,7 +236,7 @@ class MenuSystem {
           alphaKey: 110,
         ),
       ],
-      prevMenu: _episodeDef,
+      prevMenu: _gameMode == GameMode.commercial ? _mainDef : _episodeDef,
       x: 48,
       y: 63,
       lastOn: SkillIndices.hurtMePlenty,
@@ -265,17 +273,29 @@ class MenuSystem {
   }
 
   void _newGame(int choice) {
-    _setupNextMenu(_episodeDef);
+    if (_gameMode == GameMode.commercial) {
+      _setupNextMenu(_newGameDef);
+    } else {
+      _setupNextMenu(_episodeDef);
+    }
   }
 
   void _episode(int choice) {
+    if (_gameMode == GameMode.shareware && choice != 0) {
+      _startMessage(
+        'please register to use\nthis episode.',
+        null,
+      );
+      return;
+    }
     _selectedEpisode = choice + 1;
     _setupNextMenu(_newGameDef);
   }
 
   void _chooseSkill(int choice) {
     final skill = Skill.values[choice];
-    onNewGame?.call(skill, _selectedEpisode, 1);
+    final episode = _gameMode == GameMode.commercial ? 1 : _selectedEpisode;
+    onNewGame?.call(skill, episode, 1);
     clearMenus();
   }
 
@@ -298,8 +318,27 @@ class MenuSystem {
   }
 
   void _quitDoom(int choice) {
+    final message = _QuitMessages.messages[choice % _QuitMessages.messages.length];
+    _startMessage(
+      '$message\n\n${_QuitMessages.pressYToQuit}',
+      _quitResponse,
+      needsInput: true,
+    );
+  }
+
+  void _quitResponse(int response) {
+    if (response != DoomKey.keyY) return;
     onQuitGame?.call();
     clearMenus();
+  }
+
+  void _startMessage(String message, MessageCallback? routine, {bool needsInput = false}) {
+    _messageLastMenuActive = _menuActive ? 1 : 0;
+    _messageString = message;
+    _messageRoutine = routine;
+    _messageNeedsInput = needsInput;
+    _messageToPrint = true;
+    _menuActive = true;
   }
 
   void _setupNextMenu(MenuDef menu) {
@@ -311,6 +350,24 @@ class MenuSystem {
     if (event.type != DoomEventType.keyDown) return false;
 
     final ch = event.data1;
+
+    if (_messageToPrint) {
+      if (_messageNeedsInput &&
+          ch != DoomKey.keyY &&
+          ch != DoomKey.keyN &&
+          ch != DoomKey.escape) {
+        return false;
+      }
+
+      _messageToPrint = false;
+      if (_messageNeedsInput) {
+        _menuActive = _messageLastMenuActive != 0;
+      }
+
+      _messageRoutine?.call(ch);
+      _menuActive = false;
+      return true;
+    }
 
     if (!_menuActive) {
       if (ch == DoomKey.escape) {
@@ -433,6 +490,12 @@ class MenuSystem {
   void drawer() {
     if (!_menuActive) return;
 
+    if (_messageToPrint) {
+      final y = (ScreenConstants.height - _stringHeight(_messageString)) ~/ 2;
+      _writeText(0, y, _messageString, centered: true);
+      return;
+    }
+
     final menu = _currentMenu;
     if (menu == null) return;
 
@@ -461,6 +524,73 @@ class MenuSystem {
         skullPatch,
       );
     }
+  }
+
+  void _writeText(int x, int y, String text, {bool centered = false}) {
+    if (_font.isEmpty) return;
+
+    final upperText = text.toUpperCase();
+    var cx = x;
+    var cy = y;
+
+    for (var i = 0; i < upperText.length; i++) {
+      final c = upperText.codeUnitAt(i);
+
+      if (c == 10) {
+        cx = x;
+        cy += _FontConstants.lineHeight;
+        continue;
+      }
+
+      if (centered && (i == 0 || upperText.codeUnitAt(i - 1) == 10)) {
+        final lineEnd = upperText.indexOf('\n', i);
+        final line = lineEnd >= 0 ? upperText.substring(i, lineEnd) : upperText.substring(i);
+        cx = (ScreenConstants.width - _stringWidth(line)) ~/ 2;
+      }
+
+      if (c < HuConstants.fontStart || c > HuConstants.fontEnd) {
+        cx += _FontConstants.spaceWidth;
+        continue;
+      }
+
+      final fontIndex = c - HuConstants.fontStart;
+      if (fontIndex >= 0 && fontIndex < _font.length) {
+        final patch = _font[fontIndex];
+        VVideo.drawPatchDirect(_screen, cx, cy, patch);
+        cx += patch.width;
+      }
+    }
+  }
+
+  int _stringWidth(String text) {
+    if (_font.isEmpty) return 0;
+
+    var width = 0;
+    for (var i = 0; i < text.length; i++) {
+      final c = text.codeUnitAt(i);
+      if (c == 10) break;
+
+      if (c < HuConstants.fontStart || c > HuConstants.fontEnd) {
+        width += _FontConstants.spaceWidth;
+        continue;
+      }
+
+      final fontIndex = c - HuConstants.fontStart;
+      if (fontIndex >= 0 && fontIndex < _font.length) {
+        width += _font[fontIndex].width;
+      }
+    }
+    return width;
+  }
+
+  int _stringHeight(String text) {
+    var height = _FontConstants.lineHeight;
+    for (var i = 0; i < text.length; i++) {
+      if (text.codeUnitAt(i) == 10) {
+        height += _FontConstants.lineHeight;
+      }
+    }
+    return height;
   }
 
   bool _isFullscreenMenu(MenuDef menu) {
@@ -527,4 +657,21 @@ class MenuSystem {
 
 abstract final class _FontConstants {
   static const int fontSize = 63;
+  static const int lineHeight = 12;
+  static const int spaceWidth = 4;
+}
+
+abstract final class _QuitMessages {
+  static const String pressYToQuit = '(PRESS Y TO QUIT)';
+
+  static const List<String> messages = [
+    'ARE YOU SURE YOU WANT TO\nQUIT THIS GREAT GAME?',
+    "PLEASE DON'T LEAVE, THERE'S MORE\nDEMONS TO TOAST!",
+    "LET'S BEAT IT -- THIS IS TURNING\nINTO A BLOODBATH!",
+    "I WOULDN'T LEAVE IF I WERE YOU.\nDOS IS MUCH WORSE.",
+    "YOU'RE TRYING TO SAY YOU LIKE DOS\nBETTER THAN ME, RIGHT?",
+    "DON'T LEAVE YET -- THERE'S A\nDEMON AROUND THAT CORNER!",
+    "YA KNOW, NEXT TIME YOU COME IN HERE\nI'M GONNA TOAST YA.",
+    'GO AHEAD AND LEAVE. SEE IF I CARE.',
+  ];
 }
