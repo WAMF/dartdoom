@@ -1,9 +1,11 @@
-import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:doom_flutter/src/crt_effect.dart';
 import 'package:doom_flutter/src/doom_widget.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const DoomApp());
@@ -37,6 +39,47 @@ class _DoomScreenState extends State<DoomScreen> {
   String? _errorMessage;
   bool _isDragging = false;
   int _gameKey = 0;
+  CrtEffect _crtEffect = CrtEffect.none;
+  ui.FragmentShader? _crtShader;
+  ui.FragmentProgram? _crtProgram;
+  bool _isFullscreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShader();
+  }
+
+  Future<void> _toggleFullscreen() async {
+    setState(() {
+      _isFullscreen = !_isFullscreen;
+    });
+    if (_isFullscreen) {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
+  Future<void> _loadShader() async {
+    try {
+      _crtProgram = await ui.FragmentProgram.fromAsset('shaders/crt.frag');
+      setState(() {
+        _crtShader = _crtProgram!.fragmentShader();
+      });
+    } catch (e) {
+      debugPrint('Failed to load CRT shader: $e');
+    }
+  }
+
+  void _toggleCrtEffect() {
+    setState(() {
+      _crtEffect = _crtEffect.next();
+      if (_crtProgram != null) {
+        _crtShader = _crtProgram!.fragmentShader();
+      }
+    });
+  }
 
   Future<void> _loadWad() async {
     try {
@@ -110,6 +153,29 @@ class _DoomScreenState extends State<DoomScreen> {
                 key: ValueKey(_gameKey),
                 wadBytes: _wadBytes,
                 onQuit: _resetToStart,
+                crtEffect: _crtEffect,
+                crtShader: _crtShader,
+                fillScreen: _isFullscreen,
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ToolbarButton(
+                    icon: _isFullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                    label: _isFullscreen ? 'Exit' : 'Fullscreen',
+                    onPressed: _toggleFullscreen,
+                  ),
+                  const SizedBox(width: 8),
+                  _ToolbarButton(
+                    icon: Icons.tv,
+                    label: 'CRT: ${_crtEffect.label}',
+                    onPressed: _toggleCrtEffect,
+                  ),
+                ],
               ),
             ),
             if (_errorMessage != null)
@@ -237,6 +303,44 @@ class _WadDropZone extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToolbarButton extends StatelessWidget {
+  const _ToolbarButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black54,
+      borderRadius: BorderRadius.circular(4),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:doom_core/doom_core.dart';
+import 'package:doom_flutter/src/crt_effect.dart';
+import 'package:doom_flutter/src/crt_shader_painter.dart';
 import 'package:doom_flutter/src/key_mapping.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,16 +11,22 @@ import 'package:flutter/services.dart';
 class DoomWidget extends StatefulWidget {
   const DoomWidget({
     super.key,
-    this.scale = 3,
+    this.scale = 1,
     this.wadBytes,
     this.mapName = 'E1M1',
     this.onQuit,
+    this.crtEffect = CrtEffect.none,
+    this.crtShader,
+    this.fillScreen = false,
   });
 
   final int scale;
   final Uint8List? wadBytes;
   final String mapName;
   final VoidCallback? onQuit;
+  final CrtEffect crtEffect;
+  final ui.FragmentShader? crtShader;
+  final bool fillScreen;
 
   @override
   State<DoomWidget> createState() => _DoomWidgetState();
@@ -49,7 +57,8 @@ class _DoomWidgetState extends State<DoomWidget> {
       ..init(wadBytes)
       ..onQuit = widget.onQuit;
 
-    _rgbaBuffer = Uint8List(ScreenDimensions.width * ScreenDimensions.height * 4);
+    _rgbaBuffer =
+        Uint8List(ScreenDimensions.width * ScreenDimensions.height * 4);
 
     _initialized = true;
     _startGameLoop();
@@ -139,38 +148,73 @@ class _DoomWidgetState extends State<DoomWidget> {
     return KeyEventResult.ignored;
   }
 
-  int? _logicalKeyToCode(LogicalKeyboardKey key) =>
-      KeyMapping.toDoomKey(key);
+  int? _logicalKeyToCode(LogicalKeyboardKey key) => KeyMapping.toDoomKey(key);
+
+  int _calculateScale(BoxConstraints constraints) {
+    if (!widget.fillScreen) {
+      return widget.scale;
+    }
+    final maxScaleX = constraints.maxWidth ~/ ScreenDimensions.width;
+    final maxScaleY = constraints.maxHeight ~/ ScreenDimensions.height;
+    final scale = maxScaleX < maxScaleY ? maxScaleX : maxScaleY;
+    return scale < 1 ? 1 : scale;
+  }
+
+  Size _calculateSize(int scale) {
+    return Size(
+      (ScreenDimensions.width * scale).toDouble(),
+      (ScreenDimensions.height * scale).toDouble(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Focus(
       focusNode: _focusNode,
       autofocus: true,
+      skipTraversal: true,
       onKeyEvent: _handleKeyEvent,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: _focusNode.requestFocus,
-        child: ValueListenableBuilder<ui.Image?>(
-          valueListenable: _frameNotifier,
-          builder: (context, image, child) {
-            if (image == null) {
-              return Container(
-                width: ScreenDimensions.width * widget.scale.toDouble(),
-                height: ScreenDimensions.height * widget.scale.toDouble(),
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.red),
-                ),
+        child: MouseRegion(
+          onEnter: (_) => _focusNode.requestFocus(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = _calculateScale(constraints);
+              final size = _calculateSize(scale);
+              return ValueListenableBuilder<ui.Image?>(
+                valueListenable: _frameNotifier,
+                builder: (context, image, child) {
+                  if (image == null) {
+                    return Container(
+                      width: size.width,
+                      height: size.height,
+                      color: Colors.black,
+                      child: const Center(
+                        child: CircularProgressIndicator(color: Colors.red),
+                      ),
+                    );
+                  }
+                  final shader = widget.crtShader;
+                  if (shader != null && widget.crtEffect != CrtEffect.none) {
+                    return CustomPaint(
+                      painter: CrtShaderPainter(
+                        image: image,
+                        shader: shader,
+                        effect: widget.crtEffect,
+                      ),
+                      size: size,
+                    );
+                  }
+                  return CustomPaint(
+                    painter: DoomPainter(image),
+                    size: size,
+                  );
+                },
               );
-            }
-            return CustomPaint(
-              painter: DoomPainter(image),
-              size: Size(
-                ScreenDimensions.width * widget.scale.toDouble(),
-                ScreenDimensions.height * widget.scale.toDouble(),
-              ),
-            );
-          },
+            },
+          ),
         ),
       ),
     );
