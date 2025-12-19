@@ -210,6 +210,12 @@ void aChase(Mobj actor, LevelLocals level, DoomRandom random) {
   if (actor.moveCount < 0 || !_move(actor, level)) {
     _newChaseDir(actor, target, level, random);
   }
+
+  // make active sound
+  // Original C: if (actor->info->activesound && P_Random () < 3)
+  if (actor.info?.activeSound != null && random.pRandom() < 3) {
+    // Sound would be played here
+  }
 }
 
 void chase(Mobj actor, LevelLocals level) {
@@ -507,6 +513,10 @@ void aPosAttack(Mobj actor, DoomRandom random, LevelLocals level) {
 
   aFaceTarget(actor, random);
 
+  // Original C: angle += (P_Random()-P_Random())<<20;
+  // Must call P_Random twice for angle spread even if not used for actual aiming
+  random.pRandom();
+  random.pRandom();
   final damage = ((random.pRandom() % 5) + 1) * 3;
   _hitscanAttack(actor, damage, level);
 }
@@ -518,6 +528,9 @@ void aSPosAttack(Mobj actor, DoomRandom random, LevelLocals level) {
   aFaceTarget(actor, random);
 
   for (var i = 0; i < 3; i++) {
+    // Original C: angle = bangle + ((P_Random()-P_Random())<<20);
+    random.pRandom();
+    random.pRandom();
     final damage = ((random.pRandom() % 5) + 1) * 3;
     _hitscanAttack(actor, damage, level);
   }
@@ -529,6 +542,9 @@ void aCPosAttack(Mobj actor, DoomRandom random, LevelLocals level) {
 
   aFaceTarget(actor, random);
 
+  // Original C: angle = bangle + ((P_Random()-P_Random())<<20);
+  random.pRandom();
+  random.pRandom();
   final damage = ((random.pRandom() % 5) + 1) * 3;
   _hitscanAttack(actor, damage, level);
 }
@@ -719,6 +735,27 @@ void aSkelWhoosh(Mobj actor, DoomRandom random) {
 }
 
 void aTracer(Mobj actor, LevelLocals level) {
+  // Original C: if (gametic & 3) return;
+  // Only adjust direction every 4 tics
+  if ((level.levelTime & 3) != 0) return;
+
+  // Spawn puff and smoke - these call P_Random for various effects
+  // P_SpawnPuff does:
+  //   z += ((P_Random()-P_Random())<<10)  - 2 calls
+  //   P_SpawnMobj (puff) -> lastlook      - 1 call
+  //   th->tics -= P_Random()&3            - 1 call
+  // Then A_Tracer spawns smoke:
+  //   P_SpawnMobj (smoke) -> lastlook     - 1 call
+  //   th->tics -= P_Random()&3            - 1 call
+  // Total: 6 P_Random calls
+  level.random
+    ..pRandom() // P_SpawnPuff z adjustment 1
+    ..pRandom() // P_SpawnPuff z adjustment 2
+    ..pRandom() // P_SpawnMobj (puff) lastlook
+    ..pRandom() // puff tics adjustment
+    ..pRandom() // P_SpawnMobj (smoke) lastlook
+    ..pRandom(); // smoke tics adjustment
+
   final dest = actor.tracer;
   if (dest == null || dest.health <= 0) return;
 

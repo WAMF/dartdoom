@@ -1317,8 +1317,36 @@ void updateScrollingLines(LevelLocals level) {
   }
 }
 
+// Original C (g_game.c G_PlayerReborn):
+// ```c
+// void G_PlayerReborn (int player)
+// {
+//     player_t *p;
+//     int i;
+//     int frags[MAXPLAYERS];
+//     int killcount, itemcount, secretcount;
+//
+//     memcpy (frags,players[player].frags,sizeof(frags));
+//     killcount = players[player].killcount;
+//     itemcount = players[player].itemcount;
+//     secretcount = players[player].secretcount;
+//
+//     memset (p, 0, sizeof(*p));
+//
+//     memcpy (players[player].frags, frags, sizeof(players[player].frags));
+//     players[player].killcount = killcount;
+//     players[player].itemcount = itemcount;
+//     players[player].secretcount = secretcount;
+//     ...
+// }
+// ```
 void respawnPlayer(Player player, LevelLocals level) {
   player.playerState = PlayerState.reborn;
+
+  // Save stats before reset (matching C's G_PlayerReborn)
+  final killCount = player.killCount;
+  final itemCount = player.itemCount;
+  final secretCount = player.secretCount;
 
   player
     ..health = PlayerConstants.maxHealth
@@ -1330,8 +1358,14 @@ void respawnPlayer(Player player, LevelLocals level) {
     ..fixedColormap = 0
     ..readyWeapon = WeaponType.pistol
     ..pendingWeapon = WeaponType.noChange
-    ..attackDown = false
-    ..useDown = false;
+    // C code sets these to true to prevent immediate action on respawn
+    // (p->usedown = p->attackdown = true in G_PlayerReborn)
+    ..attackDown = true
+    ..useDown = true
+    // Restore saved stats
+    ..killCount = killCount
+    ..itemCount = itemCount
+    ..secretCount = secretCount;
 
   for (var i = 0; i < player.powers.length; i++) {
     player.powers[i] = 0;

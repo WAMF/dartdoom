@@ -57,6 +57,7 @@ enum GameAction {
   loadGame,
   saveGame,
   playDemo,
+  recordDemo,
   completed,
   victory,
   worldDone,

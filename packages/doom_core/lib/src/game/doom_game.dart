@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:doom_core/src/demo/demo_player.dart';
+import 'package:doom_core/src/demo/demo_recorder.dart';
 import 'package:doom_core/src/doomdef.dart';
 import 'package:doom_core/src/events/doom_event.dart';
 import 'package:doom_core/src/game/blockmap.dart';
@@ -69,6 +71,12 @@ class DoomGame {
   bool _secretExit = false;
   int _nextMap = 1;
 
+  // Game mode flags (from demo header or command line in original C)
+  bool _noMonsters = false;
+  bool _fastMonsters = false;
+  bool _respawnMonsters = false;
+  bool _deathmatch = false;
+
   int _demoSequence = -1;
   int _pageTic = 0;
   String _pageName = '';
@@ -83,6 +91,16 @@ class DoomGame {
   VoidCallback? onQuit;
   bool _shouldQuit = false;
 
+  // Demo recording and playback
+  DemoRecorder? _demoRecorder;
+  DemoPlayer? _demoPlayer;
+  bool _demoRecording = false;
+  bool _demoPlayback = false;
+  Uint8List? _pendingDemoData;
+
+  /// Callback when demo recording finishes. Returns the recorded demo data.
+  void Function(Uint8List demoData)? onDemoRecorded;
+
   bool get shouldQuit => _shouldQuit;
   RenderState? get renderState => _renderState;
   Renderer? get renderer => _renderer;
@@ -92,6 +110,12 @@ class DoomGame {
   GameState get gameState => _gameState;
   MenuSystem get menuSystem => _menuSystem;
   Skill get skill => _skill;
+
+  /// Whether a demo is currently being recorded.
+  bool get isDemoRecording => _demoRecording;
+
+  /// Whether a demo is currently being played back.
+  bool get isDemoPlayback => _demoPlayback;
 
   Player? get player => _level?.players[_consoleplayer];
 
@@ -151,38 +175,100 @@ class DoomGame {
     _advanceDemo = true;
   }
 
+  /// Advance demo sequence.
+  ///
+  /// Original C (d_main.c):
+  /// ```c
+  /// void D_DoAdvanceDemo (void)
+  /// {
+  ///     players[consoleplayer].playerstate = PST_LIVE;
+  ///     advancedemo = false;
+  ///     usergame = false;
+  ///     paused = false;
+  ///     gameaction = ga_nothing;
+  ///
+  ///     if ( gamemode == retail )
+  ///       demosequence = (demosequence+1)%7;
+  ///     else
+  ///       demosequence = (demosequence+1)%6;
+  ///
+  ///     switch (demosequence)
+  ///     {
+  ///       case 0:
+  ///         pagetic = 170;
+  ///         gamestate = GS_DEMOSCREEN;
+  ///         pagename = "TITLEPIC";
+  ///         break;
+  ///       case 1:
+  ///         G_DeferedPlayDemo ("demo1");
+  ///         break;
+  ///       case 2:
+  ///         pagetic = 200;
+  ///         gamestate = GS_DEMOSCREEN;
+  ///         pagename = "CREDIT";
+  ///         break;
+  ///       case 3:
+  ///         G_DeferedPlayDemo ("demo2");
+  ///         break;
+  ///       case 4:
+  ///         gamestate = GS_DEMOSCREEN;
+  ///         pagetic = 200;
+  ///         if ( gamemode == retail )
+  ///           pagename = "CREDIT";
+  ///         else
+  ///           pagename = "HELP2";
+  ///         break;
+  ///       case 5:
+  ///         G_DeferedPlayDemo ("demo3");
+  ///         break;
+  ///       case 6:
+  ///         G_DeferedPlayDemo ("demo4");
+  ///         break;
+  ///     }
+  /// }
+  /// ```
   void _doAdvanceDemo() {
-    _demoSequence = (_demoSequence + 1) % 7;
+    // Retail has 7 sequences (includes demo4), others have 6
+    final maxSequence = _gameMode == GameMode.retail ? 7 : 6;
+    _demoSequence = (_demoSequence + 1) % maxSequence;
 
     switch (_demoSequence) {
       case 0:
-        _pageTic = _DemoConstants.titleTics;
+        // Title screen
+        _pageTic = _gameMode == GameMode.commercial
+            ? 35 * 11 // 11 seconds for commercial
+            : _DemoConstants.titleTics; // 170 tics (~5 sec)
         _pageName = 'TITLEPIC';
         _gameState = GameState.demoScreen;
+        // TODO: S_StartMusic for title music
       case 1:
-        _pageTic = _DemoConstants.pageTics;
-        _pageName = 'CREDIT';
-        _gameState = GameState.demoScreen;
+        // Play demo1
+        playDemoFromWad('DEMO1');
       case 2:
-        _pageTic = _DemoConstants.pageTics;
-        _pageName = 'HELP2';
+        // Credits screen
+        _pageTic = _DemoConstants.pageTics; // 200 tics
+        _pageName = 'CREDIT';
         _gameState = GameState.demoScreen;
       case 3:
-        _pageTic = _DemoConstants.titleTics;
-        _pageName = 'TITLEPIC';
-        _gameState = GameState.demoScreen;
+        // Play demo2
+        playDemoFromWad('DEMO2');
       case 4:
-        _pageTic = _DemoConstants.pageTics;
-        _pageName = 'CREDIT';
+        // Title or credits/help depending on game mode
         _gameState = GameState.demoScreen;
+        if (_gameMode == GameMode.commercial) {
+          _pageTic = 35 * 11;
+          _pageName = 'TITLEPIC';
+          // TODO: S_StartMusic for title music
+        } else {
+          _pageTic = _DemoConstants.pageTics;
+          _pageName = _gameMode == GameMode.retail ? 'CREDIT' : 'HELP2';
+        }
       case 5:
-        _pageTic = _DemoConstants.pageTics;
-        _pageName = 'HELP2';
-        _gameState = GameState.demoScreen;
+        // Play demo3
+        playDemoFromWad('DEMO3');
       case 6:
-        _pageTic = _DemoConstants.titleTics;
-        _pageName = 'TITLEPIC';
-        _gameState = GameState.demoScreen;
+        // Play demo4 (retail only - The Definitive DOOM Special Edition)
+        playDemoFromWad('DEMO4');
     }
   }
 
@@ -245,11 +331,16 @@ class DoomGame {
       case GameAction.worldDone:
         _doWorldDone();
         _gameAction = GameAction.nothing;
+      case GameAction.playDemo:
+        _doPlayDemo();
+        _gameAction = GameAction.nothing;
+      case GameAction.recordDemo:
+        _doRecordDemo();
+        _gameAction = GameAction.nothing;
       case GameAction.nothing:
       case GameAction.loadLevel:
       case GameAction.loadGame:
       case GameAction.saveGame:
-      case GameAction.playDemo:
       case GameAction.victory:
       case GameAction.screenshot:
         break;
@@ -257,6 +348,12 @@ class DoomGame {
   }
 
   void _doNewGame() {
+    // Stop any demo playback when starting a new game
+    if (_demoPlayback) {
+      _demoPlayback = false;
+      _demoPlayer = null;
+    }
+
     _forceWipe = true;
     _episode = _deferredEpisode;
     _map = _deferredMap;
@@ -366,7 +463,11 @@ class DoomGame {
 
     final level = LevelLocals(renderState)
       ..init()
-      ..skill = _skill;
+      ..skill = _skill
+      ..noMonsters = _noMonsters
+      ..fastMonsters = _fastMonsters
+      ..respawnMonsters = _respawnMonsters
+      ..deathmatch = _deathmatch;
     _level = level;
 
     if (mapData.blockmap != null) {
@@ -542,6 +643,12 @@ class DoomGame {
   }
 
   void runTic() {
+    // Don't run game tics during screen wipe - matches original C behavior
+    // Original DOOM has a blocking loop during wipe where no G_Ticker runs
+    if (_wipe.isActive) {
+      return;
+    }
+
     _processGameAction();
 
     _menuSystem.ticker();
@@ -553,10 +660,31 @@ class DoomGame {
           final l = _level;
           if (p != null && l != null) {
             final cmd = p.cmd;
-            input.buildTicCmd(cmd);
+
+            // Demo playback: read commands from demo
+            if (_demoPlayback && _demoPlayer != null) {
+              _demoPlayer!.readTic(cmd);
+              if (_demoPlayer!.isFinished) {
+                _stopDemoPlayback();
+                return;
+              }
+            } else {
+              // Normal gameplay: build commands from input
+              input.buildTicCmd(cmd);
+            }
+
+            // Demo recording: write commands to demo
+            if (_demoRecording && _demoRecorder != null) {
+              _demoRecorder!.recordTic(cmd);
+            }
+
             _ticker.tick(l);
 
             if (l.exitLevel || l.secretExit) {
+              // If recording, stop the demo when level exits
+              if (_demoRecording) {
+                _stopDemoRecording();
+              }
               _gameAction = GameAction.completed;
             }
 
@@ -746,6 +874,164 @@ class DoomGame {
       if (block < 0) block = 0;
       sector.blockBox2 = block;
     }
+  }
+
+  // ============================================================
+  // Demo Recording and Playback
+  // ============================================================
+
+  /// Start recording a demo. The game will start a new level and record
+  /// all player inputs.
+  ///
+  /// Original C (g_game.c):
+  /// ```c
+  /// void G_RecordDemo (char* name)
+  /// {
+  ///     usergame = false;
+  ///     strcpy (demoname, name);
+  ///     strcat (demoname, ".lmp");
+  ///     demobuffer = demo_p = Z_Malloc (0x20000,PU_STATIC,NULL);
+  ///     demoend = demobuffer + 0x20000;
+  ///     demorecording = true;
+  /// }
+  /// ```
+  void startDemoRecording({
+    required Skill skill,
+    required int episode,
+    required int map,
+  }) {
+    _skill = skill;
+    _deferredEpisode = episode;
+    _deferredMap = map;
+    _gameAction = GameAction.recordDemo;
+  }
+
+  void _doRecordDemo() {
+    _demoRecorder = DemoRecorder()
+      ..startRecording(
+        skill: _skill,
+        episode: _deferredEpisode,
+        map: _deferredMap,
+        consolePlayer: _consoleplayer,
+        playersInGame: [true, false, false, false],
+      );
+    _demoRecording = true;
+
+    // Start the game
+    _doNewGame();
+  }
+
+  void _stopDemoRecording() {
+    if (!_demoRecording || _demoRecorder == null) return;
+
+    final demoData = _demoRecorder!.stopRecording();
+    _demoRecording = false;
+    _demoRecorder = null;
+
+    // Notify callback if set
+    onDemoRecorded?.call(demoData);
+  }
+
+  /// Stop demo recording manually and return the recorded data.
+  Uint8List? stopDemoRecording() {
+    if (!_demoRecording || _demoRecorder == null) return null;
+
+    final demoData = _demoRecorder!.stopRecording();
+    _demoRecording = false;
+    _demoRecorder = null;
+
+    return demoData;
+  }
+
+  /// Start playing a demo from the provided data.
+  ///
+  /// Original C (g_game.c):
+  /// ```c
+  /// void G_DeferedPlayDemo (char* name)
+  /// {
+  ///     defdemoname = name;
+  ///     gameaction = ga_playdemo;
+  /// }
+  /// ```
+  void playDemo(Uint8List demoData) {
+    _pendingDemoData = demoData;
+    _gameAction = GameAction.playDemo;
+  }
+
+  void _doPlayDemo() {
+    final data = _pendingDemoData;
+    if (data == null) return;
+
+    _pendingDemoData = null;
+
+    // Validate demo data length
+    if (data.length < 13) {
+      return;
+    }
+
+    _demoPlayer = DemoPlayer(data);
+
+    final header = _demoPlayer!.header;
+
+    // Check version compatibility
+    if (!header.isCompatible) {
+      _demoPlayer = null;
+      return;
+    }
+
+    // Set up game from demo header (matching C's G_DoPlayDemo)
+    _skill = header.skill;
+    _episode = header.episode;
+    _map = header.map;
+
+    // Apply game mode flags from demo header
+    _deathmatch = header.deathmatch;
+    _respawnMonsters = header.respawn;
+    _fastMonsters = header.fast;
+    _noMonsters = header.noMonsters;
+
+    // Load the level
+    _forceWipe = true;
+    final mapName = _buildMapName(_episode, _map);
+    loadLevel(mapName);
+    _gameState = GameState.level;
+
+    _demoPlayback = true;
+  }
+
+  void _stopDemoPlayback() {
+    _demoPlayback = false;
+    _demoPlayer = null;
+
+    // Reset palette to normal (removes pain/bonus tint)
+    _paletteConverter.setPaletteIndex(0);
+
+    // Advance to next item in demo sequence (not restart)
+    // This matches original DOOM behavior where demo end advances the sequence
+    _advanceDemoFlag();
+    _gameState = GameState.demoScreen;
+  }
+
+  /// Stop demo playback manually.
+  void stopDemoPlayback() {
+    if (_demoPlayback) {
+      _stopDemoPlayback();
+    }
+  }
+
+  /// Play a demo from the WAD file by lump name.
+  ///
+  /// If the demo lump is not found, advances to the next demo sequence item.
+  void playDemoFromWad(String lumpName) {
+    final lumpNum = _wadManager.checkNumForName(lumpName);
+    if (lumpNum < 0) {
+      // Demo not found in WAD - advance to next sequence item
+      _advanceDemoFlag();
+      return;
+    }
+
+    final demoData = _wadManager.cacheLumpNum(lumpNum);
+    playDemo(demoData);
   }
 }
 

@@ -20,10 +20,31 @@ const List<int> _rndTable = [
   120, 163, 236, 249,
 ];
 
-int mRandom() => DoomRandom._instance.mRandom();
+/// Global top-level function for M_Random (non-deterministic random).
+int mRandom() => DoomRandom.instance.mRandom();
 
+/// Global top-level function for P_Random (deterministic random for gameplay).
+int pRandom() => DoomRandom.instance.pRandom();
+
+/// Global function to clear random state.
+void clearRandom() => DoomRandom.instance.clearRandom();
+
+/// DOOM random number generator.
+///
+/// Uses singleton pattern to match original C global variables.
+/// Original C (m_random.c):
+/// ```c
+/// int rndindex = 0;
+/// int prndindex = 0;
+/// ```
 class DoomRandom {
-  static final DoomRandom _instance = DoomRandom();
+  /// Factory constructor returns the singleton instance.
+  /// This ensures all code using `DoomRandom()` gets the same instance.
+  factory DoomRandom() => instance;
+
+  DoomRandom._();
+
+  static final DoomRandom instance = DoomRandom._();
 
   int _rndIndex = 0;
   int _prndIndex = 0;

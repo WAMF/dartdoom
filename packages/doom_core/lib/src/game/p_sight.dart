@@ -40,6 +40,23 @@ class _SightContext {
 /// This matches the C code's use of global variables.
 final _SightContext _ctx = _SightContext();
 
+// Original C (p_sight.c):
+// ```c
+// int P_DivlineSide(fixed_t x, fixed_t y, divline_t* node)
+// {
+//     if (!node->dx) {
+//         if (x==node->x) return 2;
+//         if (x <= node->x) return node->dy > 0;
+//         return node->dy < 0;
+//     }
+//     if (!node->dy) {
+//         if (x==node->y) return 2;  // BUG in original: checks x against node->y
+//         if (y <= node->y) return node->dx < 0;
+//         return node->dx > 0;
+//     }
+//     ...
+// }
+// ```
 int _divlineSide(int x, int y, _Divline node) {
   if (node.dx == 0) {
     if (x == node.x) return 2;
@@ -48,6 +65,7 @@ int _divlineSide(int x, int y, _Divline node) {
   }
 
   if (node.dy == 0) {
+    // Note: Original C has bug checking x==node->y here, but we use correct y==node.y
     if (y == node.y) return 2;
     if (y <= node.y) return node.dx < 0 ? 1 : 0;
     return node.dx > 0 ? 1 : 0;
@@ -245,9 +263,11 @@ bool checkSight(
   }
 
   // Reuse pre-allocated context (matches C's global variables)
+  // Increment validCount BEFORE storing, matching C's behavior
+  state.validCount++;
   final sightZStart = t1.z + t1.height - (t1.height >> 2);
   _ctx
-    ..validCount = state.validCount++
+    ..validCount = state.validCount
     ..sightZStart = sightZStart
     ..topSlope = (t2.z + t2.height) - sightZStart
     ..bottomSlope = t2.z - sightZStart

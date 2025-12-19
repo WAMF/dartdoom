@@ -7,6 +7,8 @@ void main() {
 
     setUp(() {
       random = DoomRandom();
+      // Reset state before each test since DoomRandom is now a singleton
+      random.clearRandom();
     });
 
     group('initial state', () {
@@ -104,21 +106,32 @@ void main() {
     });
 
     group('determinism', () {
-      test('produces same sequence for same initial state', () {
+      test('singleton returns same instance', () {
         final random1 = DoomRandom();
         final random2 = DoomRandom();
 
-        final seq1 = List.generate(10, (_) => random1.pRandom());
-        final seq2 = List.generate(10, (_) => random2.pRandom());
+        // Both should be the same singleton instance
+        expect(identical(random1, random2), isTrue);
+      });
+
+      test('produces same sequence after clearRandom', () {
+        random.clearRandom();
+        final seq1 = List.generate(10, (_) => random.pRandom());
+
+        random.clearRandom();
+        final seq2 = List.generate(10, (_) => random.pRandom());
 
         expect(seq1, seq2);
       });
 
       test('produces different sequences from different indices', () {
-        final random1 = DoomRandom();
-        final random2 = DoomRandom()..prndIndex = 100;
+        random.clearRandom();
+        final val1 = random.pRandom();
 
-        expect(random1.pRandom(), isNot(random2.pRandom()));
+        random.prndIndex = 100;
+        final val2 = random.pRandom();
+
+        expect(val1, isNot(val2));
       });
     });
 

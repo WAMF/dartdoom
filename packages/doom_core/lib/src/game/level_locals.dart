@@ -29,6 +29,12 @@ class LevelLocals {
 
   Skill skill = Skill.hurtMePlenty;
 
+  // Game mode flags (from demo header or command line in original)
+  bool noMonsters = false;
+  bool fastMonsters = false;
+  bool respawnMonsters = false;
+  bool deathmatch = false;
+
   int levelTime = 0;
   int totalKills = 0;
   int totalItems = 0;

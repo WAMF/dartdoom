@@ -833,7 +833,9 @@ class ThingSpawner {
       ..health = info?.spawnHealth ?? 1000
       ..reactionTime = _level.skill == Skill.nightmare
           ? 0
-          : (info?.reactionTime ?? 8);
+          : (info?.reactionTime ?? 8)
+      // Original C: mobj->lastlook = P_Random() % MAXPLAYERS;
+      ..lastLook = _level.random.pRandom() % 4;
 
     final spawnState = info?.spawnState ?? 0;
     if (spawnState > 0 && spawnState < states.length) {
@@ -982,55 +984,206 @@ void mobjThinker(Mobj mobj, LevelLocals level) {
   }
 }
 
+// Original C (p_mobj.c):
+// ```c
+// void P_XYMovement (mobj_t* mo)
+// {
+//     fixed_t ptryx, ptryy;
+//     player_t* player;
+//     fixed_t xmove, ymove;
+//
+//     if (!mo->momx && !mo->momy)
+//     {
+//         if (mo->flags & MF_SKULLFLY)
+//         {
+//             // the skull slammed into something
+//             mo->flags &= ~MF_SKULLFLY;
+//             mo->momx = mo->momy = mo->momz = 0;
+//             P_SetMobjState (mo, mo->info->spawnstate);
+//         }
+//         return;
+//     }
+//
+//     player = mo->player;
+//
+//     if (mo->momx > MAXMOVE) mo->momx = MAXMOVE;
+//     else if (mo->momx < -MAXMOVE) mo->momx = -MAXMOVE;
+//     if (mo->momy > MAXMOVE) mo->momy = MAXMOVE;
+//     else if (mo->momy < -MAXMOVE) mo->momy = -MAXMOVE;
+//
+//     xmove = mo->momx;
+//     ymove = mo->momy;
+//
+//     do
+//     {
+//         if (xmove > MAXMOVE/2 || ymove > MAXMOVE/2)
+//         {
+//             ptryx = mo->x + xmove/2;
+//             ptryy = mo->y + ymove/2;
+//             xmove >>= 1;
+//             ymove >>= 1;
+//         }
+//         else
+//         {
+//             ptryx = mo->x + xmove;
+//             ptryy = mo->y + ymove;
+//             xmove = ymove = 0;
+//         }
+//
+//         if (!P_TryMove (mo, ptryx, ptryy))
+//         {
+//             if (mo->player) P_SlideMove (mo);
+//             else if (mo->flags & MF_MISSILE)
+//             {
+//                 // ... sky check omitted ...
+//                 P_ExplodeMissile (mo);
+//             }
+//             else
+//                 mo->momx = mo->momy = 0;
+//         }
+//     } while (xmove || ymove);
+//
+//     // slow down
+//     if (player && player->cheats & CF_NOMOMENTUM)
+//     {
+//         mo->momx = mo->momy = 0;
+//         return;
+//     }
+//
+//     if (mo->flags & (MF_MISSILE | MF_SKULLFLY))
+//         return; // no friction for missiles ever
+//
+//     if (mo->z > mo->floorz)
+//         return; // no friction when airborne
+//
+//     if (mo->flags & MF_CORPSE)
+//     {
+//         // do not stop sliding if halfway off a step with some momentum
+//         if (mo->momx > FRACUNIT/4 || mo->momx < -FRACUNIT/4
+//             || mo->momy > FRACUNIT/4 || mo->momy < -FRACUNIT/4)
+//         {
+//             if (mo->floorz != mo->subsector->sector->floorheight)
+//                 return;
+//         }
+//     }
+//
+//     if (mo->momx > -STOPSPEED && mo->momx < STOPSPEED
+//         && mo->momy > -STOPSPEED && mo->momy < STOPSPEED
+//         && (!player || (player->cmd.forwardmove==0 && player->cmd.sidemove==0)))
+//     {
+//         // if in a walking frame, stop moving
+//         if (player && ...)
+//             P_SetMobjState (player->mo, S_PLAY);
+//         mo->momx = 0;
+//         mo->momy = 0;
+//     }
+//     else
+//     {
+//         mo->momx = FixedMul (mo->momx, FRICTION);
+//         mo->momy = FixedMul (mo->momy, FRICTION);
+//     }
+// }
+// ```
 void xyMovement(Mobj mo, LevelLocals level) {
   if (mo.momX == 0 && mo.momY == 0) {
+    // Original C: skull slammed into something
+    if ((mo.flags & MobjFlag.skullFly) != 0) {
+      mo.flags &= ~MobjFlag.skullFly;
+      mo.momX = mo.momY = mo.momZ = 0;
+      final info = mo.info;
+      if (info != null && info.spawnState > 0) {
+        spec.setMobjStateNum(mo, info.spawnState, level);
+      }
+    }
     return;
+  }
+
+  final player = mo.player;
+
+  if (mo.momX > PhysicsConstants.maxMove) {
+    mo.momX = PhysicsConstants.maxMove;
+  } else if (mo.momX < -PhysicsConstants.maxMove) {
+    mo.momX = -PhysicsConstants.maxMove;
+  }
+
+  if (mo.momY > PhysicsConstants.maxMove) {
+    mo.momY = PhysicsConstants.maxMove;
+  } else if (mo.momY < -PhysicsConstants.maxMove) {
+    mo.momY = -PhysicsConstants.maxMove;
   }
 
   var xMove = mo.momX;
   var yMove = mo.momY;
 
-  if (xMove > PhysicsConstants.maxMove) {
-    xMove = PhysicsConstants.maxMove;
-  } else if (xMove < -PhysicsConstants.maxMove) {
-    xMove = -PhysicsConstants.maxMove;
-  }
+  // Original C: do-while loop to split large movements
+  do {
+    int pTryX;
+    int pTryY;
 
-  if (yMove > PhysicsConstants.maxMove) {
-    yMove = PhysicsConstants.maxMove;
-  } else if (yMove < -PhysicsConstants.maxMove) {
-    yMove = -PhysicsConstants.maxMove;
-  }
-
-  final pTryX = mo.x + xMove;
-  final pTryY = mo.y + yMove;
-
-  if (!tryMove(mo, pTryX, pTryY, level)) {
-    if (mo.player != null) {
-      slideMove(mo, level);
-    } else if ((mo.flags & MobjFlag.missile) != 0) {
-      explodeMissile(mo, level);
-      return;
+    if (xMove > PhysicsConstants.maxMove ~/ 2 ||
+        yMove > PhysicsConstants.maxMove ~/ 2 ||
+        xMove < -PhysicsConstants.maxMove ~/ 2 ||
+        yMove < -PhysicsConstants.maxMove ~/ 2) {
+      pTryX = mo.x + xMove ~/ 2;
+      pTryY = mo.y + yMove ~/ 2;
+      xMove >>= 1;
+      yMove >>= 1;
     } else {
-      mo.momX = mo.momY = 0;
+      pTryX = mo.x + xMove;
+      pTryY = mo.y + yMove;
+      xMove = yMove = 0;
     }
-  }
 
+    if (!tryMove(mo, pTryX, pTryY, level)) {
+      if (mo.player != null) {
+        slideMove(mo, level);
+      } else if ((mo.flags & MobjFlag.missile) != 0) {
+        explodeMissile(mo, level);
+        return;
+      } else {
+        mo.momX = mo.momY = 0;
+      }
+    }
+  } while (xMove != 0 || yMove != 0);
+
+  // slow down
   if ((mo.flags & (MobjFlag.missile | MobjFlag.skullFly)) != 0) {
-    return;
+    return; // no friction for missiles ever
   }
 
   if (mo.z > mo.floorZ) {
-    return;
+    return; // no friction when airborne
   }
 
-  mo.momX = Fixed32.mul(mo.momX, PhysicsConstants.friction);
-  mo.momY = Fixed32.mul(mo.momY, PhysicsConstants.friction);
+  // Original C: corpse sliding check
+  if ((mo.flags & MobjFlag.corpse) != 0) {
+    // do not stop sliding if halfway off a step with some momentum
+    const quarterUnit = Fixed32.fracUnit ~/ 4;
+    if (mo.momX > quarterUnit ||
+        mo.momX < -quarterUnit ||
+        mo.momY > quarterUnit ||
+        mo.momY < -quarterUnit) {
+      final ss = mo.subsector;
+      if (ss != null && ss is Subsector) {
+        if (mo.floorZ != ss.sector.floorHeight) {
+          return;
+        }
+      }
+    }
+  }
 
-  if (mo.momX.abs() < PhysicsConstants.stopSpeed &&
-      mo.momY.abs() < PhysicsConstants.stopSpeed) {
+  // Original C: stop check includes player command check
+  final p = player is Player ? player : null;
+  if (mo.momX > -PhysicsConstants.stopSpeed &&
+      mo.momX < PhysicsConstants.stopSpeed &&
+      mo.momY > -PhysicsConstants.stopSpeed &&
+      mo.momY < PhysicsConstants.stopSpeed &&
+      (p == null || (p.cmd.forwardMove == 0 && p.cmd.sideMove == 0))) {
     mo.momX = 0;
     mo.momY = 0;
+  } else {
+    mo.momX = Fixed32.mul(mo.momX, PhysicsConstants.friction);
+    mo.momY = Fixed32.mul(mo.momY, PhysicsConstants.friction);
   }
 }
 
@@ -1043,14 +1196,23 @@ void zMovement(Mobj mo, LevelLocals level) {
 
   mo.z += mo.momZ;
 
+  // Original C: float down towards target if too close
+  // if ( mo->flags & MF_FLOAT && mo->target)
+  // {
+  //     if ( !(mo->flags & MF_SKULLFLY) && !(mo->flags & MF_INFLOAT) )
+  //     { ... }
+  // }
   if ((mo.flags & MobjFlag.float) != 0 && mo.target != null) {
-    final dist = approxDistance(mo.x - mo.target!.x, mo.y - mo.target!.y);
-    final delta = mo.target!.z + (mo.height >> 1) - mo.z;
+    if ((mo.flags & MobjFlag.skullFly) == 0 &&
+        (mo.flags & MobjFlag.inFloat) == 0) {
+      final dist = approxDistance(mo.x - mo.target!.x, mo.y - mo.target!.y);
+      final delta = mo.target!.z + (mo.height >> 1) - mo.z;
 
-    if (delta < 0 && dist < -(delta * 3)) {
-      mo.z -= Fixed32.fracUnit;
-    } else if (delta > 0 && dist < (delta * 3)) {
-      mo.z += Fixed32.fracUnit;
+      if (delta < 0 && dist < -(delta * 3)) {
+        mo.z -= Fixed32.fracUnit;
+      } else if (delta > 0 && dist < (delta * 3)) {
+        mo.z += Fixed32.fracUnit;
+      }
     }
   }
 
@@ -1123,7 +1285,9 @@ Mobj? spawnMobj(
     ..height = info.height
     ..flags = info.flags
     ..health = info.spawnHealth
-    ..reactionTime = info.reactionTime;
+    ..reactionTime = info.reactionTime
+    // Original C: mobj->lastlook = P_Random () % MAXPLAYERS;
+    ..lastLook = level.random.pRandom() % 4;
 
   final spawnState = info.spawnState;
   if (spawnState > 0 && spawnState < states.length) {
